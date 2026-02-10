@@ -1,0 +1,8 @@
+# Ignore local env files
+backend/.env
+
+# Node dependencies
+**/node_modules
+
+# VS Code
+.vscode/
