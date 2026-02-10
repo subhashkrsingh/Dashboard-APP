@@ -1,5 +1,5 @@
-const crypto = require('crypto');
 const express = require('express');
+const { fyersModel } = require('fyers-api-v3');
 const http = require('http');
 const WebSocket = require('ws');
 require('dotenv').config();
@@ -45,10 +45,23 @@ const FYERS_APP_ID = process.env.FYERS_APP_ID || '';
 const FYERS_ACCESS_TOKEN = process.env.FYERS_ACCESS_TOKEN || '';
 const FYERS_SECRET_ID = process.env.FYERS_SECRET_ID || '';
 const FYERS_DATA_HOST = process.env.FYERS_DATA_HOST || 'https://api-t1.fyers.in';
-const FYERS_AUTH_HOST = process.env.FYERS_AUTH_HOST || 'https://api.fyers.in';
 const FYERS_REDIRECT_URI = process.env.FYERS_REDIRECT_URI || '';
 const POLL_INTERVAL_MS = Number.parseInt(process.env.FYERS_POLL_INTERVAL_MS, 10) || 12000;
 let pollIntervalId = null;
+let fyersClient = null;
+
+function getFyersClient() {
+  if (!fyersClient) {
+    fyersClient = new fyersModel({
+      path: __dirname,
+      enableLogging: false
+    });
+    if (FYERS_APP_ID) fyersClient.setAppId(FYERS_APP_ID);
+    if (FYERS_REDIRECT_URI) fyersClient.setRedirectUrl(FYERS_REDIRECT_URI);
+  }
+  if (FYERS_ACCESS_TOKEN) fyersClient.setAccessToken(FYERS_ACCESS_TOKEN);
+  return fyersClient;
+}
 
 function setStatus(symbol, status, message) {
   symbolStatus[symbol] = {
@@ -96,17 +109,9 @@ async function fetchFyersQuotes(symbolList) {
     return [];
   }
 
-  const authHeader = `${FYERS_APP_ID}:${FYERS_ACCESS_TOKEN}`;
-  const url = `${FYERS_DATA_HOST}/data/quotes?symbols=${encodeURIComponent(symbolList.join(','))}`;
-
   try {
-    const res = await fetch(url, {
-      headers: {
-        Authorization: authHeader,
-        Accept: 'application/json'
-      }
-    });
-    const j = await res.json();
+    const fyers = getFyersClient();
+    const j = await fyers.getQuotes(symbolList);
     const data = Array.isArray(j?.d) ? j.d : [];
 
     if (j?.s !== 'ok' && data.length === 0) {
@@ -196,14 +201,12 @@ app.get('/api/companies', (req, res) => {
   res.json(withStatus);
 });
 
-// Start FYERS login: redirects user to generate auth code
+// Start FYERS login: redirects user to generate auth code (API v3 SDK)
 app.get('/auth/start', (req, res) => {
   if (!ensureAuthConfig(res)) return;
-  const url = new URL(`${FYERS_AUTH_HOST}/api/v2/generate-authcode`);
-  url.searchParams.set('client_id', FYERS_APP_ID);
-  url.searchParams.set('redirect_uri', FYERS_REDIRECT_URI);
-  url.searchParams.set('response_type', 'code');
-  res.redirect(url.toString());
+  const fyers = getFyersClient();
+  const url = fyers.generateAuthCode();
+  res.redirect(url);
 });
 
 // FYERS redirects here with ?auth_code=...
@@ -216,26 +219,12 @@ app.get('/auth/callback', async (req, res) => {
   }
 
   try {
-    const tokenUrl = `${FYERS_AUTH_HOST}/api/v2/token`;
-    const appIdHash = crypto
-      .createHash('sha256')
-      .update(`${FYERS_APP_ID}:${FYERS_SECRET_ID}`)
-      .digest('hex');
-    const payload = {
-      grant_type: 'authorization_code',
-      appIdHash,
-      code: authCode,
-      redirect_uri: FYERS_REDIRECT_URI
-    };
-
-    const resp = await fetch(tokenUrl, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify(payload)
+    const fyers = getFyersClient();
+    const data = await fyers.generate_access_token({
+      client_id: FYERS_APP_ID,
+      secret_key: FYERS_SECRET_ID,
+      auth_code: authCode
     });
-    const data = await resp.json();
     res.json(data);
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -245,4 +234,3 @@ app.get('/auth/callback', async (req, res) => {
 const PORT = process.env.PORT || 3000;
 const HOST = process.env.HOST || '0.0.0.0';
 server.listen(PORT, HOST, () => console.log(`Server listening on http://${HOST}:${PORT}`));
-
