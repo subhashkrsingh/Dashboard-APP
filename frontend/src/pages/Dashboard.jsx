@@ -1,4 +1,4 @@
-﻿import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import LiveCard from "../components/LiveCard.jsx";
 import IntradayChart from "../components/IntradayChart.jsx";
 import CompareChart from "../components/CompareChart.jsx";
@@ -17,7 +17,7 @@ function useQuoteStream() {
 
     ws.addEventListener("message", evt => {
       const msg = JSON.parse(evt.data);
-      if (msg.type !== "quotes") return;--
+      if (msg.type !== "quotes") return;
 
       setSeriesBySymbol(prev => {
         const next = { ...prev };
@@ -186,3 +186,4 @@ export default function Dashboard() {
     </div>
   );
 }
+
