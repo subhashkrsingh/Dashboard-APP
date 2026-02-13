@@ -12,7 +12,8 @@ function useQuoteStream() {
 
   useEffect(() => {
     const wsProtocol = location.protocol === "https:" ? "wss" : "ws";
-    const wsHost = import.meta.env.DEV ? `${location.hostname}:3000` : location.host;
+    const devHost = import.meta.env.VITE_API_HOST || "127.0.0.1:3000";
+    const wsHost = import.meta.env.DEV ? devHost : location.host;
     const ws = new WebSocket(`${wsProtocol}://${wsHost}`);
 
     ws.addEventListener("message", evt => {

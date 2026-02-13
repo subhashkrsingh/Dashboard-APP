@@ -2,14 +2,16 @@ const express = require('express');
 const { fyersModel } = require('fyers-api-v3');
 const http = require('http');
 const WebSocket = require('ws');
+const path = require('path');
 require('dotenv').config();
 
 const app = express();
 const server = http.createServer(app);
 const wss = new WebSocket.Server({ server });
 
-// Serve static frontend (placed in ../frontend)
-app.use(express.static(__dirname + '/../../frontend'));
+// Serve built frontend (Vite output in ../frontend/dist)
+const frontendDist = path.join(__dirname, '..', '..', 'frontend', 'dist');
+app.use(express.static(frontendDist));
 app.use(express.json());
 
 // Symbols (FYERS format, NSE equities). Use NSE:SYMBOL-EQ
@@ -229,6 +231,11 @@ app.get('/auth/callback', async (req, res) => {
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
+});
+
+// SPA fallback to built index.html (keep after API/auth routes)
+app.get('*', (req, res) => {
+  res.sendFile(path.join(frontendDist, 'index.html'));
 });
 
 const PORT = process.env.PORT || 3000;
