@@ -204,15 +204,15 @@ app.get('/api/companies', (req, res) => {
 });
 
 // Start FYERS login: redirects user to generate auth code (API v3 SDK)
-app.get('/auth/start', (req, res) => {
+function startAuth(req, res) {
   if (!ensureAuthConfig(res)) return;
   const fyers = getFyersClient();
   const url = fyers.generateAuthCode();
   res.redirect(url);
-});
+}
 
 // FYERS redirects here with ?auth_code=...
-app.get('/auth/callback', async (req, res) => {
+async function handleAuthCallback(req, res) {
   if (!ensureAuthConfig(res)) return;
   const authCode = req.query.auth_code;
   if (!authCode) {
@@ -231,7 +231,13 @@ app.get('/auth/callback', async (req, res) => {
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
-});
+}
+
+app.get('/auth/start', startAuth);
+app.get('/auth/callback', handleAuthCallback);
+// Alias routes for API-style auth flow
+app.get('/api/fyers/login', startAuth);
+app.get('/api/fyers/callback', handleAuthCallback);
 
 // SPA fallback to built index.html (keep after API/auth routes)
 app.get('*', (req, res) => {
