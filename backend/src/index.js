@@ -43,14 +43,23 @@ const companies = [
 let quotes = {};
 const symbolStatus = {}; // symbol -> { status, message, updatedAt }
 
-const FYERS_APP_ID = process.env.FYERS_APP_ID || '';
-const FYERS_ACCESS_TOKEN = process.env.FYERS_ACCESS_TOKEN || '';
-const FYERS_SECRET_ID = process.env.FYERS_SECRET_ID || '';
-const FYERS_DATA_HOST = process.env.FYERS_DATA_HOST || 'https://api-t1.fyers.in';
-const FYERS_REDIRECT_URI = process.env.FYERS_REDIRECT_URI || '';
+const env = key => (process.env[key] || '').trim();
+
+const FYERS_APP_ID = env('FYERS_APP_ID');
+let runtimeAccessToken = env('FYERS_ACCESS_TOKEN');
+const FYERS_SECRET_ID = env('FYERS_SECRET_ID');
+const FYERS_DATA_HOST = env('FYERS_DATA_HOST') || 'https://api-t1.fyers.in';
+const FYERS_REDIRECT_URI = env('FYERS_REDIRECT_URI');
 const POLL_INTERVAL_MS = Number.parseInt(process.env.FYERS_POLL_INTERVAL_MS, 10) || 12000;
 let pollIntervalId = null;
 let fyersClient = null;
+
+function setRuntimeAccessToken(token) {
+  runtimeAccessToken = (token || '').trim();
+  if (fyersClient && runtimeAccessToken) {
+    fyersClient.setAccessToken(runtimeAccessToken);
+  }
+}
 
 function getFyersClient() {
   if (!fyersClient) {
@@ -61,7 +70,7 @@ function getFyersClient() {
     if (FYERS_APP_ID) fyersClient.setAppId(FYERS_APP_ID);
     if (FYERS_REDIRECT_URI) fyersClient.setRedirectUrl(FYERS_REDIRECT_URI);
   }
-  if (FYERS_ACCESS_TOKEN) fyersClient.setAccessToken(FYERS_ACCESS_TOKEN);
+  if (runtimeAccessToken) fyersClient.setAccessToken(runtimeAccessToken);
   return fyersClient;
 }
 
@@ -105,9 +114,10 @@ function normalizeFyersQuote(item) {
 }
 
 async function fetchFyersQuotes(symbolList) {
-  if (!FYERS_APP_ID || !FYERS_ACCESS_TOKEN) {
-    console.warn('FYERS_APP_ID or FYERS_ACCESS_TOKEN not set -- cannot fetch quotes');
-    symbolList.forEach(symbol => setStatus(symbol, 'no_key', 'API key not set'));
+  if (!FYERS_APP_ID || !runtimeAccessToken) {
+    const missing = !FYERS_APP_ID ? 'FYERS_APP_ID not set' : 'FYERS_ACCESS_TOKEN not set';
+    console.warn(`${missing} -- cannot fetch quotes`);
+    symbolList.forEach(symbol => setStatus(symbol, 'no_key', missing));
     return [];
   }
 
@@ -214,6 +224,8 @@ function startAuth(req, res) {
 // FYERS redirects here with ?auth_code=...
 async function handleAuthCallback(req, res) {
   if (!ensureAuthConfig(res)) return;
+  console.log('Callback URL:', req.url);
+  console.log('Query:', req.query);
   const authCode = req.query.auth_code;
   if (!authCode) {
     res.status(400).json({ error: 'Missing auth_code in callback' });
@@ -227,6 +239,11 @@ async function handleAuthCallback(req, res) {
       secret_key: FYERS_SECRET_ID,
       auth_code: authCode
     });
+    const callbackToken = (data?.access_token || data?.accessToken || '').trim();
+    if (callbackToken) {
+      setRuntimeAccessToken(callbackToken);
+      await pollAllSymbols();
+    }
     res.json(data);
   } catch (err) {
     res.status(500).json({ error: err.message });
