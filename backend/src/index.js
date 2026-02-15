@@ -5,6 +5,7 @@ const WebSocket = require('ws');
 const path = require('path');
 const fs = require('fs');
 const crypto = require('crypto');
+const tokenManager = require('./tokenManager');
 require('dotenv').config();
 
 const app = express();
@@ -48,8 +49,8 @@ const symbolStatus = {}; // symbol -> { status, message, updatedAt }
 const env = key => (process.env[key] || '').trim();
 
 const FYERS_APP_ID = env('FYERS_APP_ID');
-let runtimeAccessToken = env('FYERS_ACCESS_TOKEN');
-let runtimeRefreshToken = env('FYERS_REFRESH_TOKEN');
+const INITIAL_ACCESS_TOKEN = env('FYERS_ACCESS_TOKEN');
+const INITIAL_REFRESH_TOKEN = env('FYERS_REFRESH_TOKEN');
 const FYERS_SECRET_ID = env('FYERS_SECRET_ID');
 const FYERS_DATA_HOST = env('FYERS_DATA_HOST') || 'https://api-t1.fyers.in';
 const FYERS_REDIRECT_URI = env('FYERS_REDIRECT_URI');
@@ -61,42 +62,23 @@ const REFRESH_BEFORE_MS = Math.max(60, REFRESH_BEFORE_SEC) * 1000;
 const FYERS_PERSIST_AUTH_TO_ENV = env('FYERS_PERSIST_AUTH_TO_ENV') === 'true';
 let pollIntervalId = null;
 let fyersClient = null;
-let accessTokenExpiryMs = parseTokenExpiryMs(runtimeAccessToken);
 let refreshInFlight = null;
 
+tokenManager.setTokens({
+  accessToken: INITIAL_ACCESS_TOKEN,
+  refreshToken: INITIAL_REFRESH_TOKEN
+});
+
 function setRuntimeAccessToken(token) {
-  runtimeAccessToken = (token || '').trim();
-  accessTokenExpiryMs = parseTokenExpiryMs(runtimeAccessToken);
-  if (fyersClient && runtimeAccessToken) {
-    fyersClient.setAccessToken(runtimeAccessToken);
+  tokenManager.setAccessToken(token);
+  const activeAccessToken = tokenManager.getAccessToken();
+  if (fyersClient && activeAccessToken) {
+    fyersClient.setAccessToken(activeAccessToken);
   }
 }
 
 function setRuntimeRefreshToken(token) {
-  runtimeRefreshToken = (token || '').trim();
-}
-
-function decodeJwtPayload(token) {
-  try {
-    const parts = String(token || '').split('.');
-    if (parts.length < 2) return null;
-    const payload = parts[1].replace(/-/g, '+').replace(/_/g, '/');
-    const padded = payload + '='.repeat((4 - (payload.length % 4)) % 4);
-    return JSON.parse(Buffer.from(padded, 'base64').toString('utf8'));
-  } catch {
-    return null;
-  }
-}
-
-function parseTokenExpiryMs(token) {
-  const payload = decodeJwtPayload(token);
-  const exp = Number(payload?.exp);
-  return Number.isFinite(exp) ? exp * 1000 : null;
-}
-
-function accessTokenExpiresSoon() {
-  if (!accessTokenExpiryMs) return false;
-  return (accessTokenExpiryMs - Date.now()) <= REFRESH_BEFORE_MS;
+  tokenManager.setRefreshToken(token);
 }
 
 function escapeRegex(text) {
@@ -117,8 +99,10 @@ function persistRuntimeTokensToEnv() {
   try {
     const existing = fs.existsSync(envPath) ? fs.readFileSync(envPath, 'utf8') : '';
     let next = existing;
-    if (runtimeAccessToken) next = upsertEnvValue(next, 'FYERS_ACCESS_TOKEN', runtimeAccessToken);
-    if (runtimeRefreshToken) next = upsertEnvValue(next, 'FYERS_REFRESH_TOKEN', runtimeRefreshToken);
+    const accessToken = tokenManager.getAccessToken();
+    const refreshToken = tokenManager.getRefreshToken();
+    if (accessToken) next = upsertEnvValue(next, 'FYERS_ACCESS_TOKEN', accessToken);
+    if (refreshToken) next = upsertEnvValue(next, 'FYERS_REFRESH_TOKEN', refreshToken);
     if (next !== existing) fs.writeFileSync(envPath, next, 'utf8');
   } catch (err) {
     console.error('Failed to persist FYERS tokens:', err.message);
@@ -143,7 +127,7 @@ function isLikelyAuthError(value) {
 
 async function refreshAccessToken(reason) {
   if (refreshInFlight) return refreshInFlight;
-  if (!FYERS_APP_ID || !FYERS_SECRET_ID || !runtimeRefreshToken) return false;
+  if (!FYERS_APP_ID || !FYERS_SECRET_ID || !tokenManager.getRefreshToken()) return false;
   if (typeof fetch !== 'function') {
     console.error('Token refresh skipped: global fetch is unavailable in this Node runtime');
     return false;
@@ -153,7 +137,7 @@ async function refreshAccessToken(reason) {
     const body = {
       grant_type: 'refresh_token',
       appIdHash: getAppIdHash(),
-      refresh_token: runtimeRefreshToken
+      refresh_token: tokenManager.getRefreshToken()
     };
     if (FYERS_PIN) body.pin = FYERS_PIN;
 
@@ -203,7 +187,8 @@ function getFyersClient() {
     if (FYERS_APP_ID) fyersClient.setAppId(FYERS_APP_ID);
     if (FYERS_REDIRECT_URI) fyersClient.setRedirectUrl(FYERS_REDIRECT_URI);
   }
-  if (runtimeAccessToken) fyersClient.setAccessToken(runtimeAccessToken);
+  const accessToken = tokenManager.getAccessToken();
+  if (accessToken) fyersClient.setAccessToken(accessToken);
   return fyersClient;
 }
 
@@ -248,20 +233,23 @@ function normalizeFyersQuote(item) {
 
 async function fetchFyersQuotes(symbolList, options = {}) {
   const attemptedRefresh = options.attemptedRefresh === true;
+  const accessToken = tokenManager.getAccessToken();
+  const refreshToken = tokenManager.getRefreshToken();
+  const hasRefreshToken = Boolean(refreshToken);
 
-  if (!runtimeAccessToken && runtimeRefreshToken && !attemptedRefresh) {
+  if (!accessToken && hasRefreshToken && !attemptedRefresh) {
     const refreshed = await refreshAccessToken('missing_access_token');
     if (refreshed) return fetchFyersQuotes(symbolList, { attemptedRefresh: true });
   }
 
-  if (accessTokenExpiresSoon() && runtimeRefreshToken && !attemptedRefresh) {
+  if (tokenManager.accessTokenExpiresSoon(REFRESH_BEFORE_MS) && hasRefreshToken && !attemptedRefresh) {
     await refreshAccessToken('expiring_soon');
   }
 
-  if (!FYERS_APP_ID || !runtimeAccessToken) {
+  if (!FYERS_APP_ID || !tokenManager.getAccessToken()) {
     const missing = !FYERS_APP_ID
       ? 'FYERS_APP_ID not set'
-      : (runtimeRefreshToken ? 'FYERS access token unavailable (refresh failed)' : 'FYERS_ACCESS_TOKEN not set');
+      : (hasRefreshToken ? 'FYERS access token unavailable (refresh failed)' : 'FYERS_ACCESS_TOKEN not set');
     console.warn(`${missing} -- cannot fetch quotes`);
     symbolList.forEach(symbol => setStatus(symbol, 'no_key', missing));
     return [];
@@ -274,7 +262,7 @@ async function fetchFyersQuotes(symbolList, options = {}) {
 
     if (j?.s !== 'ok' && data.length === 0) {
       const msg = j?.message || j?.msg || j?.s || 'Unknown error from FYERS';
-      if (!attemptedRefresh && runtimeRefreshToken && isLikelyAuthError({ msg, code: j?.code, s: j?.s })) {
+      if (!attemptedRefresh && hasRefreshToken && isLikelyAuthError({ msg, code: j?.code, s: j?.s })) {
         const refreshed = await refreshAccessToken('quote_response_auth_error');
         if (refreshed) return fetchFyersQuotes(symbolList, { attemptedRefresh: true });
       }
@@ -301,7 +289,7 @@ async function fetchFyersQuotes(symbolList, options = {}) {
     return out;
   } catch (err) {
     const message = err?.message || 'Unknown fetch error';
-    if (!attemptedRefresh && runtimeRefreshToken && isLikelyAuthError(err)) {
+    if (!attemptedRefresh && hasRefreshToken && isLikelyAuthError(err)) {
       const refreshed = await refreshAccessToken('quote_exception_auth_error');
       if (refreshed) return fetchFyersQuotes(symbolList, { attemptedRefresh: true });
     }

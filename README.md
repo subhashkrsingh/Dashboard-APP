@@ -15,7 +15,8 @@ Getting started
 
 Notes
 - Uses the FYERS API v3 SDK (`fyers-api-v3`) for quotes.
-- Set `FYERS_APP_ID`, `FYERS_SECRET_ID`, `FYERS_REDIRECT_URI`, and `FYERS_ACCESS_TOKEN` in your environment (or `backend/.env`) before running. FYERS access tokens are short-lived and typically need to be refreshed daily.
+- Set `FYERS_APP_ID`, `FYERS_SECRET_ID`, `FYERS_REDIRECT_URI`, and `FYERS_REFRESH_TOKEN` in your environment (or `backend/.env`) before running.
+- Optional: set `FYERS_ACCESS_TOKEN` for initial startup convenience. Backend automatically refreshes access tokens using `FYERS_REFRESH_TOKEN`.
 - Symbol format is `NSE:SYMBOL-EQ`. To add symbols, edit `backend/src/index.js` and extend the `symbols` array.
 - Optional: set `FYERS_POLL_INTERVAL_MS` to control polling frequency, and `FYERS_DATA_HOST` if you need a different FYERS data host.
 - Node 18+ recommended.
