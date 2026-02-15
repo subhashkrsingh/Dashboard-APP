@@ -6,3 +6,4 @@ backend/.env
 
 # VS Code
 .vscode/
+backend/.env
