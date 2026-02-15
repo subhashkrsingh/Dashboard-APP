@@ -3,6 +3,8 @@ const { fyersModel } = require('fyers-api-v3');
 const http = require('http');
 const WebSocket = require('ws');
 const path = require('path');
+const fs = require('fs');
+const crypto = require('crypto');
 require('dotenv').config();
 
 const app = express();
@@ -47,18 +49,149 @@ const env = key => (process.env[key] || '').trim();
 
 const FYERS_APP_ID = env('FYERS_APP_ID');
 let runtimeAccessToken = env('FYERS_ACCESS_TOKEN');
+let runtimeRefreshToken = env('FYERS_REFRESH_TOKEN');
 const FYERS_SECRET_ID = env('FYERS_SECRET_ID');
 const FYERS_DATA_HOST = env('FYERS_DATA_HOST') || 'https://api-t1.fyers.in';
 const FYERS_REDIRECT_URI = env('FYERS_REDIRECT_URI');
+const FYERS_AUTH_HOST = (env('FYERS_AUTH_HOST') || 'https://api-t1.fyers.in/api/v3').replace(/\/+$/, '');
+const FYERS_PIN = env('FYERS_PIN');
 const POLL_INTERVAL_MS = Number.parseInt(process.env.FYERS_POLL_INTERVAL_MS, 10) || 12000;
+const REFRESH_BEFORE_SEC = Number.parseInt(process.env.FYERS_REFRESH_BEFORE_SEC, 10) || 300;
+const REFRESH_BEFORE_MS = Math.max(60, REFRESH_BEFORE_SEC) * 1000;
+const FYERS_PERSIST_AUTH_TO_ENV = env('FYERS_PERSIST_AUTH_TO_ENV') === 'true';
 let pollIntervalId = null;
 let fyersClient = null;
+let accessTokenExpiryMs = parseTokenExpiryMs(runtimeAccessToken);
+let refreshInFlight = null;
 
 function setRuntimeAccessToken(token) {
   runtimeAccessToken = (token || '').trim();
+  accessTokenExpiryMs = parseTokenExpiryMs(runtimeAccessToken);
   if (fyersClient && runtimeAccessToken) {
     fyersClient.setAccessToken(runtimeAccessToken);
   }
+}
+
+function setRuntimeRefreshToken(token) {
+  runtimeRefreshToken = (token || '').trim();
+}
+
+function decodeJwtPayload(token) {
+  try {
+    const parts = String(token || '').split('.');
+    if (parts.length < 2) return null;
+    const payload = parts[1].replace(/-/g, '+').replace(/_/g, '/');
+    const padded = payload + '='.repeat((4 - (payload.length % 4)) % 4);
+    return JSON.parse(Buffer.from(padded, 'base64').toString('utf8'));
+  } catch {
+    return null;
+  }
+}
+
+function parseTokenExpiryMs(token) {
+  const payload = decodeJwtPayload(token);
+  const exp = Number(payload?.exp);
+  return Number.isFinite(exp) ? exp * 1000 : null;
+}
+
+function accessTokenExpiresSoon() {
+  if (!accessTokenExpiryMs) return false;
+  return (accessTokenExpiryMs - Date.now()) <= REFRESH_BEFORE_MS;
+}
+
+function escapeRegex(text) {
+  return String(text).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+function upsertEnvValue(content, key, value) {
+  const safeValue = String(value).replace(/\\/g, '\\\\').replace(/"/g, '\\"');
+  const nextLine = `${key}="${safeValue}"`;
+  const lineRegex = new RegExp(`^\\s*${escapeRegex(key)}\\s*=.*$`, 'm');
+  if (lineRegex.test(content)) return content.replace(lineRegex, nextLine);
+  return content.trimEnd() ? `${content.trimEnd()}\n${nextLine}\n` : `${nextLine}\n`;
+}
+
+function persistRuntimeTokensToEnv() {
+  if (!FYERS_PERSIST_AUTH_TO_ENV) return;
+  const envPath = path.join(__dirname, '..', '.env');
+  try {
+    const existing = fs.existsSync(envPath) ? fs.readFileSync(envPath, 'utf8') : '';
+    let next = existing;
+    if (runtimeAccessToken) next = upsertEnvValue(next, 'FYERS_ACCESS_TOKEN', runtimeAccessToken);
+    if (runtimeRefreshToken) next = upsertEnvValue(next, 'FYERS_REFRESH_TOKEN', runtimeRefreshToken);
+    if (next !== existing) fs.writeFileSync(envPath, next, 'utf8');
+  } catch (err) {
+    console.error('Failed to persist FYERS tokens:', err.message);
+  }
+}
+
+function getAppIdHash() {
+  return crypto.createHash('sha256').update(`${FYERS_APP_ID}:${FYERS_SECRET_ID}`).digest('hex');
+}
+
+function isLikelyAuthError(value) {
+  const text = typeof value === 'string' ? value : JSON.stringify(value || {});
+  const lower = text.toLowerCase();
+  return (
+    lower.includes('token') ||
+    lower.includes('auth') ||
+    lower.includes('unauthorized') ||
+    lower.includes('invalid') ||
+    lower.includes('expired')
+  );
+}
+
+async function refreshAccessToken(reason) {
+  if (refreshInFlight) return refreshInFlight;
+  if (!FYERS_APP_ID || !FYERS_SECRET_ID || !runtimeRefreshToken) return false;
+  if (typeof fetch !== 'function') {
+    console.error('Token refresh skipped: global fetch is unavailable in this Node runtime');
+    return false;
+  }
+
+  refreshInFlight = (async () => {
+    const body = {
+      grant_type: 'refresh_token',
+      appIdHash: getAppIdHash(),
+      refresh_token: runtimeRefreshToken
+    };
+    if (FYERS_PIN) body.pin = FYERS_PIN;
+
+    const response = await fetch(`${FYERS_AUTH_HOST}/validate-refresh-token`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify(body)
+    });
+
+    let data = null;
+    try {
+      data = await response.json();
+    } catch {
+      data = null;
+    }
+
+    const refreshedAccessToken = (data?.access_token || data?.accessToken || '').trim();
+    const refreshedRefreshToken = (data?.refresh_token || data?.refreshToken || '').trim();
+    if (!response.ok || !refreshedAccessToken) {
+      const reasonText = data?.message || data?.msg || `HTTP ${response.status}`;
+      throw new Error(reasonText);
+    }
+
+    setRuntimeAccessToken(refreshedAccessToken);
+    if (refreshedRefreshToken) setRuntimeRefreshToken(refreshedRefreshToken);
+    persistRuntimeTokensToEnv();
+    console.log(`FYERS access token refreshed (${reason})`);
+    return true;
+  })()
+    .catch(err => {
+      console.error(`FYERS token refresh failed (${reason}):`, err.message);
+      return false;
+    })
+    .finally(() => {
+      refreshInFlight = null;
+    });
+
+  return refreshInFlight;
 }
 
 function getFyersClient() {
@@ -113,9 +246,22 @@ function normalizeFyersQuote(item) {
   };
 }
 
-async function fetchFyersQuotes(symbolList) {
+async function fetchFyersQuotes(symbolList, options = {}) {
+  const attemptedRefresh = options.attemptedRefresh === true;
+
+  if (!runtimeAccessToken && runtimeRefreshToken && !attemptedRefresh) {
+    const refreshed = await refreshAccessToken('missing_access_token');
+    if (refreshed) return fetchFyersQuotes(symbolList, { attemptedRefresh: true });
+  }
+
+  if (accessTokenExpiresSoon() && runtimeRefreshToken && !attemptedRefresh) {
+    await refreshAccessToken('expiring_soon');
+  }
+
   if (!FYERS_APP_ID || !runtimeAccessToken) {
-    const missing = !FYERS_APP_ID ? 'FYERS_APP_ID not set' : 'FYERS_ACCESS_TOKEN not set';
+    const missing = !FYERS_APP_ID
+      ? 'FYERS_APP_ID not set'
+      : (runtimeRefreshToken ? 'FYERS access token unavailable (refresh failed)' : 'FYERS_ACCESS_TOKEN not set');
     console.warn(`${missing} -- cannot fetch quotes`);
     symbolList.forEach(symbol => setStatus(symbol, 'no_key', missing));
     return [];
@@ -128,6 +274,10 @@ async function fetchFyersQuotes(symbolList) {
 
     if (j?.s !== 'ok' && data.length === 0) {
       const msg = j?.message || j?.msg || j?.s || 'Unknown error from FYERS';
+      if (!attemptedRefresh && runtimeRefreshToken && isLikelyAuthError({ msg, code: j?.code, s: j?.s })) {
+        const refreshed = await refreshAccessToken('quote_response_auth_error');
+        if (refreshed) return fetchFyersQuotes(symbolList, { attemptedRefresh: true });
+      }
       symbolList.forEach(symbol => setStatus(symbol, 'error', msg));
       return [];
     }
@@ -150,8 +300,13 @@ async function fetchFyersQuotes(symbolList) {
 
     return out;
   } catch (err) {
-    console.error('fetch error', err.message);
-    symbolList.forEach(symbol => setStatus(symbol, 'error', err.message));
+    const message = err?.message || 'Unknown fetch error';
+    if (!attemptedRefresh && runtimeRefreshToken && isLikelyAuthError(err)) {
+      const refreshed = await refreshAccessToken('quote_exception_auth_error');
+      if (refreshed) return fetchFyersQuotes(symbolList, { attemptedRefresh: true });
+    }
+    console.error('fetch error', message);
+    symbolList.forEach(symbol => setStatus(symbol, 'error', message));
     return [];
   }
 }
@@ -240,8 +395,11 @@ async function handleAuthCallback(req, res) {
       auth_code: authCode
     });
     const callbackToken = (data?.access_token || data?.accessToken || '').trim();
+    const callbackRefreshToken = (data?.refresh_token || data?.refreshToken || '').trim();
     if (callbackToken) {
       setRuntimeAccessToken(callbackToken);
+      if (callbackRefreshToken) setRuntimeRefreshToken(callbackRefreshToken);
+      persistRuntimeTokensToEnv();
       await pollAllSymbols();
     }
     res.json(data);
