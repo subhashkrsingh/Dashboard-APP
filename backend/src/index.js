@@ -26,7 +26,7 @@ const symbols = [
   'NSE:ADANIGREEN-EQ',
   'NSE:POWERGRID-EQ',
   'NSE:JSWENERGY-EQ',
-  'NSE:RENEW-EQ',
+  'NSE:TORNTPOWER-EQ',
   'NSE:RPOWER-EQ'
 ];
 
@@ -39,7 +39,7 @@ const companies = [
   { symbol: 'NSE:ADANIGREEN-EQ', name: 'Adani Green Energy Limited', sector: 'Renewables' },
   { symbol: 'NSE:POWERGRID-EQ', name: 'Power Grid Corporation of India Limited', sector: 'Transmission' },
   { symbol: 'NSE:JSWENERGY-EQ', name: 'JSW Energy Limited', sector: 'Power Generation' },
-  { symbol: 'NSE:RENEW-EQ', name: 'ReNew Energy Global plc', sector: 'Renewables' },
+  { symbol: 'NSE:TORNTPOWER-EQ', name: 'Torrent Power Limited', sector: 'Power Distribution' },
   { symbol: 'NSE:RPOWER-EQ', name: 'Reliance Power Limited', sector: 'Power Generation' }
 ];
 
@@ -410,3 +410,4 @@ app.get('*', (req, res) => {
 const PORT = process.env.PORT || 3000;
 const HOST = process.env.HOST || '0.0.0.0';
 server.listen(PORT, HOST, () => console.log(`Server listening on http://${HOST}:${PORT}`));
+
