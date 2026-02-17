@@ -1,4 +1,4 @@
-﻿function buildSparkPoints(series, width, height, padding) {
+function buildSparkPoints(series, width, height, padding) {
   if (!series || series.length === 0) return "";
 
   const values = series.map(point => point.price);
@@ -42,11 +42,11 @@ export default function LiveCard({
   changePct,
   sparkData,
   sparkKey,
-  status,
   statusMessage,
   hasData,
   isActive,
-  onSelect
+  onSelect,
+  onOpenDetails
 }) {
   const isPositive = (changePct ?? 0) >= 0;
   const initials = getInitials(name || symbol);
@@ -54,19 +54,32 @@ export default function LiveCard({
   const height = 28;
   const points = buildSparkPoints(sparkData, width, height, 2);
   const length = getLineLength(points);
-  const isDisabled = !hasData;
   const pillText =
     changePct == null
       ? "--"
       : `${isPositive ? "+" : "-"} ${Math.abs(changePct).toFixed(2)}%`;
   const priceText = price == null ? "No data" : `INR ${price.toFixed(2)}`;
 
+  const handleKeyDown = event => {
+    if (!onSelect) return;
+    if (event.key === "Enter" || event.key === " ") {
+      event.preventDefault();
+      onSelect();
+    }
+  };
+
+  const handleOpenDetails = event => {
+    event.stopPropagation();
+    onOpenDetails?.();
+  };
+
   return (
-    <button
-      type="button"
-      className={`live-card ${isActive ? "active" : ""} ${isDisabled ? "disabled" : ""}`}
-      onClick={isDisabled ? undefined : onSelect}
-      disabled={isDisabled}
+    <article
+      className={`live-card ${isActive ? "active" : ""} ${hasData ? "" : "stale"}`}
+      onClick={onSelect}
+      onKeyDown={handleKeyDown}
+      role={onSelect ? "button" : undefined}
+      tabIndex={onSelect ? 0 : undefined}
     >
       <div className="live-card-header">
         <div className="live-card-title">
@@ -75,16 +88,18 @@ export default function LiveCard({
           </span>
           <div>
             <p className="live-card-name">{name}</p>
-            <span className="live-card-symbol">{symbol}</span>
+            <button type="button" className="ticker-link" onClick={handleOpenDetails}>
+              {symbol}
+            </button>
           </div>
         </div>
-        <span className={`pill ${isDisabled ? "muted" : isPositive ? "up" : "down"}`}>
+        <span className={`pill ${isPositive ? "up" : "down"} ${hasData ? "" : "muted"}`}>
           {pillText}
         </span>
       </div>
       <div className="live-card-body">
         <div className="live-card-price">{priceText}</div>
-        {hasData && (
+        {hasData ? (
           <svg
             key={sparkKey}
             className={`sparkline ${isPositive ? "up" : "down"}`}
@@ -102,11 +117,16 @@ export default function LiveCard({
               }}
             />
           </svg>
-        )}
+        ) : null}
       </div>
-      <p className="live-card-meta">
-        {hasData ? "Live data" : statusMessage ?? "Waiting for data"}
-      </p>
-    </button>
+      <div className="live-card-actions">
+        <p className="live-card-meta">
+          {hasData ? "Live data" : statusMessage ?? "Waiting for data"}
+        </p>
+        <button type="button" className="detail-link" onClick={handleOpenDetails}>
+          Open Details
+        </button>
+      </div>
+    </article>
   );
 }

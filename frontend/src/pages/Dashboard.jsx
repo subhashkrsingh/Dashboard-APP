@@ -60,7 +60,16 @@ function getStoredSymbol() {
   }
 }
 
-export default function Dashboard() {
+function matchesSearch(company, query) {
+  const text = String(query || "").trim().toLowerCase();
+  if (!text) return true;
+  return (
+    String(company.name || "").toLowerCase().includes(text) ||
+    String(company.symbol || "").toLowerCase().includes(text)
+  );
+}
+
+export default function Dashboard({ searchQuery, onOpenCompany }) {
   const [companies, setCompanies] = useState([]);
   const [activeSymbol, setActiveSymbol] = useState(() => getStoredSymbol());
   const rawSeries = useQuoteStream();
@@ -108,7 +117,9 @@ export default function Dashboard() {
 
   const companyMap = useMemo(() => {
     const map = {};
-    companies.forEach(c => (map[c.symbol] = c));
+    companies.forEach(c => {
+      map[c.symbol] = c;
+    });
     return map;
   }, [companies]);
 
@@ -117,7 +128,9 @@ export default function Dashboard() {
     ? companies
     : fallbackSymbols.map(symbol => ({ symbol, name: symbol, sector: "Power" }));
 
-  const cards = sourceCompanies.map(company => {
+  const visibleCompanies = sourceCompanies.filter(company => matchesSearch(company, searchQuery));
+
+  const cards = visibleCompanies.map(company => {
     const symbol = company.symbol;
     const series = rawSeries[symbol] || [];
     const last = series[series.length - 1];
@@ -138,35 +151,63 @@ export default function Dashboard() {
     };
   });
 
-  const activeSeries = activeSymbol ? rawSeries[activeSymbol] : [];
-  const activeName = companyMap[activeSymbol]?.name ?? activeSymbol ?? "-";
+  const selectableSymbols = sourceCompanies.map(company => company.symbol);
+  const safeActiveSymbol = activeSymbol && selectableSymbols.includes(activeSymbol)
+    ? activeSymbol
+    : (selectableSymbols[0] || null);
+  const activeSeries = safeActiveSymbol ? (rawSeries[safeActiveSymbol] || []) : [];
+  const activeName = companyMap[safeActiveSymbol]?.name ?? safeActiveSymbol ?? "-";
 
   return (
     <div className="dashboard">
       <section className="section">
         <div className="section-header">
           <h2>Live Market</h2>
-          <p>Real-time quotes across the power sector</p>
+          <p>Real-time quotes across the power sector. Click a ticker to open full company view.</p>
         </div>
         <div className="live-grid">
-          {cards.length === 0 && <div className="empty">Waiting for live ticks...</div>}
+          {cards.length === 0 && (
+            <div className="empty">
+              {String(searchQuery || "").trim()
+                ? "No tickers matched your search."
+                : "Waiting for live ticks..."}
+            </div>
+          )}
           {cards.map(card => (
             <LiveCard
               key={card.symbol}
               {...card}
-              isActive={card.symbol === activeSymbol}
+              isActive={card.symbol === safeActiveSymbol}
               onSelect={() => setActiveSymbol(card.symbol)}
+              onOpenDetails={() => onOpenCompany?.(card.symbol)}
             />
           ))}
         </div>
       </section>
 
       <section className="section">
-        <div className="section-header">
-          <h2>Intraday View</h2>
-          <p>High-resolution trend tracking</p>
+        <div className="section-title">
+          <div className="section-header">
+            <h2>Intraday View</h2>
+            <p>High-resolution trend tracking</p>
+          </div>
+          {selectableSymbols.length > 0 ? (
+            <label className="select-wrap">
+              <span>Ticker</span>
+              <select
+                value={safeActiveSymbol ?? ""}
+                onChange={event => setActiveSymbol(event.target.value)}
+              >
+                {sourceCompanies.map(company => (
+                  <option key={company.symbol} value={company.symbol}>
+                    {company.name}
+                  </option>
+                ))}
+              </select>
+            </label>
+          ) : null}
         </div>
-        <IntradayChart symbol={activeSymbol ?? "--"} series={activeSeries} />
+        <IntradayChart symbol={safeActiveSymbol ?? "--"} series={activeSeries} />
       </section>
 
       <section className="section">
@@ -187,4 +228,3 @@ export default function Dashboard() {
     </div>
   );
 }
-

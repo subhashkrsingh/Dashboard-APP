@@ -1,4 +1,9 @@
-﻿export default function Sidebar() {
+function compactTicker(symbol) {
+  if (!symbol) return "Company Detail";
+  return symbol.replace(/^NSE:/, "").replace(/-EQ$/, "");
+}
+
+export default function Sidebar({ activePage, companySymbol, onOpenDashboard }) {
   return (
     <aside className="sidebar">
       <div className="brand">
@@ -10,11 +15,20 @@
       </div>
 
       <nav className="nav">
-        <button className="nav-item active">Dashboard</button>
-        <button className="nav-item">Company Analysis</button>
-        <button className="nav-item">Comparison</button>
-        <button className="nav-item">Sector Insights</button>
-        <button className="nav-item">Watchlist</button>
+        <button
+          type="button"
+          className={`nav-item ${activePage === "dashboard" ? "active" : ""}`}
+          onClick={onOpenDashboard}
+        >
+          Dashboard
+        </button>
+        <button
+          type="button"
+          className={`nav-item ${activePage === "company" ? "active" : ""} ${companySymbol ? "" : "ghost"}`}
+          disabled={!companySymbol}
+        >
+          {compactTicker(companySymbol)}
+        </button>
       </nav>
 
       <div className="sidebar-footer">
