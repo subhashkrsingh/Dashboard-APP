@@ -31,4 +31,9 @@ APIs
 - GET /auth/start - redirect to FYERS login to generate `auth_code`
 - GET /auth/callback - exchanges `auth_code` for access token (returns JSON)
 
+Copyright
+- Copyright (c) 2026 Subhash Kumar Singh.
+- All rights reserved.
+- See `LICENSE` for usage terms.
+
 

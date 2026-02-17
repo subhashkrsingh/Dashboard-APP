@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import Sidebar from "./components/Sidebar.jsx";
 import Header from "./components/Header.jsx";
+import AppFooter from "./components/AppFooter.jsx";
 import Dashboard from "./pages/Dashboard.jsx";
 import CompanyDetails from "./pages/CompanyDetails.jsx";
 
@@ -94,6 +95,7 @@ export default function App() {
         ) : (
           <Dashboard searchQuery={searchQuery} onOpenCompany={openCompany} />
         )}
+        <AppFooter />
       </div>
     </div>
   );
