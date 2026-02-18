@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
 import LiveCard from "../components/LiveCard.jsx";
+import LiveTicker from "../components/LiveTicker.jsx";
 import IntradayChart from "../components/IntradayChart.jsx";
 import CompareChart from "../components/CompareChart.jsx";
 import FundamentalsPanel from "../components/FundamentalsPanel.jsx";
@@ -128,6 +129,26 @@ export default function Dashboard({ searchQuery, onOpenCompany }) {
     ? companies
     : fallbackSymbols.map(symbol => ({ symbol, name: symbol, sector: "Power" }));
 
+  const tickerQuotes = useMemo(
+    () =>
+      sourceCompanies
+        .map(company => {
+          const series = rawSeries[company.symbol] || [];
+          const last = series[series.length - 1];
+          const prev = series[series.length - 2];
+          const changePct =
+            prev && last ? ((last.price - prev.price) / prev.price) * 100 : 0;
+
+          return {
+            symbol: company.symbol,
+            price: last?.price ?? null,
+            changePct
+          };
+        })
+        .filter(item => Number.isFinite(item.price)),
+    [sourceCompanies, rawSeries]
+  );
+
   const visibleCompanies = sourceCompanies.filter(company => matchesSearch(company, searchQuery));
 
   const cards = visibleCompanies.map(company => {
@@ -160,6 +181,14 @@ export default function Dashboard({ searchQuery, onOpenCompany }) {
 
   return (
     <div className="dashboard">
+      <section className="ticker-section">
+        <div className="ticker-head">
+          <span className="ticker-live-dot" />
+          <span>Live Sticker</span>
+        </div>
+        <LiveTicker quotes={tickerQuotes} />
+      </section>
+
       <section className="section">
         <div className="section-header">
           <h2>Live Market</h2>
