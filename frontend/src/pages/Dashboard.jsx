@@ -1,57 +1,10 @@
 import React, { useEffect, useMemo, useState } from "react";
 import LiveCard from "../components/LiveCard.jsx";
-import LiveTicker from "../components/LiveTicker.jsx";
 import IntradayChart from "../components/IntradayChart.jsx";
 import CompareChart from "../components/CompareChart.jsx";
 import FundamentalsPanel from "../components/FundamentalsPanel.jsx";
 
-const MAX_POINTS = 120;
 const ACTIVE_SYMBOL_KEY = "power-dashboard-active";
-
-function useQuoteStream() {
-  const [seriesBySymbol, setSeriesBySymbol] = useState({});
-
-  useEffect(() => {
-    const wsProtocol = location.protocol === "https:" ? "wss" : "ws";
-    const devHost = import.meta.env.VITE_API_HOST || "127.0.0.1:3000";
-    const wsHost = import.meta.env.DEV ? devHost : location.host;
-    const ws = new WebSocket(`${wsProtocol}://${wsHost}`);
-
-    ws.addEventListener("message", evt => {
-      const msg = JSON.parse(evt.data);
-      if (msg.type !== "quotes") return;
-
-      setSeriesBySymbol(prev => {
-        const next = { ...prev };
-        msg.data.forEach(q => {
-          if (!Number.isFinite(q.price)) return;
-          const list = next[q.symbol] ? [...next[q.symbol]] : [];
-          const prevPrice = list[list.length - 1]?.price ?? q.price;
-          const delta = Math.abs(q.price - prevPrice);
-          const volume = Math.round(900 + delta * 5000 + (q.price % 1) * 1000);
-          const isUp = q.price >= prevPrice;
-
-          list.push({
-            time: new Date(q.timestamp).toLocaleTimeString([], {
-              hour: "2-digit",
-              minute: "2-digit"
-            }),
-            price: q.price,
-            volume,
-            isUp
-          });
-          if (list.length > MAX_POINTS) list.shift();
-          next[q.symbol] = list;
-        });
-        return next;
-      });
-    });
-
-    return () => ws.close();
-  }, []);
-
-  return seriesBySymbol;
-}
 
 function getStoredSymbol() {
   try {
@@ -70,35 +23,19 @@ function matchesSearch(company, query) {
   );
 }
 
-export default function Dashboard({ searchQuery, onOpenCompany }) {
-  const [companies, setCompanies] = useState([]);
+export default function Dashboard({
+  searchQuery,
+  onOpenCompany,
+  companies = [],
+  rawSeries = {}
+}) {
   const [activeSymbol, setActiveSymbol] = useState(() => getStoredSymbol());
-  const rawSeries = useQuoteStream();
 
   useEffect(() => {
-    let isMounted = true;
-    const loadCompanies = () => {
-      fetch("/api/companies")
-        .then(r => r.json())
-        .then(data => {
-          if (isMounted) setCompanies(data);
-        })
-        .catch(() => {
-          if (isMounted) setCompanies([]);
-        });
-    };
+    const symbols = companies.length > 0
+      ? companies.map(company => company.symbol)
+      : Object.keys(rawSeries);
 
-    loadCompanies();
-    const id = setInterval(loadCompanies, 20000);
-    return () => {
-      isMounted = false;
-      clearInterval(id);
-    };
-  }, []);
-
-  useEffect(() => {
-    const companySymbols = companies.map(c => c.symbol);
-    const symbols = companySymbols.length > 0 ? companySymbols : Object.keys(rawSeries);
     if (symbols.length === 0) return;
 
     if (!activeSymbol || !symbols.includes(activeSymbol)) {
@@ -116,38 +53,17 @@ export default function Dashboard({ searchQuery, onOpenCompany }) {
     }
   }, [activeSymbol]);
 
+  const sourceCompanies = companies.length > 0
+    ? companies
+    : Object.keys(rawSeries).map(symbol => ({ symbol, name: symbol, sector: "Power" }));
+
   const companyMap = useMemo(() => {
     const map = {};
-    companies.forEach(c => {
+    sourceCompanies.forEach(c => {
       map[c.symbol] = c;
     });
     return map;
-  }, [companies]);
-
-  const fallbackSymbols = Object.keys(rawSeries);
-  const sourceCompanies = companies.length > 0
-    ? companies
-    : fallbackSymbols.map(symbol => ({ symbol, name: symbol, sector: "Power" }));
-
-  const tickerQuotes = useMemo(
-    () =>
-      sourceCompanies
-        .map(company => {
-          const series = rawSeries[company.symbol] || [];
-          const last = series[series.length - 1];
-          const prev = series[series.length - 2];
-          const changePct =
-            prev && last ? ((last.price - prev.price) / prev.price) * 100 : 0;
-
-          return {
-            symbol: company.symbol,
-            price: last?.price ?? null,
-            changePct
-          };
-        })
-        .filter(item => Number.isFinite(item.price)),
-    [sourceCompanies, rawSeries]
-  );
+  }, [sourceCompanies]);
 
   const visibleCompanies = sourceCompanies.filter(company => matchesSearch(company, searchQuery));
 
@@ -181,14 +97,6 @@ export default function Dashboard({ searchQuery, onOpenCompany }) {
 
   return (
     <div className="dashboard">
-      <section className="ticker-section">
-        <div className="ticker-head">
-          <span className="ticker-live-dot" />
-          <span>Live Sticker</span>
-        </div>
-        <LiveTicker quotes={tickerQuotes} />
-      </section>
-
       <section className="section">
         <div className="section-header">
           <h2>Live Market</h2>

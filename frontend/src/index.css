@@ -15,6 +15,10 @@
   --green: #00c853;
   --red: #ff5252;
   --glow: #7dd3fc;
+  --header-main-height: 80px;
+  --header-ticker-height: 40px;
+  --header-height: 120px;
+  --sidebar-width: 260px;
 }
 
 * {
@@ -42,10 +46,99 @@ select {
   font: inherit;
 }
 
-.app {
-  display: grid;
-  grid-template-columns: 260px 1fr;
+.app-shell {
   min-height: 100vh;
+}
+
+.app-header {
+  position: fixed;
+  inset: 0 0 auto 0;
+  z-index: 20;
+  border-bottom: 1px solid rgba(148, 163, 184, 0.24);
+  background: linear-gradient(180deg, rgba(15, 23, 42, 0.97) 0%, rgba(10, 14, 21, 0.97) 100%);
+  box-shadow: 0 10px 24px rgba(2, 6, 23, 0.45);
+}
+
+.header-main-row {
+  height: var(--header-main-height);
+  padding: 0 28px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+}
+
+.header-title-wrap {
+  min-width: 0;
+}
+
+.header-title {
+  margin: 0;
+  font-size: 30px;
+  line-height: 1.1;
+}
+
+.header-subtitle {
+  margin: 5px 0 0 0;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.header-search input {
+  background: var(--card-2);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 10px 14px;
+  color: var(--text);
+  min-width: 260px;
+}
+
+.header-search input:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.header-clock {
+  background: rgba(148, 163, 184, 0.12);
+  border: 1px solid var(--border);
+  padding: 10px 14px;
+  border-radius: 999px;
+  font-size: 13px;
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+.header-ticker-row {
+  height: var(--header-ticker-height);
+  padding: 0 28px;
+  border-top: 1px solid rgba(148, 163, 184, 0.18);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.header-ticker-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--muted);
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 1.4px;
+  white-space: nowrap;
+}
+
+.app-body {
+  margin-top: var(--header-height);
+  height: calc(100vh - var(--header-height));
+  display: grid;
+  grid-template-columns: var(--sidebar-width) minmax(0, 1fr);
 }
 
 .sidebar {
@@ -55,6 +148,8 @@ select {
   display: flex;
   flex-direction: column;
   gap: 28px;
+  height: 100%;
+  overflow-y: auto;
 }
 
 .brand {
@@ -138,72 +233,9 @@ select {
 
 .main {
   padding: 32px 36px 60px;
-}
-
-.topbar {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 18px;
-  margin-bottom: 24px;
-}
-
-.eyebrow {
-  margin: 0;
-  color: var(--muted);
-  font-size: 13px;
-  text-transform: uppercase;
-  letter-spacing: 1.6px;
-}
-
-.topbar h1 {
-  margin: 6px 0 0 0;
-  font-size: 32px;
-}
-
-.topbar-subtitle {
-  margin: 6px 0 0 0;
-  color: var(--muted);
-  font-size: 14px;
-}
-
-.topbar-actions {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
-
-.back-btn {
-  background: rgba(148, 163, 184, 0.14);
-  border: 1px solid var(--border);
-  color: var(--text);
-  border-radius: 12px;
-  padding: 10px 14px;
-  cursor: pointer;
-  white-space: nowrap;
-}
-
-.back-btn:hover {
-  border-color: rgba(125, 211, 252, 0.45);
-}
-
-.search input {
-  background: var(--card-2);
-  border: 1px solid var(--border);
-  border-radius: 12px;
-  padding: 10px 14px;
-  color: var(--text);
-  min-width: 240px;
-}
-
-.date-chip {
-  background: rgba(148, 163, 184, 0.12);
-  border: 1px solid var(--border);
-  padding: 10px 14px;
-  border-radius: 999px;
-  font-size: 13px;
-  color: var(--muted);
-  white-space: nowrap;
+  height: 100%;
+  overflow-y: auto;
+  min-width: 0;
 }
 
 .dashboard,
@@ -211,22 +243,6 @@ select {
   display: flex;
   flex-direction: column;
   gap: 26px;
-}
-
-.ticker-section {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.ticker-head {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  color: var(--muted);
-  font-size: 11px;
-  text-transform: uppercase;
-  letter-spacing: 1.4px;
 }
 
 .ticker-live-dot {
@@ -238,9 +254,11 @@ select {
 }
 
 .ticker-strip {
+  flex: 1;
+  min-width: 0;
   overflow: hidden;
   border: 1px solid rgba(125, 211, 252, 0.25);
-  border-radius: 14px;
+  border-radius: 10px;
   background: linear-gradient(90deg, rgba(15, 23, 42, 0.9), rgba(16, 24, 39, 0.96));
 }
 
@@ -249,7 +267,7 @@ select {
   align-items: center;
   gap: 26px;
   width: max-content;
-  padding: 11px 20px;
+  padding: 8px 16px;
   animation: ticker-scroll 30s linear infinite;
   will-change: transform;
 }
@@ -274,6 +292,10 @@ select {
 
 .ticker-price {
   color: #e2e8f0;
+}
+
+.ticker-separator {
+  color: rgba(148, 163, 184, 0.7);
 }
 
 .ticker-change {
@@ -794,34 +816,31 @@ select {
     padding: 26px 22px 48px;
   }
 
-  .search input {
+  .header-search input {
     min-width: 180px;
   }
 }
 
 @media (max-width: 1024px) {
-  .app {
+  .app-body {
     grid-template-columns: 1fr;
+    grid-template-rows: auto minmax(0, 1fr);
   }
 
   .sidebar {
-    position: sticky;
-    top: 0;
-    z-index: 5;
+    height: auto;
+    border-right: 0;
+    border-bottom: 1px solid var(--border);
     flex-direction: row;
     align-items: center;
     flex-wrap: wrap;
+    gap: 16px;
+    padding: 18px 16px;
   }
 
   .nav {
     flex-direction: row;
     flex-wrap: wrap;
-  }
-
-  .topbar {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 16px;
   }
 
   .detail-grid {
@@ -830,7 +849,20 @@ select {
 }
 
 @media (max-width: 740px) {
-  .topbar h1 {
+  :root {
+    --header-main-height: 116px;
+    --header-height: 156px;
+  }
+
+  .header-main-row {
+    padding: 10px 14px;
+    align-items: flex-start;
+    flex-direction: column;
+    justify-content: center;
+    gap: 10px;
+  }
+
+  .header-title {
     font-size: 26px;
   }
 
@@ -839,26 +871,27 @@ select {
     padding: 10px 14px;
   }
 
-  .topbar-actions {
+  .header-actions {
     flex-wrap: wrap;
     width: 100%;
   }
 
-  .search {
+  .header-search {
     width: 100%;
   }
 
-  .search input {
+  .header-search input {
     width: 100%;
+    min-width: 0;
   }
 
-  .date-chip {
+  .header-clock {
     width: 100%;
     text-align: center;
   }
 
-  .back-btn {
-    width: 100%;
+  .header-ticker-row {
+    padding: 0 14px;
   }
 
   .section-title {

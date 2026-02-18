@@ -2,7 +2,7 @@ import React from "react";
 
 function formatPrice(price) {
   if (!Number.isFinite(price)) return "--";
-  return `Rs ${price.toFixed(2)}`;
+  return `INR ${price.toFixed(2)}`;
 }
 
 function formatChange(changePct) {
@@ -14,7 +14,7 @@ function formatChange(changePct) {
 export default function LiveTicker({ quotes = [] }) {
   if (!quotes.length) {
     return (
-      <div className="ticker-strip" aria-live="polite">
+      <div className="ticker-strip">
         <div className="ticker-empty">Waiting for live ticker updates...</div>
       </div>
     );
@@ -23,7 +23,7 @@ export default function LiveTicker({ quotes = [] }) {
   const loopedQuotes = [...quotes, ...quotes];
 
   return (
-    <div className="ticker-strip" aria-live="polite">
+    <div className="ticker-strip" role="status" aria-live="polite">
       <div className="ticker-track">
         {loopedQuotes.map((quote, index) => {
           const tone =
@@ -32,7 +32,9 @@ export default function LiveTicker({ quotes = [] }) {
           return (
             <div key={`${quote.symbol}-${index}`} className={`ticker-item ${tone}`}>
               <span className="ticker-symbol">{quote.symbol}</span>
+              <span className="ticker-separator">|</span>
               <span className="ticker-price">{formatPrice(quote.price)}</span>
+              <span className="ticker-separator">|</span>
               <span className="ticker-change">{formatChange(quote.changePct)}</span>
             </div>
           );
