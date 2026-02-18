@@ -25,6 +25,14 @@
   box-sizing: border-box;
 }
 
+html,
+body,
+#root {
+  width: 100%;
+  max-width: 100%;
+  overflow-x: hidden;
+}
+
 body {
   margin: 0;
   min-height: 100vh;
@@ -48,11 +56,15 @@ select {
 
 .app-shell {
   min-height: 100vh;
+  width: 100%;
+  overflow-x: hidden;
 }
 
 .app-header {
   position: fixed;
   inset: 0 0 auto 0;
+  width: 100%;
+  max-width: 100vw;
   z-index: 20;
   border-bottom: 1px solid rgba(148, 163, 184, 0.24);
   background: linear-gradient(180deg, rgba(15, 23, 42, 0.97) 0%, rgba(10, 14, 21, 0.97) 100%);
@@ -66,6 +78,7 @@ select {
   align-items: center;
   justify-content: space-between;
   gap: 20px;
+  min-width: 0;
 }
 
 .header-title-wrap {
@@ -88,15 +101,23 @@ select {
   display: flex;
   align-items: center;
   gap: 12px;
+  min-width: 0;
+  max-width: 100%;
+}
+
+.header-search {
+  flex: 1 1 280px;
+  min-width: 0;
 }
 
 .header-search input {
+  width: 100%;
   background: var(--card-2);
   border: 1px solid var(--border);
   border-radius: 12px;
   padding: 10px 14px;
   color: var(--text);
-  min-width: 260px;
+  min-width: 0;
 }
 
 .header-search input:disabled {
@@ -137,8 +158,11 @@ select {
 .app-body {
   margin-top: var(--header-height);
   height: calc(100vh - var(--header-height));
+  width: 100%;
+  max-width: 100%;
   display: grid;
   grid-template-columns: var(--sidebar-width) minmax(0, 1fr);
+  overflow: hidden;
 }
 
 .sidebar {
@@ -235,6 +259,7 @@ select {
   padding: 32px 36px 60px;
   height: 100%;
   overflow-y: auto;
+  overflow-x: hidden;
   min-width: 0;
 }
 
@@ -848,7 +873,7 @@ select {
   }
 }
 
-@media (max-width: 740px) {
+@media (max-width: 920px) {
   :root {
     --header-main-height: 116px;
     --header-height: 156px;
