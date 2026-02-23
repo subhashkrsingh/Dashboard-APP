@@ -43,7 +43,8 @@ body {
   max-width: 100%;
   overflow-x: hidden;
   overflow-x: clip;
-  background: radial-gradient(circle at top, rgba(79, 70, 229, 0.18), transparent 45%),
+  background:
+    radial-gradient(circle at top, rgba(79, 70, 229, 0.18), transparent 45%),
     linear-gradient(180deg, var(--bg-1) 0%, var(--bg-0) 100%);
   color: var(--text);
 }
@@ -86,7 +87,11 @@ select {
   min-width: 0;
   z-index: 20;
   border-bottom: 1px solid rgba(148, 163, 184, 0.24);
-  background: linear-gradient(180deg, rgba(15, 23, 42, 0.97) 0%, rgba(10, 14, 21, 0.97) 100%);
+  background: linear-gradient(
+    180deg,
+    rgba(15, 23, 42, 0.97) 0%,
+    rgba(10, 14, 21, 0.97) 100%
+  );
   box-shadow: 0 10px 24px rgba(2, 6, 23, 0.45);
   overflow-x: clip;
 }
@@ -200,7 +205,11 @@ select {
 }
 
 .sidebar {
-  background: linear-gradient(180deg, rgba(15, 23, 42, 0.95) 0%, rgba(10, 14, 21, 0.98) 100%);
+  background: linear-gradient(
+    180deg,
+    rgba(15, 23, 42, 0.95) 0%,
+    rgba(10, 14, 21, 0.98) 100%
+  );
   border-right: 1px solid var(--border);
   padding: 28px 22px;
   display: flex;
@@ -325,7 +334,11 @@ select {
   overflow: hidden;
   border: 1px solid rgba(125, 211, 252, 0.25);
   border-radius: 10px;
-  background: linear-gradient(90deg, rgba(15, 23, 42, 0.9), rgba(16, 24, 39, 0.96));
+  background: linear-gradient(
+    90deg,
+    rgba(15, 23, 42, 0.9),
+    rgba(16, 24, 39, 0.96)
+  );
 }
 
 .ticker-track {
@@ -478,7 +491,9 @@ select {
 }
 
 .live-card {
-  transition: transform 0.2s ease, border-color 0.2s ease;
+  transition:
+    transform 0.2s ease,
+    border-color 0.2s ease;
 }
 
 .live-card[role="button"] {
@@ -721,7 +736,11 @@ select {
 .range-fill {
   height: 100%;
   border-radius: 999px;
-  background: linear-gradient(90deg, rgba(125, 211, 252, 0.25), rgba(79, 70, 229, 0.85));
+  background: linear-gradient(
+    90deg,
+    rgba(125, 211, 252, 0.25),
+    rgba(79, 70, 229, 0.85)
+  );
 }
 
 .range-dot {
