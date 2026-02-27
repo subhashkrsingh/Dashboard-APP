@@ -58,7 +58,8 @@ const INITIAL_REFRESH_TOKEN = env('FYERS_REFRESH_TOKEN');
 const FYERS_SECRET_ID = env('FYERS_SECRET_ID');
 const FYERS_DATA_HOST = env('FYERS_DATA_HOST') || 'https://api.fyers.in';
 const FYERS_REDIRECT_URI = env('FYERS_REDIRECT_URI');
-const FYERS_AUTH_HOST = (env('FYERS_AUTH_HOST') || 'https://api.fyers.in/api/v3').replace(/\/+$/, '');
+const FYERS_AUTH_HOST = (env('FYERS_AUTH_HOST') || 'https://api-t1.fyers.in/api/v3').replace(/\/+$/, '');
+const FYERS_TOKEN_HOST = (env('FYERS_TOKEN_HOST') || 'https://api.fyers.in/api/v3').replace(/\/+$/, '');
 const FYERS_PIN = env('FYERS_PIN');
 const POLL_INTERVAL_MS = Number.parseInt(process.env.FYERS_POLL_INTERVAL_MS, 10) || 12000;
 const REFRESH_BEFORE_SEC = Number.parseInt(process.env.FYERS_REFRESH_BEFORE_SEC, 10) || 300;
@@ -193,7 +194,8 @@ async function exchangeAuthCode(authCode) {
     appIdHash: getAppIdHash(),
     code: String(authCode || '').trim()
   };
-  const tokenUrl = `${FYERS_AUTH_HOST}${FYERS_TOKEN_PATH.startsWith('/') ? FYERS_TOKEN_PATH : `/${FYERS_TOKEN_PATH}`}`;
+  const tokenPath = FYERS_TOKEN_PATH.startsWith('/') ? FYERS_TOKEN_PATH : `/${FYERS_TOKEN_PATH}`;
+  const tokenUrl = `${FYERS_TOKEN_HOST}${tokenPath}`;
   const primaryResponse = await fetch(tokenUrl, {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
@@ -227,9 +229,26 @@ async function exchangeAuthCode(authCode) {
   const fallbackToken = (fallbackData?.access_token || fallbackData?.accessToken || '').trim();
   if (fallbackResponse.ok && fallbackToken) return fallbackData;
 
+  const secondaryFallbackResponse = await fetch(`${FYERS_TOKEN_HOST}/validate-authcode`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify(body)
+  });
+
+  let secondaryFallbackData = null;
+  try {
+    secondaryFallbackData = await secondaryFallbackResponse.json();
+  } catch {
+    secondaryFallbackData = null;
+  }
+
+  const secondaryFallbackToken = (secondaryFallbackData?.access_token || secondaryFallbackData?.accessToken || '').trim();
+  if (secondaryFallbackResponse.ok && secondaryFallbackToken) return secondaryFallbackData;
+
   const primaryReason = primaryData?.message || primaryData?.msg || `HTTP ${primaryResponse.status}`;
   const fallbackReason = fallbackData?.message || fallbackData?.msg || `HTTP ${fallbackResponse.status}`;
-  throw new Error(`Token exchange failed: ${primaryReason}; fallback: ${fallbackReason}`);
+  const secondaryFallbackReason = secondaryFallbackData?.message || secondaryFallbackData?.msg || `HTTP ${secondaryFallbackResponse.status}`;
+  throw new Error(`Token exchange failed: ${primaryReason}; fallback1: ${fallbackReason}; fallback2: ${secondaryFallbackReason}`);
 }
 
 function getFyersClient() {

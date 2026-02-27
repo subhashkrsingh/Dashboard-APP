@@ -18,7 +18,8 @@ Notes
 - Set `FYERS_APP_ID`, `FYERS_SECRET_ID`, and `FYERS_REDIRECT_URI` in your environment (or `backend/.env`) before running.
 - Optional: set `FYERS_ACCESS_TOKEN` for startup convenience. You can also run `/auth/start` once and let `/auth/callback` exchange `auth_code` via `https://api.fyers.in/api/v3/token`.
 - Optional: set `FYERS_REFRESH_TOKEN` only if you explicitly enable refresh flow with `FYERS_USE_REFRESH_TOKEN=true`.
-- Optional: set `FYERS_AUTH_HOST` (default `https://api.fyers.in/api/v3`) and `FYERS_TOKEN_PATH` (default `/token`) if FYERS account-specific routing differs.
+- Optional: set `FYERS_AUTH_HOST` (default `https://api-t1.fyers.in/api/v3`) for login/auth-code routes.
+- Optional: set `FYERS_TOKEN_HOST` (default `https://api.fyers.in/api/v3`) and `FYERS_TOKEN_PATH` (default `/token`) for code-to-token exchange.
 - Symbol format is `NSE:SYMBOL-EQ`. To add symbols, edit `backend/src/index.js` and extend the `symbols` array.
 - Optional: set `FYERS_POLL_INTERVAL_MS` to control polling frequency, and `FYERS_DATA_HOST` if you need a different FYERS data host.
 - Node 18+ recommended.
