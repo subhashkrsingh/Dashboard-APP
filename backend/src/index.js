@@ -65,6 +65,7 @@ const REFRESH_BEFORE_SEC = Number.parseInt(process.env.FYERS_REFRESH_BEFORE_SEC,
 const REFRESH_BEFORE_MS = Math.max(60, REFRESH_BEFORE_SEC) * 1000;
 const FYERS_PERSIST_AUTH_TO_ENV = env('FYERS_PERSIST_AUTH_TO_ENV') === 'true';
 const FYERS_TOKEN_PATH = env('FYERS_TOKEN_PATH') || '/token';
+const FYERS_USE_REFRESH_TOKEN = env('FYERS_USE_REFRESH_TOKEN') === 'true';
 let pollIntervalId = null;
 let fyersClient = null;
 let refreshInFlight = null;
@@ -497,7 +498,7 @@ function normalizeTradeSnapshot(depthNode) {
 async function ensureDataAccess(contextReason) {
   if (!FYERS_APP_ID) return 'FYERS_APP_ID not set';
 
-  const hasRefreshToken = Boolean(tokenManager.getRefreshToken());
+  const hasRefreshToken = FYERS_USE_REFRESH_TOKEN && Boolean(tokenManager.getRefreshToken());
   if (tokenManager.getAccessToken()) {
     if (hasRefreshToken && tokenManager.accessTokenExpiresSoon(REFRESH_BEFORE_MS)) {
       await refreshAccessToken(`${contextReason}_expiring_soon`);
@@ -505,15 +506,15 @@ async function ensureDataAccess(contextReason) {
     if (tokenManager.getAccessToken()) return null;
   }
 
-  if (!hasRefreshToken) return 'FYERS access token unavailable (no refresh token)';
+  if (!hasRefreshToken) return 'FYERS access token unavailable. Complete /auth/start login flow.';
   const refreshed = await refreshAccessToken(`${contextReason}_missing_access_token`);
   if (refreshed && tokenManager.getAccessToken()) return null;
-  return 'FYERS access token unavailable (refresh failed)';
+  return 'FYERS access token unavailable (refresh failed). Complete /auth/start login flow.';
 }
 
 async function runFyersRequest(requestFn, reason, options = {}) {
   const retryOnAuthError = options.retryOnAuthError !== false;
-  const hasRefreshToken = Boolean(tokenManager.getRefreshToken());
+  const hasRefreshToken = FYERS_USE_REFRESH_TOKEN && Boolean(tokenManager.getRefreshToken());
 
   try {
     const data = await requestFn(getFyersClient());
@@ -543,7 +544,7 @@ async function fetchFyersQuotes(symbolList, options = {}) {
   const attemptedRefresh = options.attemptedRefresh === true;
   const accessToken = tokenManager.getAccessToken();
   const refreshToken = tokenManager.getRefreshToken();
-  const hasRefreshToken = Boolean(refreshToken);
+  const hasRefreshToken = FYERS_USE_REFRESH_TOKEN && Boolean(refreshToken);
 
   if (!accessToken && hasRefreshToken && !attemptedRefresh) {
     const refreshed = await refreshAccessToken('missing_access_token');
@@ -557,7 +558,9 @@ async function fetchFyersQuotes(symbolList, options = {}) {
   if (!FYERS_APP_ID || !tokenManager.getAccessToken()) {
     const missing = !FYERS_APP_ID
       ? 'FYERS_APP_ID not set'
-      : (hasRefreshToken ? 'FYERS access token unavailable (refresh failed)' : 'FYERS_ACCESS_TOKEN not set');
+      : (hasRefreshToken
+        ? 'FYERS access token unavailable (refresh failed)'
+        : 'FYERS access token unavailable. Visit /auth/start to log in');
     console.warn(`${missing} -- cannot fetch quotes`);
     symbolList.forEach(symbol => setStatus(symbol, 'no_key', missing));
     return [];
