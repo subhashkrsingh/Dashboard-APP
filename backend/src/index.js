@@ -56,14 +56,15 @@ const FYERS_APP_ID = env('FYERS_APP_ID');
 const INITIAL_ACCESS_TOKEN = env('FYERS_ACCESS_TOKEN');
 const INITIAL_REFRESH_TOKEN = env('FYERS_REFRESH_TOKEN');
 const FYERS_SECRET_ID = env('FYERS_SECRET_ID');
-const FYERS_DATA_HOST = env('FYERS_DATA_HOST') || 'https://api-t1.fyers.in';
+const FYERS_DATA_HOST = env('FYERS_DATA_HOST') || 'https://api.fyers.in';
 const FYERS_REDIRECT_URI = env('FYERS_REDIRECT_URI');
-const FYERS_AUTH_HOST = (env('FYERS_AUTH_HOST') || 'https://api-t1.fyers.in/api/v3').replace(/\/+$/, '');
+const FYERS_AUTH_HOST = (env('FYERS_AUTH_HOST') || 'https://api.fyers.in/api/v3').replace(/\/+$/, '');
 const FYERS_PIN = env('FYERS_PIN');
 const POLL_INTERVAL_MS = Number.parseInt(process.env.FYERS_POLL_INTERVAL_MS, 10) || 12000;
 const REFRESH_BEFORE_SEC = Number.parseInt(process.env.FYERS_REFRESH_BEFORE_SEC, 10) || 300;
 const REFRESH_BEFORE_MS = Math.max(60, REFRESH_BEFORE_SEC) * 1000;
 const FYERS_PERSIST_AUTH_TO_ENV = env('FYERS_PERSIST_AUTH_TO_ENV') === 'true';
+const FYERS_TOKEN_PATH = env('FYERS_TOKEN_PATH') || '/token';
 let pollIntervalId = null;
 let fyersClient = null;
 let refreshInFlight = null;
@@ -180,6 +181,54 @@ async function refreshAccessToken(reason) {
     });
 
   return refreshInFlight;
+}
+
+async function exchangeAuthCode(authCode) {
+  if (typeof fetch !== 'function') {
+    throw new Error('Token exchange skipped: global fetch is unavailable in this Node runtime');
+  }
+  const body = {
+    grant_type: 'authorization_code',
+    appIdHash: getAppIdHash(),
+    code: String(authCode || '').trim()
+  };
+  const tokenUrl = `${FYERS_AUTH_HOST}${FYERS_TOKEN_PATH.startsWith('/') ? FYERS_TOKEN_PATH : `/${FYERS_TOKEN_PATH}`}`;
+  const primaryResponse = await fetch(tokenUrl, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify(body)
+  });
+
+  let primaryData = null;
+  try {
+    primaryData = await primaryResponse.json();
+  } catch {
+    primaryData = null;
+  }
+
+  const primaryToken = (primaryData?.access_token || primaryData?.accessToken || '').trim();
+  if (primaryResponse.ok && primaryToken) return primaryData;
+
+  // FYERS API versions differ across accounts; fallback keeps compatibility.
+  const fallbackResponse = await fetch(`${FYERS_AUTH_HOST}/validate-authcode`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify(body)
+  });
+
+  let fallbackData = null;
+  try {
+    fallbackData = await fallbackResponse.json();
+  } catch {
+    fallbackData = null;
+  }
+
+  const fallbackToken = (fallbackData?.access_token || fallbackData?.accessToken || '').trim();
+  if (fallbackResponse.ok && fallbackToken) return fallbackData;
+
+  const primaryReason = primaryData?.message || primaryData?.msg || `HTTP ${primaryResponse.status}`;
+  const fallbackReason = fallbackData?.message || fallbackData?.msg || `HTTP ${fallbackResponse.status}`;
+  throw new Error(`Token exchange failed: ${primaryReason}; fallback: ${fallbackReason}`);
 }
 
 function getFyersClient() {
@@ -766,19 +815,23 @@ app.get('/api/company/:symbol/history', async (req, res) => {
   }
 });
 
-// Start FYERS login: redirects user to generate auth code (API v3 SDK)
+// Start FYERS login: redirects user to generate auth code
 function startAuth(req, res) {
   if (!ensureAuthConfig(res)) return;
-  const fyers = getFyersClient();
-  const url = fyers.generateAuthCode();
+  const state = String(req.query.state || 'power_dashboard');
+  const params = new URLSearchParams({
+    client_id: FYERS_APP_ID,
+    redirect_uri: FYERS_REDIRECT_URI,
+    response_type: 'code',
+    state
+  });
+  const url = `${FYERS_AUTH_HOST}/generate-authcode?${params.toString()}`;
   res.redirect(url);
 }
 
 // FYERS redirects here with ?auth_code=...
 async function handleAuthCallback(req, res) {
   if (!ensureAuthConfig(res)) return;
-  console.log('Callback URL:', req.url);
-  console.log('Query:', req.query);
   const authCode = req.query.auth_code;
   if (!authCode) {
     res.status(400).json({ error: 'Missing auth_code in callback' });
@@ -786,21 +839,24 @@ async function handleAuthCallback(req, res) {
   }
 
   try {
-    const fyers = getFyersClient();
-    const data = await fyers.generate_access_token({
-      client_id: FYERS_APP_ID,
-      secret_key: FYERS_SECRET_ID,
-      auth_code: authCode
-    });
+    const data = await exchangeAuthCode(authCode);
     const callbackToken = (data?.access_token || data?.accessToken || '').trim();
     const callbackRefreshToken = (data?.refresh_token || data?.refreshToken || '').trim();
-    if (callbackToken) {
-      setRuntimeAccessToken(callbackToken);
-      if (callbackRefreshToken) setRuntimeRefreshToken(callbackRefreshToken);
-      persistRuntimeTokensToEnv();
-      await pollAllSymbols();
+    if (!callbackToken) {
+      res.status(502).json({ error: data?.message || data?.msg || 'No access_token returned by FYERS' });
+      return;
     }
-    res.json(data);
+
+    setRuntimeAccessToken(callbackToken);
+    if (callbackRefreshToken) setRuntimeRefreshToken(callbackRefreshToken);
+    persistRuntimeTokensToEnv();
+    await pollAllSymbols();
+    res.json({
+      status: 'ok',
+      message: 'FYERS token stored successfully',
+      hasAccessToken: Boolean(tokenManager.getAccessToken()),
+      hasRefreshToken: Boolean(tokenManager.getRefreshToken())
+    });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -808,6 +864,7 @@ async function handleAuthCallback(req, res) {
 
 app.get('/auth/start', startAuth);
 app.get('/auth/callback', handleAuthCallback);
+app.get('/app/callback', handleAuthCallback);
 // Alias routes for API-style auth flow
 app.get('/api/fyers/login', startAuth);
 app.get('/api/fyers/callback', handleAuthCallback);
