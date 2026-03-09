@@ -15,13 +15,16 @@ Getting started
 
 Notes
 - Uses the FYERS API v3 SDK (`fyers-api-v3`) for quotes.
-- Set `FYERS_APP_ID`, `FYERS_SECRET_ID`, and `FYERS_REDIRECT_URI` in your environment (or `backend/.env`) before running.
+- Set `FYERS_APP_ID`, `FYERS_SECRET_ID` (or `FYERS_SECRET_KEY`), and `FYERS_REDIRECT_URI` in your environment (or `backend/.env`) before running.
 - Optional: set `FYERS_ACCESS_TOKEN` for startup convenience. You can also run `/auth/start` once and let `/auth/callback` exchange `auth_code` via `https://api.fyers.in/api/v3/token`.
-- Optional: set `FYERS_REFRESH_TOKEN` only if you explicitly enable refresh flow with `FYERS_USE_REFRESH_TOKEN=true`.
+- Optional: set `FYERS_REFRESH_TOKEN` to enable auto-refresh. If `FYERS_USE_REFRESH_TOKEN` is not set, refresh is now auto-enabled when a refresh token exists.
+- Optional: set `FYERS_USE_REFRESH_TOKEN=false` to force-disable refresh even when `FYERS_REFRESH_TOKEN` is present.
 - Optional: set `FYERS_AUTH_HOST` (default `https://api-t1.fyers.in/api/v3`) for login/auth-code routes.
 - Optional: set `FYERS_TOKEN_HOST` (default `https://api.fyers.in/api/v3`) and `FYERS_TOKEN_PATH` (default `/token`) for code-to-token exchange.
+- Optional: set `FYERS_TOKEN_ENDPOINT` to override token exchange endpoint directly (for example `https://api.fyers.in/api/v3/token`).
 - Symbol format is `NSE:SYMBOL-EQ`. To add symbols, edit `backend/src/index.js` and extend the `symbols` array.
 - Optional: set `FYERS_POLL_INTERVAL_MS` to control polling frequency, and `FYERS_DATA_HOST` if you need a different FYERS data host.
+- Optional: set `COMPANY_OVERVIEW_CACHE_TTL_MS` and `COMPANY_HISTORY_CACHE_TTL_MS` to tune API load vs freshness for detail endpoints.
 - Node 18+ recommended.
 
 Next steps (suggestions)

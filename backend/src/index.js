@@ -55,7 +55,7 @@ const env = key => (process.env[key] || '').trim();
 const FYERS_APP_ID = env('FYERS_APP_ID');
 const INITIAL_ACCESS_TOKEN = env('FYERS_ACCESS_TOKEN');
 const INITIAL_REFRESH_TOKEN = env('FYERS_REFRESH_TOKEN');
-const FYERS_SECRET_ID = env('FYERS_SECRET_ID');
+const FYERS_SECRET_ID = env('FYERS_SECRET_ID') || env('FYERS_SECRET_KEY');
 const FYERS_DATA_HOST = env('FYERS_DATA_HOST') || 'https://api.fyers.in';
 const FYERS_REDIRECT_URI = env('FYERS_REDIRECT_URI');
 const FYERS_AUTH_HOST = (env('FYERS_AUTH_HOST') || 'https://api-t1.fyers.in/api/v3').replace(/\/+$/, '');
@@ -66,10 +66,28 @@ const REFRESH_BEFORE_SEC = Number.parseInt(process.env.FYERS_REFRESH_BEFORE_SEC,
 const REFRESH_BEFORE_MS = Math.max(60, REFRESH_BEFORE_SEC) * 1000;
 const FYERS_PERSIST_AUTH_TO_ENV = env('FYERS_PERSIST_AUTH_TO_ENV') === 'true';
 const FYERS_TOKEN_PATH = env('FYERS_TOKEN_PATH') || '/token';
-const FYERS_USE_REFRESH_TOKEN = env('FYERS_USE_REFRESH_TOKEN') === 'true';
+const FYERS_TOKEN_ENDPOINT = env('FYERS_TOKEN_ENDPOINT');
+const FYERS_USE_REFRESH_TOKEN = (() => {
+  const raw = env('FYERS_USE_REFRESH_TOKEN').toLowerCase();
+  if (raw === 'true') return true;
+  if (raw === 'false') return false;
+  // If flag is not set, auto-enable refresh when a refresh token is present.
+  return Boolean(INITIAL_REFRESH_TOKEN);
+})();
+const COMPANY_OVERVIEW_CACHE_TTL_MS =
+  Number.parseInt(process.env.COMPANY_OVERVIEW_CACHE_TTL_MS, 10) || 8000;
+const COMPANY_HISTORY_CACHE_TTL_MS =
+  Number.parseInt(process.env.COMPANY_HISTORY_CACHE_TTL_MS, 10) || 60000;
 let pollIntervalId = null;
 let fyersClient = null;
 let refreshInFlight = null;
+let pollInFlight = null;
+let lastBroadcastPayload = '';
+let lastQuoteFetchBlockReason = '';
+const companyOverviewCache = new Map(); // symbol -> { expiresAt, data }
+const companyHistoryCache = new Map(); // key -> { expiresAt, data }
+const companyOverviewInFlight = new Map(); // symbol -> Promise<data>
+const companyHistoryInFlight = new Map(); // key -> Promise<data>
 
 tokenManager.setTokens({
   accessToken: INITIAL_ACCESS_TOKEN,
@@ -120,6 +138,33 @@ function getAppIdHash() {
   return crypto.createHash('sha256').update(`${FYERS_APP_ID}:${FYERS_SECRET_ID}`).digest('hex');
 }
 
+function buildTokenExchangeUrl() {
+  if (FYERS_TOKEN_ENDPOINT) return FYERS_TOKEN_ENDPOINT;
+  if (FYERS_TOKEN_HOST.toLowerCase().endsWith('/token')) return FYERS_TOKEN_HOST;
+  const tokenPath = FYERS_TOKEN_PATH.startsWith('/') ? FYERS_TOKEN_PATH : `/${FYERS_TOKEN_PATH}`;
+  return `${FYERS_TOKEN_HOST}${tokenPath}`;
+}
+
+function getIncomingCallbackBaseUrl(req) {
+  const forwardedProto = String(req.headers['x-forwarded-proto'] || '')
+    .split(',')[0]
+    .trim();
+  const forwardedHost = String(req.headers['x-forwarded-host'] || '')
+    .split(',')[0]
+    .trim();
+  const protocol = forwardedProto || req.protocol;
+  const host = forwardedHost || req.get('host') || '';
+  return `${protocol}://${host}${req.path}`;
+}
+
+function getRedirectMismatchHint(req) {
+  if (!FYERS_REDIRECT_URI) return null;
+  const incomingBase = getIncomingCallbackBaseUrl(req);
+  const expectedBase = String(FYERS_REDIRECT_URI).split('?')[0];
+  if (incomingBase === expectedBase) return null;
+  return `FYERS_REDIRECT_URI mismatch. Expected "${expectedBase}" but callback received "${incomingBase}"`;
+}
+
 function isLikelyAuthError(value) {
   const text = typeof value === 'string' ? value : JSON.stringify(value || {});
   const lower = text.toLowerCase();
@@ -148,31 +193,40 @@ async function refreshAccessToken(reason) {
     };
     if (FYERS_PIN) body.pin = FYERS_PIN;
 
-    const response = await fetch(`${FYERS_AUTH_HOST}/validate-refresh-token`, {
-      method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify(body)
-    });
+    const refreshUrls = Array.from(new Set([
+      `${FYERS_AUTH_HOST}/validate-refresh-token`,
+      `${FYERS_TOKEN_HOST}/validate-refresh-token`
+    ]));
+    let lastError = 'Unknown refresh failure';
 
-    let data = null;
-    try {
-      data = await response.json();
-    } catch {
-      data = null;
+    for (const url of refreshUrls) {
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify(body)
+      });
+
+      let data = null;
+      try {
+        data = await response.json();
+      } catch {
+        data = null;
+      }
+
+      const refreshedAccessToken = (data?.access_token || data?.accessToken || '').trim();
+      const refreshedRefreshToken = (data?.refresh_token || data?.refreshToken || '').trim();
+      if (response.ok && refreshedAccessToken) {
+        setRuntimeAccessToken(refreshedAccessToken);
+        if (refreshedRefreshToken) setRuntimeRefreshToken(refreshedRefreshToken);
+        persistRuntimeTokensToEnv();
+        console.log(`FYERS access token refreshed (${reason})`);
+        return true;
+      }
+
+      lastError = data?.message || data?.msg || `HTTP ${response.status}`;
     }
 
-    const refreshedAccessToken = (data?.access_token || data?.accessToken || '').trim();
-    const refreshedRefreshToken = (data?.refresh_token || data?.refreshToken || '').trim();
-    if (!response.ok || !refreshedAccessToken) {
-      const reasonText = data?.message || data?.msg || `HTTP ${response.status}`;
-      throw new Error(reasonText);
-    }
-
-    setRuntimeAccessToken(refreshedAccessToken);
-    if (refreshedRefreshToken) setRuntimeRefreshToken(refreshedRefreshToken);
-    persistRuntimeTokensToEnv();
-    console.log(`FYERS access token refreshed (${reason})`);
-    return true;
+    throw new Error(lastError);
   })()
     .catch(err => {
       console.error(`FYERS token refresh failed (${reason}):`, err.message);
@@ -194,11 +248,13 @@ async function exchangeAuthCode(authCode) {
     appIdHash: getAppIdHash(),
     code: String(authCode || '').trim()
   };
-  const tokenPath = FYERS_TOKEN_PATH.startsWith('/') ? FYERS_TOKEN_PATH : `/${FYERS_TOKEN_PATH}`;
-  const tokenUrl = `${FYERS_TOKEN_HOST}${tokenPath}`;
+  const tokenUrl = buildTokenExchangeUrl();
   const primaryResponse = await fetch(tokenUrl, {
     method: 'POST',
-    headers: { 'content-type': 'application/json' },
+    headers: {
+      'content-type': 'application/json',
+      accept: 'application/json'
+    },
     body: JSON.stringify(body)
   });
 
@@ -215,7 +271,10 @@ async function exchangeAuthCode(authCode) {
   // FYERS API versions differ across accounts; fallback keeps compatibility.
   const fallbackResponse = await fetch(`${FYERS_AUTH_HOST}/validate-authcode`, {
     method: 'POST',
-    headers: { 'content-type': 'application/json' },
+    headers: {
+      'content-type': 'application/json',
+      accept: 'application/json'
+    },
     body: JSON.stringify(body)
   });
 
@@ -231,7 +290,10 @@ async function exchangeAuthCode(authCode) {
 
   const secondaryFallbackResponse = await fetch(`${FYERS_TOKEN_HOST}/validate-authcode`, {
     method: 'POST',
-    headers: { 'content-type': 'application/json' },
+    headers: {
+      'content-type': 'application/json',
+      accept: 'application/json'
+    },
     body: JSON.stringify(body)
   });
 
@@ -514,6 +576,24 @@ function normalizeTradeSnapshot(depthNode) {
   };
 }
 
+function getCachedValue(cacheMap, key) {
+  const entry = cacheMap.get(key);
+  if (!entry) return null;
+  if (entry.expiresAt <= Date.now()) {
+    cacheMap.delete(key);
+    return null;
+  }
+  return entry.data;
+}
+
+function setCachedValue(cacheMap, key, data, ttlMs) {
+  const ttl = Math.max(1000, Number(ttlMs) || 0);
+  cacheMap.set(key, {
+    data,
+    expiresAt: Date.now() + ttl
+  });
+}
+
 async function ensureDataAccess(contextReason) {
   if (!FYERS_APP_ID) return 'FYERS_APP_ID not set';
 
@@ -580,10 +660,14 @@ async function fetchFyersQuotes(symbolList, options = {}) {
       : (hasRefreshToken
         ? 'FYERS access token unavailable (refresh failed)'
         : 'FYERS access token unavailable. Visit /auth/start to log in');
-    console.warn(`${missing} -- cannot fetch quotes`);
+    if (lastQuoteFetchBlockReason !== missing) {
+      console.warn(`${missing} -- cannot fetch quotes`);
+      lastQuoteFetchBlockReason = missing;
+    }
     symbolList.forEach(symbol => setStatus(symbol, 'no_key', missing));
     return [];
   }
+  lastQuoteFetchBlockReason = '';
 
   try {
     const fyers = getFyersClient();
@@ -632,7 +716,7 @@ async function fetchFyersQuotes(symbolList, options = {}) {
 function ensureAuthConfig(res) {
   if (!FYERS_APP_ID || !FYERS_SECRET_ID || !FYERS_REDIRECT_URI) {
     res.status(400).json({
-      error: 'Missing FYERS_APP_ID, FYERS_SECRET_ID, or FYERS_REDIRECT_URI'
+      error: 'Missing FYERS_APP_ID, FYERS_SECRET_ID/FYERS_SECRET_KEY, or FYERS_REDIRECT_URI'
     });
     return false;
   }
@@ -641,18 +725,36 @@ function ensureAuthConfig(res) {
 
 function broadcastQuotes() {
   const payload = JSON.stringify({ type: 'quotes', data: Object.values(quotes) });
+  if (payload === lastBroadcastPayload) return;
+  lastBroadcastPayload = payload;
   wss.clients.forEach(client => {
     if (client.readyState === WebSocket.OPEN) client.send(payload);
   });
 }
 
 async function pollAllSymbols() {
-  const data = await fetchFyersQuotes(symbols);
-  if (data.length === 0) return;
-  data.forEach(q => {
-    quotes[q.symbol] = q;
+  if (pollInFlight) return pollInFlight;
+  pollInFlight = (async () => {
+    const data = await fetchFyersQuotes(symbols);
+    if (data.length === 0) return;
+    let hasUpdate = false;
+    data.forEach(q => {
+      const prev = quotes[q.symbol];
+      quotes[q.symbol] = q;
+      if (
+        !prev ||
+        prev.price !== q.price ||
+        prev.timestamp !== q.timestamp ||
+        prev.changePercent !== q.changePercent
+      ) {
+        hasUpdate = true;
+      }
+    });
+    if (hasUpdate) broadcastQuotes();
+  })().finally(() => {
+    pollInFlight = null;
   });
-  broadcastQuotes();
+  return pollInFlight;
 }
 
 wss.on('connection', ws => {
@@ -697,6 +799,22 @@ app.get('/api/company/:symbol', async (req, res) => {
     return;
   }
 
+  const cachedOverview = getCachedValue(companyOverviewCache, symbol);
+  if (cachedOverview) {
+    res.json(cachedOverview);
+    return;
+  }
+
+  if (companyOverviewInFlight.has(symbol)) {
+    try {
+      const shared = await companyOverviewInFlight.get(symbol);
+      res.json(shared);
+    } catch (err) {
+      res.status(502).json({ error: err?.message || 'Failed to fetch company overview' });
+    }
+    return;
+  }
+
   const company = getCompanyMeta(symbol);
   const accessIssue = await ensureDataAccess('company_overview');
   if (accessIssue) {
@@ -722,54 +840,68 @@ app.get('/api/company/:symbol', async (req, res) => {
     return;
   }
 
-  const [quoteResult, depthResult] = await Promise.allSettled([
-    runFyersRequest(fyers => fyers.getQuotes([symbol]), 'company_quote'),
-    runFyersRequest(
-      fyers => fyers.getMarketDepth({ symbol: [symbol], ohlcv_flag: 1 }),
-      'company_depth'
-    )
-  ]);
+  const overviewPromise = (async () => {
+    const [quoteResult, depthResult] = await Promise.allSettled([
+      runFyersRequest(fyers => fyers.getQuotes([symbol]), 'company_quote'),
+      runFyersRequest(
+        fyers => fyers.getMarketDepth({ symbol: [symbol], ohlcv_flag: 1 }),
+        'company_depth'
+      )
+    ]);
 
-  const warnings = [];
-  if (quoteResult.status === 'rejected') warnings.push(`Quote failed: ${quoteResult.reason?.message || 'Unknown error'}`);
-  if (depthResult.status === 'rejected') warnings.push(`Depth failed: ${depthResult.reason?.message || 'Unknown error'}`);
+    const warnings = [];
+    if (quoteResult.status === 'rejected') warnings.push(`Quote failed: ${quoteResult.reason?.message || 'Unknown error'}`);
+    if (depthResult.status === 'rejected') warnings.push(`Depth failed: ${depthResult.reason?.message || 'Unknown error'}`);
 
-  const quoteResponse = quoteResult.status === 'fulfilled' ? quoteResult.value : null;
-  const depthResponse = depthResult.status === 'fulfilled' ? depthResult.value : null;
+    const quoteResponse = quoteResult.status === 'fulfilled' ? quoteResult.value : null;
+    const depthResponse = depthResult.status === 'fulfilled' ? depthResult.value : null;
 
-  if (quoteResponse?.s && String(quoteResponse.s).toLowerCase() !== 'ok') {
-    warnings.push(`Quote response: ${quoteResponse?.message || quoteResponse?.msg || quoteResponse.s}`);
-  }
-  if (depthResponse?.s && String(depthResponse.s).toLowerCase() !== 'ok') {
-    warnings.push(`Depth response: ${depthResponse?.message || depthResponse?.msg || depthResponse.s}`);
-  }
+    if (quoteResponse?.s && String(quoteResponse.s).toLowerCase() !== 'ok') {
+      warnings.push(`Quote response: ${quoteResponse?.message || quoteResponse?.msg || quoteResponse.s}`);
+    }
+    if (depthResponse?.s && String(depthResponse.s).toLowerCase() !== 'ok') {
+      warnings.push(`Depth response: ${depthResponse?.message || depthResponse?.msg || depthResponse.s}`);
+    }
 
-  let quote = normalizeQuoteSnapshot(extractQuoteNode(quoteResponse, symbol), symbol);
-  if (!quote && quotes[symbol]) {
-    const cached = quotes[symbol];
-    quote = {
-      symbol: cached.symbol,
-      price: cached.price,
-      change: null,
-      changePercent: cached.changePercent === null ? null : cached.changePercent * 100,
-      timestamp: cached.timestamp
+    let quote = normalizeQuoteSnapshot(extractQuoteNode(quoteResponse, symbol), symbol);
+    if (!quote && quotes[symbol]) {
+      const cached = quotes[symbol];
+      quote = {
+        symbol: cached.symbol,
+        price: cached.price,
+        change: null,
+        changePercent: cached.changePercent === null ? null : cached.changePercent * 100,
+        timestamp: cached.timestamp
+      };
+    }
+
+    const trade = normalizeTradeSnapshot(extractDepthNode(depthResponse, symbol));
+    return {
+      symbol,
+      company,
+      quote,
+      trade,
+      availability: {
+        quote: quoteResult.status === 'fulfilled' ? 'ok' : 'error',
+        depth: depthResult.status === 'fulfilled' ? 'ok' : 'error'
+      },
+      warnings,
+      fetchedAt: new Date().toISOString()
     };
+  })();
+
+  companyOverviewInFlight.set(symbol, overviewPromise);
+  try {
+    const payload = await overviewPromise;
+    if (payload.quote || payload.trade) {
+      setCachedValue(companyOverviewCache, symbol, payload, COMPANY_OVERVIEW_CACHE_TTL_MS);
+    }
+    res.json(payload);
+  } catch (err) {
+    res.status(502).json({ error: err?.message || 'Failed to fetch company overview' });
+  } finally {
+    companyOverviewInFlight.delete(symbol);
   }
-
-  const trade = normalizeTradeSnapshot(extractDepthNode(depthResponse, symbol));
-
-  res.json({
-    symbol,
-    company,
-    quote,
-    trade,
-    availability: {
-      quote: quoteResult.status === 'fulfilled' ? 'ok' : 'error',
-      depth: depthResult.status === 'fulfilled' ? 'ok' : 'error'
-    },
-    warnings,
-    fetchedAt: new Date().toISOString()
-  });
 });
 
 app.get('/api/company/:symbol/history', async (req, res) => {
@@ -785,6 +917,23 @@ app.get('/api/company/:symbol/history', async (req, res) => {
 
   const company = getCompanyMeta(symbol);
   const { range, resolution, request } = buildHistoryRequest(symbol, req.query);
+  const historyCacheKey = `${symbol}|${range}|${resolution}`;
+  const cachedHistory = getCachedValue(companyHistoryCache, historyCacheKey);
+  if (cachedHistory) {
+    res.json(cachedHistory);
+    return;
+  }
+
+  if (companyHistoryInFlight.has(historyCacheKey)) {
+    try {
+      const shared = await companyHistoryInFlight.get(historyCacheKey);
+      res.json(shared);
+    } catch (err) {
+      res.status(502).json({ error: err?.message || 'Failed to fetch history' });
+    }
+    return;
+  }
+
   const accessIssue = await ensureDataAccess('company_history');
 
   if (accessIssue) {
@@ -802,28 +951,35 @@ app.get('/api/company/:symbol/history', async (req, res) => {
   }
 
   try {
-    const historyResponse = await runFyersRequest(
-      fyers => fyers.getHistory(request),
-      'company_history'
-    );
-    const points = mapHistoryCandles(historyResponse);
-    const warning = (
-      historyResponse?.s &&
-      String(historyResponse.s).toLowerCase() !== 'ok'
-    )
-      ? (historyResponse?.message || historyResponse?.msg || historyResponse.s)
-      : null;
+    const historyPromise = (async () => {
+      const historyResponse = await runFyersRequest(
+        fyers => fyers.getHistory(request),
+        'company_history'
+      );
+      const points = mapHistoryCandles(historyResponse);
+      const warning = (
+        historyResponse?.s &&
+        String(historyResponse.s).toLowerCase() !== 'ok'
+      )
+        ? (historyResponse?.message || historyResponse?.msg || historyResponse.s)
+        : null;
 
-    res.json({
-      symbol,
-      company,
-      range,
-      resolution,
-      points,
-      count: points.length,
-      warning,
-      fetchedAt: new Date().toISOString()
-    });
+      return {
+        symbol,
+        company,
+        range,
+        resolution,
+        points,
+        count: points.length,
+        warning,
+        fetchedAt: new Date().toISOString()
+      };
+    })();
+
+    companyHistoryInFlight.set(historyCacheKey, historyPromise);
+    const payload = await historyPromise;
+    setCachedValue(companyHistoryCache, historyCacheKey, payload, COMPANY_HISTORY_CACHE_TTL_MS);
+    res.json(payload);
   } catch (err) {
     res.status(502).json({
       symbol,
@@ -834,6 +990,8 @@ app.get('/api/company/:symbol/history', async (req, res) => {
       count: 0,
       error: err?.message || 'Failed to fetch history'
     });
+  } finally {
+    companyHistoryInFlight.delete(historyCacheKey);
   }
 });
 
@@ -854,9 +1012,17 @@ function startAuth(req, res) {
 // FYERS redirects here with ?auth_code=...
 async function handleAuthCallback(req, res) {
   if (!ensureAuthConfig(res)) return;
-  const authCode = req.query.auth_code;
+  const authCode = String(req.query.auth_code || req.query.code || '').trim();
   if (!authCode) {
-    res.status(400).json({ error: 'Missing auth_code in callback' });
+    const redirectHint = getRedirectMismatchHint(req);
+    const queryKeys = Object.keys(req.query || {});
+    res.status(400).json({
+      error: 'Missing auth_code in callback',
+      receivedQueryKeys: queryKeys,
+      expectedRedirectUri: FYERS_REDIRECT_URI || null,
+      callbackUrl: getIncomingCallbackBaseUrl(req),
+      hint: redirectHint || 'Ensure FYERS redirected with auth_code and the callback URI matches exactly.'
+    });
     return;
   }
 
