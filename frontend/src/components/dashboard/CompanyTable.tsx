@@ -68,7 +68,7 @@ export function CompanyTable({ companies, signals }: CompanyTableProps) {
 
   const sortIndicator = (key: SortKey) => {
     if (sortKey !== key) return "";
-    return sortDirection === "asc" ? "?" : "?";
+    return sortDirection === "asc" ? "^" : "v";
   };
 
   return (

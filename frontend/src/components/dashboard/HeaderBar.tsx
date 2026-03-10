@@ -69,7 +69,7 @@ export function HeaderBar({ companies, marketStatus, fetchedAt, isFetching }: He
                 <div key={`${item.symbol}-${index}`} className="flex items-center gap-2 whitespace-nowrap text-sm">
                   <span className="font-semibold text-slate-100">{item.symbol}</span>
                   <span className={isPositive ? "text-emerald-300" : "text-rose-300"}>
-                    {isPositive ? "?" : "?"} {Math.abs(item.percentChange ?? 0).toFixed(2)}%
+                    {isPositive ? "+" : "-"} {Math.abs(item.percentChange ?? 0).toFixed(2)}%
                   </span>
                 </div>
               );
