@@ -468,14 +468,16 @@ async function getPowerSectorData() {
       ? (resolvedLastPrice * resolvedPercentChange) / 100
       : null);
 
-  const majorCompanies = enrichMajorCompanies(allStocks).map(company => ({
-    symbol: company.symbol,
-    name: company.company,
-    price: company.price,
-    change: company.change,
-    percentChange: company.percentChange,
-    volume: company.volume
-  }));
+  const allCompanies = [...allStocks]
+    .sort((a, b) => String(a.symbol).localeCompare(String(b.symbol)))
+    .map(company => ({
+      symbol: company.symbol,
+      name: company.company,
+      price: company.price,
+      change: company.change,
+      percentChange: company.percentChange,
+      volume: company.volume
+    }));
 
   const moversFromAll = (rows) =>
     rows.slice(0, 5).map(item => ({
@@ -494,7 +496,7 @@ async function getPowerSectorData() {
       change: resolvedIndexChange,
       percentChange: resolvedPercentChange
     },
-    companies: majorCompanies,
+    companies: allCompanies,
     gainers: moversFromAll(sortedByGainers),
     losers: moversFromAll(sortedByLosers),
     fallbackIndexUsed: stockPayloadDetails.fallbackIndexUsed,

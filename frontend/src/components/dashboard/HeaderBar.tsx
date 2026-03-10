@@ -8,19 +8,33 @@ interface HeaderBarProps {
   marketStatus?: MarketStatus;
   fetchedAt?: string;
   isFetching: boolean;
+  onToggleSidebar: () => void;
 }
 
-export function HeaderBar({ companies, marketStatus, fetchedAt, isFetching }: HeaderBarProps) {
+export function HeaderBar({ companies, marketStatus, fetchedAt, isFetching, onToggleSidebar }: HeaderBarProps) {
   const tickerData = companies.filter(company => Number.isFinite(company.percentChange));
 
   return (
     <header className="overflow-hidden rounded-2xl border border-slate-700/80 bg-slate-900/85 shadow-[0_20px_60px_rgba(2,8,23,0.55)]">
       <div className="flex flex-col gap-4 border-b border-slate-700/70 px-4 py-4 md:flex-row md:items-center md:justify-between md:px-6">
-        <div>
+        <div className="flex items-start gap-3">
+          <button
+            type="button"
+            onClick={onToggleSidebar}
+            className="mt-1 rounded-lg border border-slate-700 bg-slate-950/70 px-2.5 py-1.5 text-lg leading-none text-slate-200 hover:border-cyan-300/60 hover:text-cyan-200"
+            aria-label="Open sidebar menu"
+          >
+            &#9776;
+          </button>
+
+          <div>
           <p className="text-xs uppercase tracking-[0.26em] text-cyan-300/85">NSE Financial Terminal</p>
-          <h1 className="mt-2 font-display text-2xl font-semibold text-slate-100 md:text-3xl">
-            Power Sector Market Dashboard
-          </h1>
+            <button type="button" onClick={onToggleSidebar} className="text-left">
+              <h1 className="mt-2 font-display text-2xl font-semibold text-slate-100 md:text-3xl hover:text-cyan-200">
+                Power Sector Market Dashboard
+              </h1>
+            </button>
+          </div>
         </div>
 
         <div className="flex flex-wrap items-center gap-3 text-xs md:text-sm">
