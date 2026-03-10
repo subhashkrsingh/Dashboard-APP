@@ -45,11 +45,11 @@
 }
 
 .price-flash-up {
-  animation: flash-up 0.9s ease-out;
+  animation: flash-up 1.6s ease-out;
 }
 
 .price-flash-down {
-  animation: flash-down 0.9s ease-out;
+  animation: flash-down 1.6s ease-out;
 }
 
 .ticker-track {

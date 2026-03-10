@@ -104,7 +104,7 @@ export function useMarketHistory(snapshot: PowerSectorResponse | undefined) {
       }
       clearSignalsTimeoutRef.current = window.setTimeout(() => {
         setSignals({});
-      }, 900);
+      }, 1600);
     }
 
   }, [snapshot?.fetchedAt]);

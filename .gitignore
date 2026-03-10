@@ -1,9 +1,13 @@
-# Ignore local env files
+# Local env files
 backend/.env
+frontend/.env
 
 # Node dependencies
 **/node_modules
 
-# VS Code
+# Frontend build output
+frontend/dist
+
+# Editor/system files
 .vscode/
-backend/.env
+.DS_Store

@@ -72,7 +72,7 @@ export function HeaderBar({ companies, marketStatus, fetchedAt, isFetching, onTo
             initial={{ x: 0 }}
             animate={{ x: "-50%" }}
             transition={{
-              duration: 38,
+              duration: 70,
               ease: "linear",
               repeat: Number.POSITIVE_INFINITY
             }}
