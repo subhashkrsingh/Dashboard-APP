@@ -263,6 +263,7 @@ function deriveIndexFromStocksPayload(stocksPayload) {
   return {
     index: indexName || summaryRow?.symbol || NSE_REQUESTED_INDEX_NAME,
     last: firstNumber(summaryRow?.lastPrice, summaryRow?.ltP, summaryRow?.last),
+    change: firstNumber(summaryRow?.change, summaryRow?.netChange, summaryRow?.ch),
     pChange: firstNumber(
       summaryRow?.pChange,
       summaryRow?.percentChange,
@@ -454,22 +455,52 @@ async function getPowerSectorData() {
     stockPayloadDetails.requestedIndexName ||
     NSE_REQUESTED_INDEX_NAME;
 
+  const resolvedLastPrice = firstNumber(powerIndex?.last, powerIndex?.lastPrice, powerIndex?.ltP);
+  const resolvedPercentChange = firstNumber(
+    powerIndex?.pChange,
+    powerIndex?.percentChange,
+    powerIndex?.perChange,
+    powerIndex?.changePercent
+  );
+  const resolvedIndexChange =
+    firstNumber(powerIndex?.change, powerIndex?.netChange, powerIndex?.ch) ??
+    (resolvedLastPrice !== null && resolvedPercentChange !== null
+      ? (resolvedLastPrice * resolvedPercentChange) / 100
+      : null);
+
+  const majorCompanies = enrichMajorCompanies(allStocks).map(company => ({
+    symbol: company.symbol,
+    name: company.company,
+    price: company.price,
+    change: company.change,
+    percentChange: company.percentChange,
+    volume: company.volume
+  }));
+
+  const moversFromAll = (rows) =>
+    rows.slice(0, 5).map(item => ({
+      symbol: item.symbol,
+      name: item.company,
+      price: item.price,
+      change: item.change,
+      percentChange: item.percentChange,
+      volume: item.volume
+    }));
+
   return {
-    requestedIndex: NSE_REQUESTED_INDEX_NAME,
-    indexName: String(resolvedIndexName),
+    sectorIndex: {
+      name: String(resolvedIndexName),
+      lastPrice: resolvedLastPrice,
+      change: resolvedIndexChange,
+      percentChange: resolvedPercentChange
+    },
+    companies: majorCompanies,
+    gainers: moversFromAll(sortedByGainers),
+    losers: moversFromAll(sortedByLosers),
     fallbackIndexUsed: stockPayloadDetails.fallbackIndexUsed,
-    lastPrice: firstNumber(powerIndex?.last, powerIndex?.lastPrice, powerIndex?.ltP),
-    percentChange: firstNumber(
-      powerIndex?.pChange,
-      powerIndex?.percentChange,
-      powerIndex?.perChange,
-      powerIndex?.changePercent
-    ),
     advanceDecline: buildAdvanceDecline(powerIndex, allStocks, stocksPayload),
-    topGainers: sortedByGainers.slice(0, 5),
-    topLosers: sortedByLosers.slice(0, 5),
-    companies: enrichMajorCompanies(allStocks),
     marketStatus: getMarketStatus(),
+    requestedIndex: NSE_REQUESTED_INDEX_NAME,
     sourceTimestamp: String(
       powerIndex?.timestamp || sectorPayload?.timestamp || stocksPayload?.timestamp || ""
     ),

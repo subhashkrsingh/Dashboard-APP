@@ -1,23 +1,74 @@
-# NSE Power Sector Market Dashboard
+# NSE Power Sector Financial Dashboard
 
-Production-ready React + Node.js dashboard for live NSE power sector tracking.
+Production-grade React + Node.js financial dashboard for NSE power-sector tracking with live polling, animated market UI, and backend-only NSE access.
 
-## Stack
+## Tech Stack
 
-- Frontend: React (Vite), Axios, Recharts, TailwindCSS, React Query
+- Frontend: React (Vite), TypeScript, Axios, React Query, Recharts, TailwindCSS, Framer Motion
 - Backend: Node.js, Express, Axios, Node Cache, CORS
 - Data: NSE public endpoints (no API key)
 
-## Features
+## Live Features
 
-- Live `NIFTY POWER` index snapshot
-- Major power company table (NTPC, POWERGRID, ADANIPOWER, TATAPOWER, NHPC, TORNTPOWER, JSWENERGY, SJVN, CESC, RPOWER)
-- Top gainers and top losers panels
-- Live sector chart (polling every 10s)
+- MoneyControl/TradingView-style dark dashboard layout
+- Infinite top ticker for power-sector stocks
+- Animated live sector cards:
+  - Sector index
+  - Top gainer
+  - Top loser
+  - Total market volume
+- Sortable + searchable power company table
+- Real-time green/red flash on price updates
+- Intraday live sector line chart (10s polling)
+- Company comparison chart (up to 3 companies, price/% growth)
+- Market movers panel (gainers + losers)
 - Market open/closed indicator
-- Sector heatmap
-- Real-time row blink when prices update
-- Stale fallback when NSE rate-limits
+- Sector performance bar
+- Loading skeletons + stale-data fallback UI
+
+## Backend API
+
+### GET `/api/power-sector`
+
+Returns:
+
+```json
+{
+  "sectorIndex": {
+    "name": "NIFTY POWER",
+    "lastPrice": 0,
+    "change": 0,
+    "percentChange": 0
+  },
+  "companies": [
+    {
+      "symbol": "NTPC",
+      "name": "NTPC",
+      "price": 0,
+      "change": 0,
+      "percentChange": 0,
+      "volume": 0
+    }
+  ],
+  "gainers": [],
+  "losers": [],
+  "advanceDecline": {
+    "advances": 0,
+    "declines": 0,
+    "unchanged": 0
+  },
+  "marketStatus": {
+    "isOpen": true,
+    "label": "OPEN",
+    "timezone": "Asia/Kolkata",
+    "checkedAt": "2026-03-10T00:00:00.000Z"
+  },
+  "fetchedAt": "2026-03-10T00:00:00.000Z"
+}
+```
+
+- Response cache TTL: **10 seconds**
+- If NSE blocks/rate-limits, backend serves latest successful snapshot when available.
 
 ## Project Structure
 
@@ -28,43 +79,37 @@ backend/
   services/nseService.js
 
 frontend/
-  src/components/
-    Header.jsx
-    SectorSummary.jsx
-    PowerTable.jsx
-    PowerChart.jsx
-    MarketMovers.jsx
-    SectorHeatmap.jsx
+  src/
+    App.tsx
+    main.tsx
+    components/dashboard/
+      HeaderBar.tsx
+      SectorCards.tsx
+      IntradaySectorChart.tsx
+      CompanyComparisonChart.tsx
+      CompanyTable.tsx
+      MarketMoversPanel.tsx
+      PerformanceBar.tsx
+      DashboardSkeleton.tsx
+    hooks/useMarketHistory.ts
+    services/powerSectorApi.ts
+    types/market.ts
 ```
 
-## Backend Setup
+## Local Setup
+
+### Backend
 
 ```bash
 cd backend
 cp .env.example .env
 npm install
-npm run dev
+npm start
 ```
 
-Backend runs at `http://localhost:3000`.
+Runs on `http://localhost:3000`.
 
-### Backend API
-
-- `GET /health`
-- `GET /api/power-sector`
-
-Response includes:
-
-- `indexName`
-- `lastPrice`
-- `percentChange`
-- `advanceDecline`
-- `topGainers`
-- `topLosers`
-- `companies`
-- `marketStatus`
-
-## Frontend Setup
+### Frontend
 
 ```bash
 cd frontend
@@ -73,30 +118,28 @@ npm install
 npm run dev
 ```
 
-Frontend runs at `http://localhost:5173` and calls backend `/api/power-sector`.
+Runs on `http://localhost:5173`.
 
 ## Deployment
 
 ### Render (Backend)
 
-- Root: `backend`
+- Root directory: `backend`
 - Build command: `npm install`
 - Start command: `npm start`
-- Environment variables:
-  - `PORT=3000` (Render can override)
+- Env:
+  - `PORT=3000` (Render may override)
   - `FRONTEND_ORIGIN=https://<your-vercel-domain>`
 
 ### Vercel (Frontend)
 
-- Root: `frontend`
+- Root directory: `frontend`
 - Build command: `npm run build`
 - Output directory: `dist`
-- Environment variable:
+- Env:
   - `VITE_API_BASE_URL=https://<your-render-domain>/api`
 
 ## Notes
 
-- NSE API is called only from backend (never from frontend).
-- Backend maintains NSE cookie session automatically and caches responses for 10 seconds.
-- During upstream/rate-limit issues, backend serves last successful snapshot when available.
-- If `NIFTY POWER` endpoint data is unavailable, backend automatically falls back to the closest live NSE sector benchmark (`NIFTY ENERGY`) and flags this in response/UI.
+- Frontend never calls NSE directly; all traffic goes through backend `/api/power-sector`.
+- NSE currently shows endpoint variability; backend keeps `sectorIndices` in flow and uses resilient fallbacks when unavailable.
