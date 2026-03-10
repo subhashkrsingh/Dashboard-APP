@@ -1,199 +1,197 @@
-import React, { useCallback, useEffect, useMemo, useState } from "react";
-import Layout from "./components/Layout.jsx";
-import Sidebar from "./components/Sidebar.jsx";
+import { useEffect, useMemo, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
+
 import Header from "./components/Header.jsx";
-import AppFooter from "./components/AppFooter.jsx";
-import Dashboard from "./pages/Dashboard.jsx";
-import CompanyDetails from "./pages/CompanyDetails.jsx";
+import MarketMovers from "./components/MarketMovers.jsx";
+import PowerChart from "./components/PowerChart.jsx";
+import PowerTable from "./components/PowerTable.jsx";
+import SectorHeatmap from "./components/SectorHeatmap.jsx";
+import SectorSummary from "./components/SectorSummary.jsx";
+import { fetchPowerSectorSnapshot } from "./services/powerSectorApi.js";
 
-const MAX_POINTS = 120;
+const MAX_CHART_POINTS = 80;
 
-function parseRoute(pathname) {
-  const path = String(pathname || "/");
-  if (path === "/" || path === "/dashboard") {
-    return { page: "dashboard", symbol: null };
-  }
-
-  if (path.startsWith("/company/")) {
-    const encodedSymbol = path.slice("/company/".length);
-    if (!encodedSymbol) return { page: "dashboard", symbol: null };
-    try {
-      return { page: "company", symbol: decodeURIComponent(encodedSymbol) };
-    } catch {
-      return { page: "company", symbol: encodedSymbol };
-    }
-  }
-
-  return { page: "dashboard", symbol: null };
+function formatTimeLabel(value) {
+  if (!value) return "--";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "--";
+  return new Intl.DateTimeFormat("en-IN", {
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+    hour12: false
+  }).format(date);
 }
 
-function toCompanyPath(symbol) {
-  return `/company/${encodeURIComponent(symbol)}`;
+function formatDateTime(value) {
+  if (!value) return "--";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "--";
+  return new Intl.DateTimeFormat("en-IN", {
+    day: "2-digit",
+    month: "short",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+    hour12: false,
+    timeZone: "Asia/Kolkata"
+  }).format(date);
 }
 
-function useQuoteStream() {
-  const [seriesBySymbol, setSeriesBySymbol] = useState({});
-
-  useEffect(() => {
-    const wsProtocol = location.protocol === "https:" ? "wss" : "ws";
-    const devHost = import.meta.env.VITE_API_HOST || "127.0.0.1:3000";
-    const wsHost = import.meta.env.DEV ? devHost : location.host;
-    const ws = new WebSocket(`${wsProtocol}://${wsHost}`);
-
-    ws.addEventListener("message", evt => {
-      const msg = JSON.parse(evt.data);
-      if (msg.type !== "quotes") return;
-
-      setSeriesBySymbol(prev => {
-        const next = { ...prev };
-        msg.data.forEach(q => {
-          if (!Number.isFinite(q.price)) return;
-          const list = next[q.symbol] ? [...next[q.symbol]] : [];
-          const prevPrice = list[list.length - 1]?.price ?? q.price;
-          const delta = Math.abs(q.price - prevPrice);
-          const volume = Math.round(900 + delta * 5000 + (q.price % 1) * 1000);
-          const isUp = q.price >= prevPrice;
-
-          list.push({
-            time: new Date(q.timestamp).toLocaleTimeString([], {
-              hour: "2-digit",
-              minute: "2-digit"
-            }),
-            price: q.price,
-            volume,
-            isUp
-          });
-
-          if (list.length > MAX_POINTS) list.shift();
-          next[q.symbol] = list;
-        });
-        return next;
-      });
-    });
-
-    return () => ws.close();
-  }, []);
-
-  return seriesBySymbol;
-}
-
-function useCompanies() {
-  const [companies, setCompanies] = useState([]);
-
-  useEffect(() => {
-    let isMounted = true;
-
-    const loadCompanies = () => {
-      fetch("/api/companies")
-        .then(r => r.json())
-        .then(data => {
-          if (isMounted) setCompanies(data);
-        })
-        .catch(() => {
-          if (isMounted) setCompanies([]);
-        });
-    };
-
-    loadCompanies();
-    const id = setInterval(loadCompanies, 20000);
-    return () => {
-      isMounted = false;
-      clearInterval(id);
-    };
-  }, []);
-
-  return companies;
+function ErrorState({ message, onRetry }) {
+  return (
+    <section className="rounded-2xl border border-red-500/40 bg-red-500/10 p-6 text-red-100 shadow-glow">
+      <h2 className="font-display text-xl">Unable to load live market data</h2>
+      <p className="mt-2 text-sm text-red-100/90">{message}</p>
+      <button
+        type="button"
+        onClick={onRetry}
+        className="mt-5 rounded-lg border border-red-300/50 bg-red-500/20 px-4 py-2 text-sm font-semibold transition hover:bg-red-500/35"
+      >
+        Retry now
+      </button>
+    </section>
+  );
 }
 
 export default function App() {
-  const [route, setRoute] = useState(() => parseRoute(window.location.pathname));
-  const [searchQuery, setSearchQuery] = useState("");
-  const rawSeries = useQuoteStream();
-  const companies = useCompanies();
+  const [chartPoints, setChartPoints] = useState([]);
+
+  const {
+    data,
+    isLoading,
+    error,
+    isFetching,
+    refetch
+  } = useQuery({
+    queryKey: ["power-sector"],
+    queryFn: fetchPowerSectorSnapshot,
+    refetchInterval: 10000,
+    refetchIntervalInBackground: true
+  });
 
   useEffect(() => {
-    const onPopState = () => {
-      setRoute(parseRoute(window.location.pathname));
-    };
-    window.addEventListener("popstate", onPopState);
-    return () => window.removeEventListener("popstate", onPopState);
-  }, []);
+    if (!Number.isFinite(data?.lastPrice)) return;
 
-  const navigate = useCallback(pathname => {
-    const target = pathname || "/";
-    if (target !== window.location.pathname) {
-      window.history.pushState({}, "", target);
-    }
-    setRoute(parseRoute(target));
-  }, []);
+    setChartPoints(previous => {
+      const point = {
+        time: formatTimeLabel(data?.fetchedAt),
+        value: data.lastPrice
+      };
 
-  const openDashboard = useCallback(() => {
-    navigate("/");
-  }, [navigate]);
+      if (previous.length > 0) {
+        const last = previous[previous.length - 1];
+        if (last.time === point.time) {
+          const replaced = [...previous];
+          replaced[replaced.length - 1] = point;
+          return replaced;
+        }
+      }
 
-  const openCompany = useCallback(symbol => {
-    if (!symbol) return;
-    navigate(toCompanyPath(symbol));
-  }, [navigate]);
+      return [...previous, point].slice(-MAX_CHART_POINTS);
+    });
+  }, [data?.fetchedAt, data?.lastPrice]);
 
-  const sourceCompanies = useMemo(() => {
-    if (companies.length > 0) return companies;
-    return Object.keys(rawSeries).map(symbol => ({
-      symbol,
-      name: symbol,
-      sector: "Power"
-    }));
-  }, [companies, rawSeries]);
+  const errorMessage =
+    error?.response?.data?.error ||
+    error?.message ||
+    "NSE endpoint is currently unavailable. Please retry.";
 
-  const tickerQuotes = useMemo(
-    () =>
-      sourceCompanies
-        .map(company => {
-          const series = rawSeries[company.symbol] || [];
-          const last = series[series.length - 1];
-          const prev = series[series.length - 2];
-          const changePct =
-            prev && last ? ((last.price - prev.price) / prev.price) * 100 : 0;
-
-          return {
-            symbol: company.symbol,
-            price: last?.price ?? null,
-            changePct
-          };
-        })
-        .filter(item => Number.isFinite(item.price)),
-    [sourceCompanies, rawSeries]
+  const companies = useMemo(() => data?.companies || [], [data?.companies]);
+  const movers = useMemo(
+    () => ({
+      topGainers: data?.topGainers || [],
+      topLosers: data?.topLosers || []
+    }),
+    [data?.topGainers, data?.topLosers]
   );
 
   return (
-    <Layout
-      header={(
+    <div className="min-h-screen bg-dashboard-bg text-slate-100">
+      <div className="pointer-events-none fixed inset-0 bg-[radial-gradient(circle_at_top_left,_rgba(6,182,212,0.2),_transparent_45%),radial-gradient(circle_at_80%_0,_rgba(14,165,233,0.16),_transparent_35%),linear-gradient(170deg,_#020617_0%,_#030712_45%,_#111827_100%)]" />
+      <main className="relative mx-auto flex w-full max-w-7xl flex-col gap-6 px-4 py-6 md:px-8 md:py-8">
         <Header
-          searchValue={searchQuery}
-          onSearchChange={setSearchQuery}
-          tickerQuotes={tickerQuotes}
-          searchDisabled={route.page !== "dashboard"}
+          marketStatus={data?.marketStatus}
+          isFetching={isFetching}
+          fetchedAt={data?.fetchedAt}
         />
-      )}
-      sidebar={(
-        <Sidebar
-          activePage={route.page}
-          companySymbol={route.symbol}
-          onOpenDashboard={openDashboard}
-        />
-      )}
-      footer={<AppFooter />}
-    >
-      {route.page === "company" ? (
-        <CompanyDetails symbol={route.symbol} onBack={openDashboard} />
-      ) : (
-        <Dashboard
-          searchQuery={searchQuery}
-          onOpenCompany={openCompany}
-          companies={sourceCompanies}
-          rawSeries={rawSeries}
-        />
-      )}
-    </Layout>
+
+        {isLoading && (
+          <section className="grid gap-4 lg:grid-cols-3">
+            <div className="h-44 animate-pulse rounded-2xl border border-slate-700/70 bg-dashboard-panel/70" />
+            <div className="h-44 animate-pulse rounded-2xl border border-slate-700/70 bg-dashboard-panel/70" />
+            <div className="h-44 animate-pulse rounded-2xl border border-slate-700/70 bg-dashboard-panel/70" />
+          </section>
+        )}
+
+        {!isLoading && error && <ErrorState message={errorMessage} onRetry={refetch} />}
+
+        {!isLoading && !error && data && (
+          <>
+            {data?.stale && (
+              <section className="rounded-2xl border border-amber-400/45 bg-amber-300/10 p-4 text-sm text-amber-100">
+                {data?.warning || "Showing the most recent cached snapshot while NSE is rate-limiting."}
+              </section>
+            )}
+
+            <section className="grid gap-4 lg:grid-cols-3">
+              <SectorSummary
+                indexName={data?.indexName}
+                requestedIndex={data?.requestedIndex}
+                fallbackIndexUsed={data?.fallbackIndexUsed}
+                lastPrice={data?.lastPrice}
+                percentChange={data?.percentChange}
+                advanceDecline={data?.advanceDecline}
+                marketStatus={data?.marketStatus}
+              />
+
+              <div className="rounded-2xl border border-dashboard-border/80 bg-dashboard-panel/90 p-5 shadow-glow">
+                <h3 className="font-display text-lg text-white">Feed Health</h3>
+                <dl className="mt-4 space-y-3 text-sm text-slate-300">
+                  <div className="flex items-center justify-between">
+                    <dt>Polling Interval</dt>
+                    <dd className="font-semibold text-cyan-300">10s</dd>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <dt>Source Timestamp</dt>
+                    <dd className="font-semibold text-slate-200">{data?.sourceTimestamp || "--"}</dd>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <dt>Last Refresh (IST)</dt>
+                    <dd className="font-semibold text-slate-200">{formatDateTime(data?.fetchedAt)}</dd>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <dt>Cache</dt>
+                    <dd className="font-semibold text-slate-200">
+                      {data?.cached ? "HIT" : "MISS"}
+                      {data?.stale ? " / STALE" : ""}
+                    </dd>
+                  </div>
+                </dl>
+              </div>
+
+              <SectorHeatmap companies={companies} />
+            </section>
+
+            <section className="rounded-2xl border border-dashboard-border/80 bg-dashboard-panel/90 p-5 shadow-glow">
+              <PowerChart
+                points={chartPoints}
+                currentPrice={data?.lastPrice}
+                percentChange={data?.percentChange}
+              />
+            </section>
+
+            <section className="grid gap-4 xl:grid-cols-2">
+              <MarketMovers title="Top Gainers" rows={movers.topGainers} positive />
+              <MarketMovers title="Top Losers" rows={movers.topLosers} positive={false} />
+            </section>
+
+            <section className="rounded-2xl border border-dashboard-border/80 bg-dashboard-panel/90 p-5 shadow-glow">
+              <PowerTable companies={companies} />
+            </section>
+          </>
+        )}
+      </main>
+    </div>
   );
 }

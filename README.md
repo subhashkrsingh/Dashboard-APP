@@ -1,46 +1,102 @@
-Power Sector Dashboard - Minimal demo
+# NSE Power Sector Market Dashboard
 
-This scaffold provides a minimal Node + WebSocket backend that polls FYERS for NSE power-sector tickers and a simple frontend that displays live prices and a comparison chart.
+Production-ready React + Node.js dashboard for live NSE power sector tracking.
 
-Getting started
+## Stack
 
-1. Install dependencies
-   - Open terminal
-   - cd backend
-   - npm install
+- Frontend: React (Vite), Axios, Recharts, TailwindCSS, React Query
+- Backend: Node.js, Express, Axios, Node Cache, CORS
+- Data: NSE public endpoints (no API key)
 
-2. Run
-   - npm start
-   - Open http://localhost:3000 in your browser
+## Features
 
-Notes
-- Uses the FYERS API v3 SDK (`fyers-api-v3`) for quotes.
-- Set `FYERS_APP_ID`, `FYERS_SECRET_ID` (or `FYERS_SECRET_KEY`), and `FYERS_REDIRECT_URI` in your environment (or `backend/.env`) before running.
-- Optional: set `FYERS_ACCESS_TOKEN` for startup convenience. You can also run `/auth/start` once and let `/auth/callback` exchange `auth_code` via `https://api.fyers.in/api/v3/token`.
-- Optional: set `FYERS_REFRESH_TOKEN` to enable auto-refresh. If `FYERS_USE_REFRESH_TOKEN` is not set, refresh is now auto-enabled when a refresh token exists.
-- Optional: set `FYERS_USE_REFRESH_TOKEN=false` to force-disable refresh even when `FYERS_REFRESH_TOKEN` is present.
-- Optional: set `FYERS_AUTH_HOST` (default `https://api-t1.fyers.in/api/v3`) for login/auth-code routes.
-- Optional: set `FYERS_TOKEN_HOST` (default `https://api.fyers.in/api/v3`) and `FYERS_TOKEN_PATH` (default `/token`) for code-to-token exchange.
-- Optional: set `FYERS_TOKEN_ENDPOINT` to override token exchange endpoint directly (for example `https://api.fyers.in/api/v3/token`).
-- Symbol format is `NSE:SYMBOL-EQ`. To add symbols, edit `backend/src/index.js` and extend the `symbols` array.
-- Optional: set `FYERS_POLL_INTERVAL_MS` to control polling frequency, and `FYERS_DATA_HOST` if you need a different FYERS data host.
-- Optional: set `COMPANY_OVERVIEW_CACHE_TTL_MS` and `COMPANY_HISTORY_CACHE_TTL_MS` to tune API load vs freshness for detail endpoints.
-- Node 18+ recommended.
+- Live `NIFTY POWER` index snapshot
+- Major power company table (NTPC, POWERGRID, ADANIPOWER, TATAPOWER, NHPC, TORNTPOWER, JSWENERGY, SJVN, CESC, RPOWER)
+- Top gainers and top losers panels
+- Live sector chart (polling every 10s)
+- Market open/closed indicator
+- Sector heatmap
+- Real-time row blink when prices update
+- Stale fallback when NSE rate-limits
 
-Next steps (suggestions)
-- Add Redis or in-memory cache and historical storage (TimescaleDB)
-- Add auth, watchlists, and compare API endpoints
+## Project Structure
 
-APIs
-- GET /api/quotes - current quotes snapshot
-- GET /api/companies - list of companies and basic metadata { symbol, name, sector }
-- GET /auth/start - redirect to FYERS login to generate `auth_code`
-- GET /auth/callback - exchanges `auth_code`, stores runtime token, and returns auth status JSON
-- GET /app/callback - alias of `/auth/callback` for app redirect compatibility
+```text
+backend/
+  server.js
+  routes/powerSector.js
+  services/nseService.js
 
-Copyright
-- Copyright (c) 2026 Subhash Kumar Singh.
-- All rights reserved.
-- See `LICENSE` for usage terms.
+frontend/
+  src/components/
+    Header.jsx
+    SectorSummary.jsx
+    PowerTable.jsx
+    PowerChart.jsx
+    MarketMovers.jsx
+    SectorHeatmap.jsx
+```
 
+## Backend Setup
 
+```bash
+cd backend
+cp .env.example .env
+npm install
+npm run dev
+```
+
+Backend runs at `http://localhost:3000`.
+
+### Backend API
+
+- `GET /health`
+- `GET /api/power-sector`
+
+Response includes:
+
+- `indexName`
+- `lastPrice`
+- `percentChange`
+- `advanceDecline`
+- `topGainers`
+- `topLosers`
+- `companies`
+- `marketStatus`
+
+## Frontend Setup
+
+```bash
+cd frontend
+cp .env.example .env
+npm install
+npm run dev
+```
+
+Frontend runs at `http://localhost:5173` and calls backend `/api/power-sector`.
+
+## Deployment
+
+### Render (Backend)
+
+- Root: `backend`
+- Build command: `npm install`
+- Start command: `npm start`
+- Environment variables:
+  - `PORT=3000` (Render can override)
+  - `FRONTEND_ORIGIN=https://<your-vercel-domain>`
+
+### Vercel (Frontend)
+
+- Root: `frontend`
+- Build command: `npm run build`
+- Output directory: `dist`
+- Environment variable:
+  - `VITE_API_BASE_URL=https://<your-render-domain>/api`
+
+## Notes
+
+- NSE API is called only from backend (never from frontend).
+- Backend maintains NSE cookie session automatically and caches responses for 10 seconds.
+- During upstream/rate-limit issues, backend serves last successful snapshot when available.
+- If `NIFTY POWER` endpoint data is unavailable, backend automatically falls back to the closest live NSE sector benchmark (`NIFTY ENERGY`) and flags this in response/UI.
