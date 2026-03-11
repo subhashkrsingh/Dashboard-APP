@@ -93,7 +93,7 @@ export function DashboardPage() {
 
   if (isLoading) {
     return (
-      <main className="min-h-screen bg-[#0B1220] p-4 text-slate-100 md:p-6">
+      <main className="min-h-screen bg-[#F5F7FB] p-4 text-slate-800 md:p-6">
         <DashboardSkeleton />
       </main>
     );
@@ -102,13 +102,13 @@ export function DashboardPage() {
   if (!data || error) {
     const errorMessage = error instanceof Error ? error.message : "Failed to load market data";
     return (
-      <main className="min-h-screen bg-[#0B1220] p-4 text-slate-100 md:p-6">
-        <section className="glass-card rounded-2xl border border-rose-400/35 p-6">
-          <h2 className="font-display text-2xl text-rose-100">Power sector data unavailable</h2>
-          <p className="mt-2 text-sm text-rose-100/90">{errorMessage}</p>
+      <main className="min-h-screen bg-[#F5F7FB] p-4 text-slate-800 md:p-6">
+        <section className="glass-card rounded-2xl border border-rose-200 bg-rose-50 p-6">
+          <h2 className="font-display text-2xl text-rose-700">Power sector data unavailable</h2>
+          <p className="mt-2 text-sm text-rose-700/90">{errorMessage}</p>
           <button
             type="button"
-            className="mt-4 rounded-lg border border-rose-300/60 bg-rose-500/20 px-4 py-2 text-sm font-semibold hover:bg-rose-500/30"
+            className="mt-4 rounded-lg border border-rose-300 bg-white px-4 py-2 text-sm font-semibold text-rose-700 hover:bg-rose-100"
             onClick={() => refetch()}
           >
             Retry
@@ -160,7 +160,7 @@ export function DashboardPage() {
               value={topGainer?.symbol ?? "--"}
               subtitle={formatPrice(topGainer?.price)}
               change={topGainer?.percentChange}
-              icon={<TrendingUp className="h-3.5 w-3.5 text-emerald-200" />}
+              icon={<TrendingUp className="h-3.5 w-3.5 text-emerald-600" />}
               tone="positive"
               signal={topGainer ? signals[topGainer.symbol] : undefined}
             />
@@ -170,7 +170,7 @@ export function DashboardPage() {
               value={topLoser?.symbol ?? "--"}
               subtitle={formatPrice(topLoser?.price)}
               change={topLoser?.percentChange}
-              icon={<TrendingDown className="h-3.5 w-3.5 text-rose-200" />}
+              icon={<TrendingDown className="h-3.5 w-3.5 text-rose-600" />}
               tone="negative"
               signal={topLoser ? signals[topLoser.symbol] : undefined}
             />
@@ -180,7 +180,7 @@ export function DashboardPage() {
               value={volumeLeader?.symbol ?? "--"}
               subtitle={formatVolume(volumeLeader?.volume)}
               change={volumeLeader?.percentChange}
-              icon={<BarChart3 className="h-3.5 w-3.5 text-cyan-200" />}
+              icon={<BarChart3 className="h-3.5 w-3.5 text-blue-600" />}
               tone="accent"
               signal={volumeLeader ? signals[volumeLeader.symbol] : undefined}
             />
@@ -214,9 +214,9 @@ export function DashboardPage() {
     if (activePage === "companies") {
       return (
         <section className="space-y-4">
-          <section className="glass-card rounded-2xl border border-blue-400/30 bg-blue-500/10 p-4">
-            <h2 className="font-display text-xl font-semibold text-blue-100">Power Companies</h2>
-            <p className="mt-1 text-sm text-blue-100/90">
+          <section className="glass-card rounded-2xl border border-blue-200 bg-blue-50 p-4">
+            <h2 className="font-display text-xl font-semibold text-blue-700">Power Companies</h2>
+            <p className="mt-1 text-sm text-blue-700/90">
               Dedicated universe scanner with sorting, sticky header, and sparkline trend.
             </p>
           </section>
@@ -234,9 +234,9 @@ export function DashboardPage() {
     if (activePage === "analytics") {
       return (
         <section className="space-y-4">
-          <section className="glass-card rounded-2xl border border-cyan-400/30 bg-cyan-500/10 p-4">
-            <h2 className="font-display text-xl font-semibold text-cyan-100">Sector Analytics</h2>
-            <p className="mt-1 text-sm text-cyan-100/90">
+          <section className="glass-card rounded-2xl border border-blue-200 bg-blue-50 p-4">
+            <h2 className="font-display text-xl font-semibold text-blue-700">Sector Analytics</h2>
+            <p className="mt-1 text-sm text-blue-700/90">
               Deep-dive view for trend, momentum, and breadth analytics.
             </p>
           </section>
@@ -261,7 +261,7 @@ export function DashboardPage() {
 
     if (activePage === "alerts") {
       return (
-        <section className="glass-card rounded-2xl border border-amber-400/30 bg-amber-500/10 p-6 text-sm text-amber-50">
+        <section className="glass-card rounded-2xl border border-amber-200 bg-amber-50 p-6 text-sm text-amber-700">
           <h2 className="font-display text-xl font-semibold">Alerts Center</h2>
           <p className="mt-2">Configure price, volume, and momentum alerts for power sector symbols.</p>
         </section>
@@ -271,9 +271,9 @@ export function DashboardPage() {
     if (activePage === "watchlist") {
       return (
         <section className="space-y-4">
-          <section className="glass-card rounded-2xl border border-violet-400/30 bg-violet-500/10 p-4">
-            <h2 className="font-display text-xl font-semibold text-violet-100">Watchlist</h2>
-            <p className="mt-1 text-sm text-violet-100/90">Quick movers you are tracking right now.</p>
+          <section className="glass-card rounded-2xl border border-violet-200 bg-violet-50 p-4">
+            <h2 className="font-display text-xl font-semibold text-violet-700">Watchlist</h2>
+            <p className="mt-1 text-sm text-violet-700/90">Quick movers you are tracking right now.</p>
           </section>
 
           <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
@@ -283,12 +283,12 @@ export function DashboardPage() {
                 <article
                   key={`watch-${item.symbol}`}
                   className={`glass-card rounded-xl border p-3 ${
-                    positive ? "border-emerald-400/30" : "border-rose-400/30"
+                    positive ? "border-emerald-200" : "border-rose-200"
                   }`}
                 >
-                  <p className="text-sm font-semibold text-slate-100">{item.symbol}</p>
+                  <p className="text-sm font-semibold text-slate-900">{item.symbol}</p>
                   <p className="text-xs text-slate-400">{item.name}</p>
-                  <p className={`mt-2 text-sm font-semibold ${positive ? "text-emerald-200" : "text-rose-200"}`}>
+                  <p className={`mt-2 text-sm font-semibold ${positive ? "text-emerald-700" : "text-rose-700"}`}>
                     {formatPercent(item.percentChange)}
                   </p>
                 </article>
@@ -300,16 +300,16 @@ export function DashboardPage() {
     }
 
     return (
-      <section className="glass-card rounded-2xl border border-slate-700/70 p-6 text-sm text-slate-300">
-        <h2 className="font-display text-xl text-slate-100">{pageTitle}</h2>
+      <section className="glass-card rounded-2xl border border-[#E6EAF2] p-6 text-sm text-slate-700">
+        <h2 className="font-display text-xl text-slate-900">{pageTitle}</h2>
         <p className="mt-2">Settings and personalization controls are ready for your next iteration.</p>
       </section>
     );
   };
 
   return (
-    <main className="relative min-h-screen bg-[#0B1220] text-slate-100">
-      <div className="pointer-events-none fixed inset-0 bg-[radial-gradient(circle_at_8%_8%,rgba(6,182,212,0.18),transparent_35%),radial-gradient(circle_at_90%_10%,rgba(59,130,246,0.2),transparent_33%),radial-gradient(circle_at_50%_100%,rgba(239,68,68,0.1),transparent_38%),linear-gradient(180deg,#081325_0%,#0B1220_45%,#091425_100%)]" />
+    <main className="relative min-h-screen bg-[#F5F7FB] text-slate-800">
+      <div className="pointer-events-none fixed inset-0 bg-[radial-gradient(circle_at_8%_8%,rgba(37,99,235,0.08),transparent_35%),radial-gradient(circle_at_90%_10%,rgba(59,130,246,0.1),transparent_33%),radial-gradient(circle_at_50%_100%,rgba(22,163,74,0.06),transparent_38%),linear-gradient(180deg,#F8FAFF_0%,#F5F7FB_40%,#EEF3FB_100%)]" />
 
       <div className="relative z-10 flex min-h-screen">
         <div
@@ -367,22 +367,22 @@ export function DashboardPage() {
           />
 
           <div className="space-y-4 px-4 py-4 md:px-6">
-            <section className="glass-card rounded-2xl border border-slate-700/70 p-4">
-              <p className="text-xs uppercase tracking-[0.2em] text-cyan-200">Power Sector Dashboard</p>
+            <section className="glass-card rounded-2xl border border-[#E6EAF2] p-4">
+              <p className="text-xs uppercase tracking-[0.2em] text-blue-600">Power Sector Dashboard</p>
               <div className="mt-2 flex items-center gap-3">
-                <Activity className="h-5 w-5 text-cyan-200" />
-                <h1 className="font-display text-2xl font-semibold text-slate-100">{pageTitle}</h1>
+                <Activity className="h-5 w-5 text-blue-600" />
+                <h1 className="font-display text-2xl font-semibold text-slate-900">{pageTitle}</h1>
               </div>
             </section>
 
             {data.stale ? (
-              <section className="glass-card rounded-xl border border-amber-400/45 bg-amber-500/10 px-4 py-3 text-sm text-amber-100">
+              <section className="glass-card rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-700">
                 {data.warning ?? "Using cached snapshot while the NSE feed is temporarily restricted."}
               </section>
             ) : null}
 
             {data.fallbackIndexUsed ? (
-              <section className="glass-card rounded-xl border border-cyan-400/40 bg-cyan-500/10 px-4 py-3 text-sm text-cyan-100">
+              <section className="glass-card rounded-xl border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-700">
                 Requested index {data.requestedIndex ?? "NIFTY POWER"} was unavailable. Showing closest live benchmark
                 from feed.
               </section>

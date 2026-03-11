@@ -38,24 +38,24 @@ export function SectorChart({ sectorIndex, history }: SectorChartProps) {
   const strokeColor = isPositive ? "#22C55E" : "#EF4444";
 
   return (
-    <section className="glass-card w-full rounded-2xl border border-slate-700/70 p-4 md:p-5">
+    <section className="glass-card w-full rounded-2xl border border-[#E6EAF2] p-4 md:p-5">
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
         <div>
-          <p className="text-xs uppercase tracking-[0.2em] text-cyan-200/90">Hero Chart</p>
-          <h2 className="font-display text-xl font-semibold text-slate-100">Sector Intraday Chart</h2>
-          <p className="text-xs text-slate-400">Live movement of {sectorIndex.name || "NIFTY POWER"}</p>
+          <p className="text-xs uppercase tracking-[0.2em] text-blue-600">Hero Chart</p>
+          <h2 className="font-display text-xl font-semibold text-slate-900">Power Sector Intraday Trend</h2>
+          <p className="text-xs text-slate-500">Live movement of {sectorIndex.name || "NIFTY POWER"}</p>
         </div>
 
         <div className="text-right">
-          <p className="text-xl font-semibold text-slate-100">{formatPrice(sectorIndex.lastPrice)}</p>
+          <p className="text-xl font-semibold text-slate-900">{formatPrice(sectorIndex.lastPrice)}</p>
           <div className="mt-1 flex items-center justify-end gap-2">
             <TrendIndicator value={sectorIndex.percentChange} />
-            <span className="text-xs text-slate-400">{formatPercent(sectorIndex.percentChange)}</span>
+            <span className="text-xs text-slate-500">{formatPercent(sectorIndex.percentChange)}</span>
           </div>
         </div>
       </div>
 
-      <div className="mb-3 inline-flex items-center gap-1 rounded-full border border-slate-600/60 bg-slate-950/70 p-1 text-xs">
+      <div className="mb-3 inline-flex items-center gap-1 rounded-full border border-slate-200 bg-white p-1 text-xs">
         {RANGES.map(item => (
           <button
             key={item.label}
@@ -63,8 +63,8 @@ export function SectorChart({ sectorIndex, history }: SectorChartProps) {
             onClick={() => setRange(item.points)}
             className={`rounded-full px-3 py-1.5 transition ${
               range === item.points
-                ? "bg-cyan-500/25 text-cyan-100 shadow-[0_0_0_1px_rgba(6,182,212,0.4)]"
-                : "text-slate-400 hover:text-slate-200"
+                ? "bg-blue-600 text-white shadow-[0_0_0_1px_rgba(37,99,235,0.35)]"
+                : "text-slate-500 hover:text-slate-700"
             }`}
           >
             {item.label}
@@ -72,9 +72,9 @@ export function SectorChart({ sectorIndex, history }: SectorChartProps) {
         ))}
       </div>
 
-      <div className="h-[460px] w-full rounded-xl border border-slate-700/70 bg-[#0B1220]/65 p-2">
+      <div className="h-[460px] w-full rounded-xl border border-slate-200 bg-white p-2">
         {chartData.length < 2 ? (
-          <div className="flex h-full items-center justify-center text-sm text-slate-400">
+          <div className="flex h-full items-center justify-center text-sm text-slate-500">
             Waiting for intraday points...
           </div>
         ) : (
@@ -86,10 +86,10 @@ export function SectorChart({ sectorIndex, history }: SectorChartProps) {
                   <stop offset="100%" stopColor={strokeColor} stopOpacity={0.05} />
                 </linearGradient>
               </defs>
-              <CartesianGrid stroke="#1F2A44" strokeDasharray="4 4" />
-              <XAxis dataKey="time" stroke="#9CAEC9" tick={{ fontSize: 11 }} minTickGap={20} />
+              <CartesianGrid stroke="#E2E8F0" strokeDasharray="4 4" />
+              <XAxis dataKey="time" stroke="#64748B" tick={{ fontSize: 11 }} minTickGap={20} />
               <YAxis
-                stroke="#9CAEC9"
+                stroke="#64748B"
                 tick={{ fontSize: 11 }}
                 domain={["auto", "auto"]}
                 tickFormatter={value => formatPrice(Number(value))}
@@ -98,10 +98,10 @@ export function SectorChart({ sectorIndex, history }: SectorChartProps) {
                 formatter={(value: number | string) => [formatPrice(Number(value)), "Index"]}
                 labelFormatter={label => `Time: ${label}`}
                 contentStyle={{
-                  background: "#111A2C",
-                  border: "1px solid #1F2A44",
+                  background: "#FFFFFF",
+                  border: "1px solid #E2E8F0",
                   borderRadius: "12px",
-                  color: "#E2E8F0"
+                  color: "#0F172A"
                 }}
               />
               <Area

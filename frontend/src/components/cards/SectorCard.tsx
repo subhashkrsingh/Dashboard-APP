@@ -22,20 +22,20 @@ export function SectorCard({ sectorIndex, signal }: SectorCardProps) {
       layout
       whileHover={{ y: -3, scale: 1.01 }}
       transition={{ duration: 0.22 }}
-      className={`glass-card ${flashClass(signal)} rounded-2xl border border-cyan-300/35 bg-gradient-to-br from-cyan-500/20 to-blue-500/8 p-4 shadow-[0_16px_30px_rgba(8,145,178,0.14)]`}
+      className={`glass-card ${flashClass(signal)} rounded-2xl border border-blue-200 bg-gradient-to-br from-blue-50 to-white p-4 shadow-[0_12px_24px_rgba(37,99,235,0.1)]`}
     >
       <div className="flex items-start justify-between gap-3">
-        <p className="text-[11px] uppercase tracking-[0.24em] text-slate-300">{sectorIndex.name || "SECTOR INDEX"}</p>
-        <span className="rounded-lg border border-cyan-300/40 bg-cyan-500/10 px-2 py-1 text-xs text-cyan-100">IDX</span>
+        <p className="text-[11px] uppercase tracking-[0.24em] text-slate-500">{sectorIndex.name || "SECTOR INDEX"}</p>
+        <span className="rounded-lg border border-blue-200 bg-blue-50 px-2 py-1 text-xs text-blue-700">IDX</span>
       </div>
       <AnimatedNumber
         value={sectorIndex.lastPrice}
         format={value => formatPrice(value)}
-        className="mt-3 block text-2xl font-semibold text-slate-100"
+        className="mt-3 block text-2xl font-semibold text-slate-900"
       />
       <div className="mt-2 flex items-center justify-between">
         <TrendIndicator value={sectorIndex.percentChange} />
-        <p className="text-xs text-slate-400">{formatSignedPrice(sectorIndex.change)} today</p>
+        <p className="text-xs text-slate-500">{formatSignedPrice(sectorIndex.change)} today</p>
       </div>
     </motion.article>
   );

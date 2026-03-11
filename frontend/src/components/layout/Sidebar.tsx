@@ -52,17 +52,17 @@ export function Sidebar({
   const trackedSymbols = companies.slice(0, collapsed ? 4 : 8);
 
   return (
-    <aside className="h-full w-full border-r border-[#1F2A44] bg-[#0D1629]/95 px-3 py-4 backdrop-blur-lg">
-      <div className={`rounded-2xl border border-cyan-400/30 bg-cyan-500/10 p-3 ${collapsed ? "text-center" : ""}`}>
+    <aside className="h-full w-full border-r border-[#E6EAF2] bg-white/95 px-3 py-4 backdrop-blur-lg">
+      <div className={`rounded-2xl border border-blue-200 bg-blue-50 p-3 ${collapsed ? "text-center" : ""}`}>
         <div className={`flex items-center ${collapsed ? "justify-center" : "justify-between"} gap-2`}>
           {!collapsed ? (
             <div>
-              <p className="text-[11px] uppercase tracking-[0.2em] text-cyan-200">NSE Power Sector</p>
-              <h2 className="mt-1 font-display text-base font-semibold text-slate-100">Trading Terminal</h2>
+              <p className="text-[11px] uppercase tracking-[0.2em] text-blue-700">NSE Power Sector</p>
+              <h2 className="mt-1 font-display text-base font-semibold text-slate-900">Trading Terminal</h2>
             </div>
           ) : (
-            <div className="rounded-lg border border-cyan-300/40 bg-cyan-500/15 p-2">
-              <Zap className="h-5 w-5 text-cyan-100" />
+            <div className="rounded-lg border border-blue-200 bg-white p-2">
+              <Zap className="h-5 w-5 text-blue-700" />
             </div>
           )}
 
@@ -70,7 +70,7 @@ export function Sidebar({
             <button
               type="button"
               onClick={onToggleCollapse}
-              className="hidden rounded-lg border border-slate-600/70 bg-slate-900/80 p-1.5 text-slate-100 transition hover:border-cyan-300/60 xl:inline-flex"
+              className="hidden rounded-lg border border-slate-300 bg-white p-1.5 text-slate-700 transition hover:border-blue-300 xl:inline-flex"
               aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
             >
               {collapsed ? <PanelLeftOpen className="h-4 w-4" /> : <PanelLeftClose className="h-4 w-4" />}
@@ -81,7 +81,7 @@ export function Sidebar({
             <button
               type="button"
               onClick={onClose}
-              className="rounded-lg border border-slate-600/70 bg-slate-900/80 px-2 py-1 text-xs text-slate-100 xl:hidden"
+              className="rounded-lg border border-slate-300 bg-white px-2 py-1 text-xs text-slate-700 xl:hidden"
             >
               Close
             </button>
@@ -101,33 +101,33 @@ export function Sidebar({
               whileHover={{ x: collapsed ? 0 : 3 }}
               className={`group relative flex items-center rounded-xl border px-3 py-2 transition ${
                 active
-                  ? "border-cyan-300/45 bg-cyan-500/15 text-cyan-100 shadow-[0_0_0_1px_rgba(6,182,212,0.28)]"
-                  : "border-slate-700/70 bg-slate-900/55 text-slate-300 hover:border-cyan-400/35 hover:bg-cyan-500/8"
+                  ? "border-blue-300 bg-blue-50 text-blue-700 shadow-[0_0_0_1px_rgba(37,99,235,0.2)]"
+                  : "border-slate-200 bg-white text-slate-700 hover:border-blue-300 hover:bg-blue-50/60"
               } ${collapsed ? "justify-center" : "justify-start gap-2.5"}`}
               onClick={() => {
                 onNavigate(item.page);
                 onClose?.();
               }}
             >
-              <Icon className={`h-[18px] w-[18px] ${active ? "text-cyan-100" : "text-slate-300"} transition`} />
+              <Icon className={`h-[18px] w-[18px] ${active ? "text-blue-700" : "text-slate-500"} transition`} />
               {!collapsed ? <span className="text-sm font-medium">{item.title}</span> : null}
             </motion.a>
           );
         })}
       </nav>
 
-      <section className="mt-4 rounded-2xl border border-slate-700/70 bg-slate-900/55 p-2.5">
-        {!collapsed ? <p className="text-[11px] uppercase tracking-[0.18em] text-slate-400">Watchlist Pulse</p> : null}
+      <section className="mt-4 rounded-2xl border border-slate-200 bg-slate-50 p-2.5">
+        {!collapsed ? <p className="text-[11px] uppercase tracking-[0.18em] text-slate-500">Watchlist Pulse</p> : null}
         <ul className={`mt-2 space-y-1.5 ${collapsed ? "mt-0" : ""}`}>
           {trackedSymbols.map(item => (
             <li
               key={`nav-${item.symbol}`}
-              className={`rounded-lg border border-slate-700/60 bg-slate-950/70 px-2 py-1.5 text-xs ${
+              className={`rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-xs ${
                 collapsed ? "text-center" : "flex items-center justify-between"
               }`}
               title={!collapsed ? undefined : item.symbol}
             >
-              <span className="font-semibold text-slate-200">{item.symbol}</span>
+              <span className="font-semibold text-slate-800">{item.symbol}</span>
               {!collapsed ? <span className="truncate pl-2 text-slate-500">{item.name}</span> : null}
             </li>
           ))}

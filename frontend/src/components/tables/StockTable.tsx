@@ -91,18 +91,18 @@ export function StockTable({ companies, historyBySymbol, signals, query }: Stock
   };
 
   return (
-    <section className="glass-card rounded-2xl border border-slate-700/70 p-4">
+    <section className="glass-card rounded-2xl border border-[#E6EAF2] p-4">
       <div className="mb-3 flex items-center justify-between">
         <div>
-          <h3 className="font-display text-lg font-semibold text-slate-100">Stock Table</h3>
-          <p className="text-xs text-slate-400">Sticky header, sorting, and live sparkline trend</p>
+          <h3 className="font-display text-lg font-semibold text-slate-900">Power Stocks Table</h3>
+          <p className="text-xs text-slate-500">Sticky header, sorting, filtering, and mini trends</p>
         </div>
-        <p className="text-xs text-slate-400">{filteredRows.length} symbols</p>
+        <p className="text-xs text-slate-500">{filteredRows.length} symbols</p>
       </div>
 
-      <div className="max-h-[430px] overflow-auto rounded-xl border border-slate-700/70 bg-[#0B1220]/70">
+      <div className="max-h-[430px] overflow-auto rounded-xl border border-slate-200 bg-white">
         <table className="min-w-full border-collapse text-sm">
-          <thead className="sticky top-0 z-10 bg-[#111A2C]/95 text-xs uppercase tracking-wide text-slate-400">
+          <thead className="sticky top-0 z-10 bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
             <tr>
               <th className="px-4 py-3 text-left">
                 <button type="button" onClick={() => setSort("symbol")} className="inline-flex items-center gap-1">
@@ -138,22 +138,22 @@ export function StockTable({ companies, historyBySymbol, signals, query }: Stock
                 <motion.tr
                   layout
                   key={company.symbol}
-                  className={`border-t border-slate-800/80 bg-[#111A2C]/35 hover:bg-[#111A2C]/65 ${getRowFlash(
+                  className={`border-t border-slate-200 bg-white hover:bg-blue-50/45 ${getRowFlash(
                     signals[company.symbol]
                   )}`}
                 >
                   <td className="px-4 py-3">
-                    <p className="font-semibold text-slate-100">{company.symbol}</p>
+                    <p className="font-semibold text-slate-900">{company.symbol}</p>
                     <p className="text-xs text-slate-500">{company.name}</p>
                   </td>
-                  <td className="px-4 py-3 text-right font-semibold text-slate-100">{formatPrice(company.price)}</td>
-                  <td className={`px-4 py-3 text-right font-semibold ${positive ? "text-emerald-300" : "text-rose-300"}`}>
+                  <td className="px-4 py-3 text-right font-semibold text-slate-900">{formatPrice(company.price)}</td>
+                  <td className={`px-4 py-3 text-right font-semibold ${positive ? "text-emerald-600" : "text-rose-600"}`}>
                     <span className="inline-flex flex-col items-end">
                       <span>{formatPercent(company.percentChange)}</span>
                       <span className="text-[11px] opacity-80">{formatSignedPrice(company.change)}</span>
                     </span>
                   </td>
-                  <td className="px-4 py-3 text-right text-slate-300">{formatVolume(company.volume)}</td>
+                  <td className="px-4 py-3 text-right text-slate-700">{formatVolume(company.volume)}</td>
                   <td className="px-4 py-3">
                     <div className="ml-auto h-9 w-28">
                       <Sparkline points={historyBySymbol[company.symbol] ?? []} positive={positive} />
@@ -164,7 +164,7 @@ export function StockTable({ companies, historyBySymbol, signals, query }: Stock
             })}
             {filteredRows.length === 0 ? (
               <tr>
-                <td colSpan={5} className="px-4 py-6 text-center text-sm text-slate-400">
+                <td colSpan={5} className="px-4 py-6 text-center text-sm text-slate-500">
                   No symbols matched your search.
                 </td>
               </tr>

@@ -9,13 +9,13 @@ interface PerformanceChartProps {
 }
 
 function getHeatColor(change: number | null | undefined) {
-  if (!Number.isFinite(change)) return "rgba(100, 116, 139, 0.28)";
+  if (!Number.isFinite(change)) return "rgba(148, 163, 184, 0.2)";
 
   const value = Math.min(Math.abs(Number(change)) / 4, 1);
   if (Number(change) >= 0) {
-    return `rgba(34, 197, 94, ${0.18 + value * 0.58})`;
+    return `rgba(22, 163, 74, ${0.15 + value * 0.22})`;
   }
-  return `rgba(239, 68, 68, ${0.18 + value * 0.58})`;
+  return `rgba(220, 38, 38, ${0.15 + value * 0.22})`;
 }
 
 export function PerformanceChart({ companies, title = "Sector Heatmap" }: PerformanceChartProps) {
@@ -32,22 +32,22 @@ export function PerformanceChart({ companies, title = "Sector Heatmap" }: Perfor
   const unchanged = Math.max(0, companies.length - advances - declines);
 
   return (
-    <section className="glass-card rounded-2xl border border-slate-700/70 p-4">
+    <section className="glass-card rounded-2xl border border-[#E6EAF2] p-4">
       <div className="mb-3 flex items-center justify-between">
         <div>
-          <h3 className="font-display text-lg font-semibold text-slate-100">{title}</h3>
-          <p className="text-xs text-slate-400">Instant gain/loss map for power companies</p>
+          <h3 className="font-display text-lg font-semibold text-slate-900">{title}</h3>
+          <p className="text-xs text-slate-500">Instant gain/loss map for power companies</p>
         </div>
       </div>
 
       <div className="mb-3 grid grid-cols-3 gap-2 text-xs">
-        <div className="rounded-lg border border-emerald-400/30 bg-emerald-500/10 px-2 py-1 text-emerald-200">
+        <div className="rounded-lg border border-emerald-200 bg-emerald-50 px-2 py-1 text-emerald-700">
           Adv: {advances}
         </div>
-        <div className="rounded-lg border border-slate-500/40 bg-slate-500/10 px-2 py-1 text-slate-200">
+        <div className="rounded-lg border border-slate-200 bg-slate-100 px-2 py-1 text-slate-700">
           Flat: {unchanged}
         </div>
-        <div className="rounded-lg border border-rose-400/30 bg-rose-500/10 px-2 py-1 text-rose-200">
+        <div className="rounded-lg border border-rose-200 bg-rose-50 px-2 py-1 text-rose-700">
           Dec: {declines}
         </div>
       </div>
@@ -58,12 +58,12 @@ export function PerformanceChart({ companies, title = "Sector Heatmap" }: Perfor
           return (
             <article
               key={company.symbol}
-              className="rounded-lg border border-white/10 px-3 py-2"
+              className="rounded-lg border border-white/60 px-3 py-2 shadow-sm"
               style={{ background: getHeatColor(company.percentChange) }}
             >
-              <p className="text-sm font-semibold text-slate-100">{company.symbol}</p>
-              <p className="truncate text-[11px] text-slate-300/90">{company.name}</p>
-              <p className={`text-xs font-medium ${isPositive ? "text-emerald-100" : "text-rose-100"}`}>
+              <p className="text-sm font-semibold text-slate-900">{company.symbol}</p>
+              <p className="truncate text-[11px] text-slate-700/90">{company.name}</p>
+              <p className={`text-xs font-medium ${isPositive ? "text-emerald-700" : "text-rose-700"}`}>
                 {formatPercent(company.percentChange)}
               </p>
             </article>

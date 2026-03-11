@@ -16,13 +16,13 @@ interface MarketCardProps {
 
 const TONE_CLASSES: Record<NonNullable<MarketCardProps["tone"]>, string> = {
   positive:
-    "from-emerald-500/18 to-emerald-500/5 border-emerald-400/35 shadow-[0_16px_30px_rgba(16,185,129,0.12)]",
+    "from-emerald-50 to-white border-emerald-200 shadow-[0_12px_24px_rgba(22,163,74,0.08)]",
   negative:
-    "from-rose-500/18 to-rose-500/5 border-rose-400/30 shadow-[0_16px_30px_rgba(225,29,72,0.14)]",
+    "from-rose-50 to-white border-rose-200 shadow-[0_12px_24px_rgba(220,38,38,0.08)]",
   accent:
-    "from-cyan-500/20 to-blue-500/8 border-cyan-300/30 shadow-[0_16px_30px_rgba(8,145,178,0.15)]",
+    "from-blue-50 to-white border-blue-200 shadow-[0_12px_24px_rgba(37,99,235,0.08)]",
   neutral:
-    "from-slate-500/15 to-slate-500/5 border-slate-400/25 shadow-[0_16px_30px_rgba(15,23,42,0.3)]"
+    "from-slate-50 to-white border-slate-200 shadow-[0_12px_24px_rgba(15,23,42,0.06)]"
 };
 
 function flashClass(signal?: PriceDirection) {
@@ -48,15 +48,15 @@ export function MarketCard({
       className={`glass-card ${flashClass(signal)} rounded-2xl border bg-gradient-to-br p-4 ${TONE_CLASSES[tone]}`}
     >
       <div className="flex items-start justify-between gap-3">
-        <p className="text-[11px] uppercase tracking-[0.22em] text-slate-400">{title}</p>
+        <p className="text-[11px] uppercase tracking-[0.22em] text-slate-500">{title}</p>
         {icon ? (
-          <span className="rounded-lg border border-white/10 bg-white/5 px-2 py-1 text-xs text-slate-200">{icon}</span>
+          <span className="rounded-lg border border-slate-200 bg-white px-2 py-1 text-xs text-slate-700">{icon}</span>
         ) : null}
       </div>
-      <p className="mt-3 truncate text-2xl font-semibold text-slate-100">{value}</p>
+      <p className="mt-3 truncate text-2xl font-semibold text-slate-900">{value}</p>
       <div className="mt-2 flex items-center justify-between">
         <TrendIndicator value={change} />
-        <p className="text-xs text-slate-400">{subtitle}</p>
+        <p className="text-xs text-slate-500">{subtitle}</p>
       </div>
     </motion.article>
   );

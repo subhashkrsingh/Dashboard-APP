@@ -35,12 +35,12 @@ export function Navbar({
   );
 
   return (
-    <header className="glass-card sticky top-0 z-20 border-b border-slate-700/60 px-4 py-3 md:px-6">
+    <header className="glass-card sticky top-0 z-20 border-b border-[#E6EAF2] px-4 py-3 md:px-6">
       <div className="flex flex-wrap items-center gap-3">
         <button
           type="button"
           onClick={onOpenSidebar}
-          className="inline-flex items-center gap-2 rounded-lg border border-slate-600/60 bg-slate-900/60 px-3 py-2 text-sm text-slate-100 xl:hidden"
+          className="inline-flex items-center gap-2 rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-700 xl:hidden"
           aria-label="Open sidebar navigation"
         >
           <Menu className="h-4 w-4" />
@@ -48,18 +48,18 @@ export function Navbar({
         </button>
 
         <div className="relative min-w-[220px] flex-1">
-          <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500" />
+          <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
           <input
             value={search}
             onChange={event => onSearchChange(event.target.value)}
             type="search"
             placeholder="Search stocks..."
-            className="w-full rounded-xl border border-slate-600/70 bg-[#0B1220]/75 py-2 pl-9 pr-4 text-sm text-slate-100 placeholder:text-slate-500 focus:border-cyan-400/70 focus:outline-none"
+            className="w-full rounded-xl border border-slate-300 bg-white py-2 pl-9 pr-4 text-sm text-slate-800 placeholder:text-slate-400 focus:border-blue-500 focus:outline-none"
           />
         </div>
 
         <Badge tone={marketStatus?.isOpen ? "positive" : "negative"} pulse>
-          <span className={`h-2 w-2 rounded-full ${marketStatus?.isOpen ? "bg-emerald-300" : "bg-rose-300"}`} />
+          <span className={`h-2 w-2 rounded-full ${marketStatus?.isOpen ? "bg-emerald-500" : "bg-rose-500"}`} />
           Market {marketStatus?.label ?? "CLOSED"}
         </Badge>
 
@@ -69,7 +69,7 @@ export function Navbar({
 
         <button
           type="button"
-          className="inline-flex items-center gap-2 rounded-xl border border-slate-600/70 bg-slate-900/65 px-3 py-2 text-xs text-slate-200 hover:border-cyan-300/60"
+          className="inline-flex items-center gap-2 rounded-xl border border-slate-300 bg-white px-3 py-2 text-xs text-slate-700 hover:border-blue-300"
         >
           <Bell className="h-3.5 w-3.5" />
           Alerts (3)
@@ -77,16 +77,16 @@ export function Navbar({
 
         <button
           type="button"
-          className="inline-flex items-center gap-2 rounded-xl border border-slate-600/70 bg-slate-900/65 px-3 py-2 text-xs font-semibold text-slate-100"
+          className="inline-flex items-center gap-2 rounded-xl border border-slate-300 bg-white px-3 py-2 text-xs font-semibold text-slate-700"
         >
           <UserCircle2 className="h-4 w-4" />
           SK
         </button>
       </div>
 
-      <div className="mt-3 overflow-hidden rounded-lg border border-slate-700/70 bg-[#0B1220]/70 py-2">
+      <div className="mt-3 overflow-hidden rounded-lg border border-slate-200 bg-white py-2">
         {tickerItems.length === 0 ? (
-          <p className="px-3 text-xs text-slate-400">Waiting for ticker data...</p>
+          <p className="px-3 text-xs text-slate-500">Waiting for ticker data...</p>
         ) : (
           <motion.div
             className="flex w-max items-center gap-6 px-4"
@@ -102,8 +102,8 @@ export function Navbar({
               const positive = (item.percentChange ?? 0) >= 0;
               return (
                 <div key={`${item.symbol}-${index}`} className="flex items-center gap-2 whitespace-nowrap text-xs">
-                  <span className="font-semibold text-slate-100">{item.symbol}</span>
-                  <span className={positive ? "text-emerald-300" : "text-rose-300"}>
+                  <span className="font-semibold text-slate-800">{item.symbol}</span>
+                  <span className={positive ? "text-emerald-600" : "text-rose-600"}>
                     {positive ? "+" : ""}
                     {(item.percentChange ?? 0).toFixed(2)}%
                   </span>

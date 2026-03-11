@@ -14,11 +14,11 @@ export function TrendIndicator({ value, withArrow = true }: TrendIndicatorProps)
   const direction = getDirection(value);
 
   if (direction === "flat") {
-    return <span className="text-sm font-semibold text-slate-300">{formatPercent(value)}</span>;
+    return <span className="text-sm font-semibold text-slate-500">{formatPercent(value)}</span>;
   }
 
   const arrow = direction === "up" ? "^" : "v";
-  const tone = direction === "up" ? "text-emerald-300" : "text-rose-300";
+  const tone = direction === "up" ? "text-emerald-600" : "text-rose-600";
 
   return (
     <span className={`inline-flex items-center gap-1 text-sm font-semibold ${tone}`}>
