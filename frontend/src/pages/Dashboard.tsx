@@ -1,17 +1,35 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
+import { Activity, BarChart3, TrendingDown, TrendingUp } from "lucide-react";
 
+import { InsightsPanel } from "../components/cards/InsightsPanel";
 import { MarketCard } from "../components/cards/MarketCard";
 import { SectorCard } from "../components/cards/SectorCard";
 import { PerformanceChart } from "../components/charts/PerformanceChart";
 import { SectorChart } from "../components/charts/SectorChart";
 import { DashboardSkeleton } from "../components/dashboard/DashboardSkeleton";
+import { FooterBar } from "../components/dashboard/FooterBar";
 import { Navbar } from "../components/layout/Navbar";
-import { Sidebar } from "../components/layout/Sidebar";
+import { Sidebar, type SidebarPage } from "../components/layout/Sidebar";
 import { StockTable } from "../components/tables/StockTable";
 import { formatPercent, formatPrice, formatVolume } from "../lib/formatters";
 import { useMarketData } from "../hooks/useMarketData";
 import type { CompanyQuote } from "../types/market";
+
+const DEFAULT_PAGE: SidebarPage = "dashboard";
+const PAGE_HASH: Record<SidebarPage, string> = {
+  dashboard: "#/dashboard",
+  companies: "#/companies",
+  analytics: "#/analytics",
+  alerts: "#/alerts",
+  watchlist: "#/watchlist",
+  settings: "#/settings"
+};
+
+function getPageFromHash(hash: string): SidebarPage {
+  const entry = (Object.entries(PAGE_HASH) as Array<[SidebarPage, string]>).find(([, value]) => value === hash);
+  return entry?.[0] ?? DEFAULT_PAGE;
+}
 
 function getTopByPercent(companies: CompanyQuote[], direction: "max" | "min") {
   const sorted = [...companies].sort((a, b) => {
@@ -22,8 +40,32 @@ function getTopByPercent(companies: CompanyQuote[], direction: "max" | "min") {
   return sorted[0];
 }
 
+function getPageTitle(page: SidebarPage): string {
+  switch (page) {
+    case "dashboard":
+      return "Dashboard";
+    case "companies":
+      return "Power Companies";
+    case "analytics":
+      return "Sector Analytics";
+    case "alerts":
+      return "Alerts";
+    case "watchlist":
+      return "Watchlist";
+    case "settings":
+      return "Settings";
+    default:
+      return "Dashboard";
+  }
+}
+
 export function DashboardPage() {
   const [search, setSearch] = useState("");
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [activePage, setActivePage] = useState<SidebarPage>(() => {
+    if (typeof window === "undefined") return DEFAULT_PAGE;
+    return getPageFromHash(window.location.hash);
+  });
   const {
     data,
     error,
@@ -36,6 +78,18 @@ export function DashboardPage() {
     companyHistory,
     signals
   } = useMarketData();
+
+  useEffect(() => {
+    const onHashChange = () => setActivePage(getPageFromHash(window.location.hash));
+
+    if (!window.location.hash) {
+      window.location.hash = PAGE_HASH.dashboard;
+    }
+
+    onHashChange();
+    window.addEventListener("hashchange", onHashChange);
+    return () => window.removeEventListener("hashchange", onHashChange);
+  }, []);
 
   if (isLoading) {
     return (
@@ -81,13 +135,195 @@ export function DashboardPage() {
     data.advanceDecline?.declines ??
     data.companies.filter(company => (company.percentChange ?? 0) < 0).length;
 
+  const pageTitle = getPageTitle(activePage);
+
+  const navigatePage = (page: SidebarPage) => {
+    setActivePage(page);
+    setSidebarOpen(false);
+    if (window.location.hash !== PAGE_HASH[page]) {
+      window.location.hash = PAGE_HASH[page];
+    }
+  };
+
+  const topMovers = data.gainers.slice(0, 6);
+  const bottomMovers = data.losers.slice(0, 6);
+
+  const renderPage = () => {
+    if (activePage === "dashboard") {
+      return (
+        <section className="space-y-5">
+          <section className="grid gap-4 sm:grid-cols-2 2xl:grid-cols-4">
+            <SectorCard sectorIndex={data.sectorIndex} signal={signals.__sector} />
+
+            <MarketCard
+              title="Top Gainer"
+              value={topGainer?.symbol ?? "--"}
+              subtitle={formatPrice(topGainer?.price)}
+              change={topGainer?.percentChange}
+              icon={<TrendingUp className="h-3.5 w-3.5 text-emerald-200" />}
+              tone="positive"
+              signal={topGainer ? signals[topGainer.symbol] : undefined}
+            />
+
+            <MarketCard
+              title="Top Loser"
+              value={topLoser?.symbol ?? "--"}
+              subtitle={formatPrice(topLoser?.price)}
+              change={topLoser?.percentChange}
+              icon={<TrendingDown className="h-3.5 w-3.5 text-rose-200" />}
+              tone="negative"
+              signal={topLoser ? signals[topLoser.symbol] : undefined}
+            />
+
+            <MarketCard
+              title="Volume Leader"
+              value={volumeLeader?.symbol ?? "--"}
+              subtitle={formatVolume(volumeLeader?.volume)}
+              change={volumeLeader?.percentChange}
+              icon={<BarChart3 className="h-3.5 w-3.5 text-cyan-200" />}
+              tone="accent"
+              signal={volumeLeader ? signals[volumeLeader.symbol] : undefined}
+            />
+          </section>
+
+          <SectorChart sectorIndex={data.sectorIndex} history={sectorHistory} />
+
+          <section className="grid gap-4 xl:grid-cols-[minmax(0,1.55fr)_minmax(330px,1fr)]">
+            <PerformanceChart companies={data.companies} title="Sector Heatmap" />
+            <InsightsPanel
+              sectorSpot={data.sectorIndex.lastPrice}
+              averageChange={averageChange}
+              advances={advances}
+              declines={declines}
+              totalVolume={totalVolume}
+              volumeLeaderSymbol={volumeLeader?.symbol}
+              compact
+            />
+          </section>
+
+          <StockTable
+            companies={data.companies}
+            historyBySymbol={companyHistory}
+            signals={signals}
+            query={search}
+          />
+        </section>
+      );
+    }
+
+    if (activePage === "companies") {
+      return (
+        <section className="space-y-4">
+          <section className="glass-card rounded-2xl border border-blue-400/30 bg-blue-500/10 p-4">
+            <h2 className="font-display text-xl font-semibold text-blue-100">Power Companies</h2>
+            <p className="mt-1 text-sm text-blue-100/90">
+              Dedicated universe scanner with sorting, sticky header, and sparkline trend.
+            </p>
+          </section>
+
+          <StockTable
+            companies={data.companies}
+            historyBySymbol={companyHistory}
+            signals={signals}
+            query={search}
+          />
+        </section>
+      );
+    }
+
+    if (activePage === "analytics") {
+      return (
+        <section className="space-y-4">
+          <section className="glass-card rounded-2xl border border-cyan-400/30 bg-cyan-500/10 p-4">
+            <h2 className="font-display text-xl font-semibold text-cyan-100">Sector Analytics</h2>
+            <p className="mt-1 text-sm text-cyan-100/90">
+              Deep-dive view for trend, momentum, and breadth analytics.
+            </p>
+          </section>
+
+          <SectorChart sectorIndex={data.sectorIndex} history={sectorHistory} />
+
+          <section className="grid gap-4 xl:grid-cols-[minmax(0,1.55fr)_minmax(330px,1fr)]">
+            <PerformanceChart companies={data.companies} />
+            <InsightsPanel
+              sectorSpot={data.sectorIndex.lastPrice}
+              averageChange={averageChange}
+              advances={advances}
+              declines={declines}
+              totalVolume={totalVolume}
+              volumeLeaderSymbol={volumeLeader?.symbol}
+              compact
+            />
+          </section>
+        </section>
+      );
+    }
+
+    if (activePage === "alerts") {
+      return (
+        <section className="glass-card rounded-2xl border border-amber-400/30 bg-amber-500/10 p-6 text-sm text-amber-50">
+          <h2 className="font-display text-xl font-semibold">Alerts Center</h2>
+          <p className="mt-2">Configure price, volume, and momentum alerts for power sector symbols.</p>
+        </section>
+      );
+    }
+
+    if (activePage === "watchlist") {
+      return (
+        <section className="space-y-4">
+          <section className="glass-card rounded-2xl border border-violet-400/30 bg-violet-500/10 p-4">
+            <h2 className="font-display text-xl font-semibold text-violet-100">Watchlist</h2>
+            <p className="mt-1 text-sm text-violet-100/90">Quick movers you are tracking right now.</p>
+          </section>
+
+          <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+            {[...topMovers, ...bottomMovers].slice(0, 6).map(item => {
+              const positive = (item.percentChange ?? 0) >= 0;
+              return (
+                <article
+                  key={`watch-${item.symbol}`}
+                  className={`glass-card rounded-xl border p-3 ${
+                    positive ? "border-emerald-400/30" : "border-rose-400/30"
+                  }`}
+                >
+                  <p className="text-sm font-semibold text-slate-100">{item.symbol}</p>
+                  <p className="text-xs text-slate-400">{item.name}</p>
+                  <p className={`mt-2 text-sm font-semibold ${positive ? "text-emerald-200" : "text-rose-200"}`}>
+                    {formatPercent(item.percentChange)}
+                  </p>
+                </article>
+              );
+            })}
+          </section>
+        </section>
+      );
+    }
+
+    return (
+      <section className="glass-card rounded-2xl border border-slate-700/70 p-6 text-sm text-slate-300">
+        <h2 className="font-display text-xl text-slate-100">{pageTitle}</h2>
+        <p className="mt-2">Settings and personalization controls are ready for your next iteration.</p>
+      </section>
+    );
+  };
+
   return (
     <main className="relative min-h-screen bg-[#0B1220] text-slate-100">
-      <div className="pointer-events-none fixed inset-0 bg-[radial-gradient(circle_at_15%_15%,rgba(6,182,212,0.12),transparent_34%),radial-gradient(circle_at_80%_0%,rgba(59,130,246,0.12),transparent_35%),linear-gradient(180deg,#0B1220_0%,#0A1426_100%)]" />
+      <div className="pointer-events-none fixed inset-0 bg-[radial-gradient(circle_at_8%_8%,rgba(6,182,212,0.18),transparent_35%),radial-gradient(circle_at_90%_10%,rgba(59,130,246,0.2),transparent_33%),radial-gradient(circle_at_50%_100%,rgba(239,68,68,0.1),transparent_38%),linear-gradient(180deg,#081325_0%,#0B1220_45%,#091425_100%)]" />
 
       <div className="relative z-10 flex min-h-screen">
-        <div className="hidden w-[280px] shrink-0 xl:block">
-          <Sidebar companies={data.companies} />
+        <div
+          className={`hidden shrink-0 transition-[width] duration-300 xl:block ${
+            sidebarCollapsed ? "w-[96px]" : "w-[280px]"
+          }`}
+        >
+          <Sidebar
+            companies={data.companies}
+            activePage={activePage}
+            onNavigate={navigatePage}
+            collapsed={sidebarCollapsed}
+            onToggleCollapse={() => setSidebarCollapsed(current => !current)}
+          />
         </div>
 
         <AnimatePresence>
@@ -107,7 +343,13 @@ export function DashboardPage() {
                 exit={{ x: "-100%" }}
                 transition={{ duration: 0.2 }}
               >
-                <Sidebar companies={data.companies} onClose={() => setSidebarOpen(false)} />
+                <Sidebar
+                  companies={data.companies}
+                  activePage={activePage}
+                  onNavigate={navigatePage}
+                  collapsed={false}
+                  onClose={() => setSidebarOpen(false)}
+                />
               </motion.div>
             </>
           ) : null}
@@ -125,6 +367,14 @@ export function DashboardPage() {
           />
 
           <div className="space-y-4 px-4 py-4 md:px-6">
+            <section className="glass-card rounded-2xl border border-slate-700/70 p-4">
+              <p className="text-xs uppercase tracking-[0.2em] text-cyan-200">Power Sector Dashboard</p>
+              <div className="mt-2 flex items-center gap-3">
+                <Activity className="h-5 w-5 text-cyan-200" />
+                <h1 className="font-display text-2xl font-semibold text-slate-100">{pageTitle}</h1>
+              </div>
+            </section>
+
             {data.stale ? (
               <section className="glass-card rounded-xl border border-amber-400/45 bg-amber-500/10 px-4 py-3 text-sm text-amber-100">
                 {data.warning ?? "Using cached snapshot while the NSE feed is temporarily restricted."}
@@ -138,97 +388,9 @@ export function DashboardPage() {
               </section>
             ) : null}
 
-            <section className="grid gap-4 sm:grid-cols-2 2xl:grid-cols-4">
-              <SectorCard sectorIndex={data.sectorIndex} signal={signals.__sector} />
+            {renderPage()}
 
-              <MarketCard
-                title="Top Gainer"
-                value={topGainer?.symbol ?? "--"}
-                subtitle={formatPrice(topGainer?.price)}
-                change={topGainer?.percentChange}
-                icon="UP"
-                tone="positive"
-                signal={topGainer ? signals[topGainer.symbol] : undefined}
-              />
-
-              <MarketCard
-                title="Top Loser"
-                value={topLoser?.symbol ?? "--"}
-                subtitle={formatPrice(topLoser?.price)}
-                change={topLoser?.percentChange}
-                icon="DN"
-                tone="negative"
-                signal={topLoser ? signals[topLoser.symbol] : undefined}
-              />
-
-              <MarketCard
-                title="Volume Leader"
-                value={volumeLeader?.symbol ?? "--"}
-                subtitle={formatVolume(volumeLeader?.volume)}
-                change={volumeLeader?.percentChange}
-                icon="VOL"
-                tone="accent"
-                signal={volumeLeader ? signals[volumeLeader.symbol] : undefined}
-              />
-            </section>
-
-            <section className="grid gap-4 xl:grid-cols-[minmax(0,1.75fr)_minmax(300px,1fr)]">
-              <SectorChart sectorIndex={data.sectorIndex} history={sectorHistory} />
-
-              <aside className="space-y-4">
-                <PerformanceChart companies={data.companies} />
-
-                <section className="glass-card rounded-2xl border border-slate-700/70 p-4">
-                  <div className="mb-3 flex items-center justify-between">
-                    <h3 className="font-display text-lg font-semibold text-slate-100">Insights Panel</h3>
-                    <span className="text-xs text-slate-400">AI signals + fundamentals</span>
-                  </div>
-
-                  <dl className="space-y-2 text-sm">
-                    <div className="flex items-center justify-between rounded-lg border border-slate-700/70 bg-[#0B1220]/75 px-3 py-2">
-                      <dt className="text-slate-400">Sector Spot</dt>
-                      <dd className="font-semibold text-slate-100">{formatPrice(data.sectorIndex.lastPrice)}</dd>
-                    </div>
-                    <div className="flex items-center justify-between rounded-lg border border-slate-700/70 bg-[#0B1220]/75 px-3 py-2">
-                      <dt className="text-slate-400">Average Change</dt>
-                      <dd className="font-semibold text-cyan-200">{formatPercent(averageChange)}</dd>
-                    </div>
-                    <div className="flex items-center justify-between rounded-lg border border-slate-700/70 bg-[#0B1220]/75 px-3 py-2">
-                      <dt className="text-slate-400">Breadth</dt>
-                      <dd className="font-semibold text-slate-100">
-                        {advances} Adv / {declines} Dec
-                      </dd>
-                    </div>
-                    <div className="flex items-center justify-between rounded-lg border border-slate-700/70 bg-[#0B1220]/75 px-3 py-2">
-                      <dt className="text-slate-400">Traded Volume</dt>
-                      <dd className="font-semibold text-slate-100">{formatVolume(totalVolume)}</dd>
-                    </div>
-                  </dl>
-
-                  <div className="mt-4 space-y-2 rounded-xl border border-cyan-400/30 bg-cyan-500/10 p-3">
-                    <p className="text-xs uppercase tracking-[0.16em] text-cyan-100">AI Insights</p>
-                    <p className="text-sm text-slate-100">
-                      Momentum is {averageChange >= 0 ? "positive" : "negative"} with{" "}
-                      <span className="font-semibold">{advances}</span> advancing symbols.
-                    </p>
-                    <p className="text-sm text-slate-200">
-                      Volume concentration remains highest in <span className="font-semibold">{volumeLeader?.symbol ?? "--"}</span>.
-                    </p>
-                    <p className="text-sm text-slate-200">
-                      Watch for continuation if sector index holds above{" "}
-                      <span className="font-semibold">{formatPrice(data.sectorIndex.lastPrice)}</span>.
-                    </p>
-                  </div>
-                </section>
-              </aside>
-            </section>
-
-            <StockTable
-              companies={data.companies}
-              historyBySymbol={companyHistory}
-              signals={signals}
-              query={search}
-            />
+            <FooterBar />
           </div>
         </div>
       </div>

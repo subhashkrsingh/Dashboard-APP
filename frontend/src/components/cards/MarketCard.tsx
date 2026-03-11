@@ -1,4 +1,5 @@
 import { motion } from "framer-motion";
+import type { ReactNode } from "react";
 
 import type { PriceDirection } from "../../types/market";
 import { TrendIndicator } from "../ui/TrendIndicator";
@@ -8,7 +9,7 @@ interface MarketCardProps {
   value: string;
   subtitle: string;
   change?: number | null;
-  icon: string;
+  icon?: ReactNode;
   tone?: "positive" | "negative" | "accent" | "neutral";
   signal?: PriceDirection;
 }
@@ -35,7 +36,7 @@ export function MarketCard({
   value,
   subtitle,
   change = null,
-  icon,
+  icon = null,
   tone = "neutral",
   signal
 }: MarketCardProps) {
@@ -48,7 +49,9 @@ export function MarketCard({
     >
       <div className="flex items-start justify-between gap-3">
         <p className="text-[11px] uppercase tracking-[0.22em] text-slate-400">{title}</p>
-        <span className="rounded-lg border border-white/10 bg-white/5 px-2 py-1 text-xs text-slate-200">{icon}</span>
+        {icon ? (
+          <span className="rounded-lg border border-white/10 bg-white/5 px-2 py-1 text-xs text-slate-200">{icon}</span>
+        ) : null}
       </div>
       <p className="mt-3 truncate text-2xl font-semibold text-slate-100">{value}</p>
       <div className="mt-2 flex items-center justify-between">

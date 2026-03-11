@@ -7,6 +7,7 @@ interface InsightsPanelProps {
   declines: number;
   totalVolume: number;
   volumeLeaderSymbol?: string;
+  compact?: boolean;
 }
 
 export function InsightsPanel({
@@ -15,8 +16,43 @@ export function InsightsPanel({
   advances,
   declines,
   totalVolume,
-  volumeLeaderSymbol
+  volumeLeaderSymbol,
+  compact = false
 }: InsightsPanelProps) {
+  if (compact) {
+    return (
+      <aside className="glass-card h-full rounded-2xl border border-slate-700/70 p-4">
+        <div className="mb-3">
+          <h3 className="font-display text-lg font-semibold text-slate-100">Sector Insights</h3>
+          <p className="text-xs text-slate-400">Real-time analytics panel</p>
+        </div>
+
+        <div className="space-y-3">
+          <section className="rounded-xl border border-cyan-400/30 bg-cyan-500/10 p-3">
+            <p className="text-xs uppercase tracking-[0.14em] text-cyan-100">Sector Performance</p>
+            <p className="mt-2 text-sm text-slate-100">
+              Power sector at <b>{formatPrice(sectorSpot)}</b> with <b>{formatPercent(averageChange)}</b> change.
+            </p>
+          </section>
+
+          <section className="rounded-xl border border-emerald-400/25 bg-emerald-500/10 p-3">
+            <p className="text-xs uppercase tracking-[0.14em] text-emerald-100">Biggest Movers</p>
+            <p className="mt-2 text-sm text-slate-100">
+              Breadth <b>{advances}</b> up / <b>{declines}</b> down.
+            </p>
+          </section>
+
+          <section className="rounded-xl border border-slate-700/70 bg-[#0B1220]/75 p-3">
+            <p className="text-xs uppercase tracking-[0.14em] text-slate-400">Volume Leader</p>
+            <p className="mt-2 text-sm text-slate-100">
+              <b>{volumeLeaderSymbol ?? "--"}</b> leads turnover with total volume at <b>{formatVolume(totalVolume)}</b>.
+            </p>
+          </section>
+        </div>
+      </aside>
+    );
+  }
+
   return (
     <section className="glass-card rounded-2xl border border-slate-700/70 p-5">
       <div className="mb-4 flex flex-wrap items-center justify-between gap-2">

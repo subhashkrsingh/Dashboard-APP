@@ -1,5 +1,6 @@
 import { useMemo } from "react";
 import { motion } from "framer-motion";
+import { Bell, Menu, Search, UserCircle2 } from "lucide-react";
 
 import { formatClock } from "../../lib/formatters";
 import type { CompanyQuote, MarketStatus } from "../../types/market";
@@ -39,19 +40,21 @@ export function Navbar({
         <button
           type="button"
           onClick={onOpenSidebar}
-          className="rounded-lg border border-slate-600/60 bg-slate-900/60 px-3 py-2 text-sm text-slate-100 xl:hidden"
+          className="inline-flex items-center gap-2 rounded-lg border border-slate-600/60 bg-slate-900/60 px-3 py-2 text-sm text-slate-100 xl:hidden"
           aria-label="Open sidebar navigation"
         >
+          <Menu className="h-4 w-4" />
           Menu
         </button>
 
-        <div className="min-w-[220px] flex-1">
+        <div className="relative min-w-[220px] flex-1">
+          <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500" />
           <input
             value={search}
             onChange={event => onSearchChange(event.target.value)}
             type="search"
-            placeholder="Search stocks, symbols, sectors..."
-            className="w-full rounded-xl border border-slate-600/70 bg-[#0B1220]/75 px-4 py-2 text-sm text-slate-100 placeholder:text-slate-500 focus:border-cyan-400/70 focus:outline-none"
+            placeholder="Search stocks..."
+            className="w-full rounded-xl border border-slate-600/70 bg-[#0B1220]/75 py-2 pl-9 pr-4 text-sm text-slate-100 placeholder:text-slate-500 focus:border-cyan-400/70 focus:outline-none"
           />
         </div>
 
@@ -66,15 +69,17 @@ export function Navbar({
 
         <button
           type="button"
-          className="rounded-xl border border-slate-600/70 bg-slate-900/65 px-3 py-2 text-xs text-slate-200 hover:border-cyan-300/60"
+          className="inline-flex items-center gap-2 rounded-xl border border-slate-600/70 bg-slate-900/65 px-3 py-2 text-xs text-slate-200 hover:border-cyan-300/60"
         >
+          <Bell className="h-3.5 w-3.5" />
           Alerts (3)
         </button>
 
         <button
           type="button"
-          className="rounded-xl border border-slate-600/70 bg-slate-900/65 px-3 py-2 text-xs font-semibold text-slate-100"
+          className="inline-flex items-center gap-2 rounded-xl border border-slate-600/70 bg-slate-900/65 px-3 py-2 text-xs font-semibold text-slate-100"
         >
+          <UserCircle2 className="h-4 w-4" />
           SK
         </button>
       </div>

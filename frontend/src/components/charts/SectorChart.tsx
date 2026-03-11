@@ -20,14 +20,14 @@ interface SectorChartProps {
 }
 
 const RANGES = [
-  { label: "30P", points: 30 },
-  { label: "60P", points: 60 },
-  { label: "120P", points: 120 },
+  { label: "1D", points: 40 },
+  { label: "1W", points: 80 },
+  { label: "1M", points: 120 },
   { label: "ALL", points: 0 }
 ] as const;
 
 export function SectorChart({ sectorIndex, history }: SectorChartProps) {
-  const [range, setRange] = useState<(typeof RANGES)[number]["points"]>(120);
+  const [range, setRange] = useState<(typeof RANGES)[number]["points"]>(40);
   const isPositive = (sectorIndex.percentChange ?? 0) >= 0;
 
   const chartData = useMemo(() => {
@@ -38,7 +38,7 @@ export function SectorChart({ sectorIndex, history }: SectorChartProps) {
   const strokeColor = isPositive ? "#22C55E" : "#EF4444";
 
   return (
-    <section className="glass-card rounded-2xl border border-slate-700/70 p-4 md:p-5">
+    <section className="glass-card w-full rounded-2xl border border-slate-700/70 p-4 md:p-5">
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
         <div>
           <p className="text-xs uppercase tracking-[0.2em] text-cyan-200/90">Hero Chart</p>
@@ -72,14 +72,14 @@ export function SectorChart({ sectorIndex, history }: SectorChartProps) {
         ))}
       </div>
 
-      <div className="h-[360px] rounded-xl border border-slate-700/70 bg-[#0B1220]/65 p-2">
+      <div className="h-[460px] w-full rounded-xl border border-slate-700/70 bg-[#0B1220]/65 p-2">
         {chartData.length < 2 ? (
           <div className="flex h-full items-center justify-center text-sm text-slate-400">
             Waiting for intraday points...
           </div>
         ) : (
           <ResponsiveContainer width="100%" height="100%">
-            <AreaChart data={chartData} margin={{ top: 10, right: 12, left: 6, bottom: 6 }}>
+            <AreaChart data={chartData} margin={{ top: 8, right: 2, left: 0, bottom: 2 }}>
               <defs>
                 <linearGradient id="sector-chart-fill" x1="0" y1="0" x2="0" y2="1">
                   <stop offset="0%" stopColor={strokeColor} stopOpacity={0.35} />
@@ -87,7 +87,7 @@ export function SectorChart({ sectorIndex, history }: SectorChartProps) {
                 </linearGradient>
               </defs>
               <CartesianGrid stroke="#1F2A44" strokeDasharray="4 4" />
-              <XAxis dataKey="time" stroke="#9CAEC9" tick={{ fontSize: 11 }} minTickGap={22} />
+              <XAxis dataKey="time" stroke="#9CAEC9" tick={{ fontSize: 11 }} minTickGap={20} />
               <YAxis
                 stroke="#9CAEC9"
                 tick={{ fontSize: 11 }}

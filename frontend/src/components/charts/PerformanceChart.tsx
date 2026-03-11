@@ -5,6 +5,7 @@ import type { CompanyQuote } from "../../types/market";
 
 interface PerformanceChartProps {
   companies: CompanyQuote[];
+  title?: string;
 }
 
 function getHeatColor(change: number | null | undefined) {
@@ -17,7 +18,7 @@ function getHeatColor(change: number | null | undefined) {
   return `rgba(239, 68, 68, ${0.18 + value * 0.58})`;
 }
 
-export function PerformanceChart({ companies }: PerformanceChartProps) {
+export function PerformanceChart({ companies, title = "Sector Heatmap" }: PerformanceChartProps) {
   const data = useMemo(
     () =>
       [...companies]
@@ -34,8 +35,8 @@ export function PerformanceChart({ companies }: PerformanceChartProps) {
     <section className="glass-card rounded-2xl border border-slate-700/70 p-4">
       <div className="mb-3 flex items-center justify-between">
         <div>
-          <h3 className="font-display text-lg font-semibold text-slate-100">Sector Performance</h3>
-          <p className="text-xs text-slate-400">Heatmap style movers (Bloomberg-like)</p>
+          <h3 className="font-display text-lg font-semibold text-slate-100">{title}</h3>
+          <p className="text-xs text-slate-400">Instant gain/loss map for power companies</p>
         </div>
       </div>
 
@@ -51,7 +52,7 @@ export function PerformanceChart({ companies }: PerformanceChartProps) {
         </div>
       </div>
 
-      <div className="grid grid-cols-2 gap-2">
+      <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
         {data.map(company => {
           const isPositive = (company.percentChange ?? 0) >= 0;
           return (
@@ -61,6 +62,7 @@ export function PerformanceChart({ companies }: PerformanceChartProps) {
               style={{ background: getHeatColor(company.percentChange) }}
             >
               <p className="text-sm font-semibold text-slate-100">{company.symbol}</p>
+              <p className="truncate text-[11px] text-slate-300/90">{company.name}</p>
               <p className={`text-xs font-medium ${isPositive ? "text-emerald-100" : "text-rose-100"}`}>
                 {formatPercent(company.percentChange)}
               </p>

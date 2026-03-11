@@ -1,3 +1,4 @@
+
 import { formatClock } from "../../lib/formatters";
 import type { CompanyQuote, MarketStatus } from "../../types/market";
 
