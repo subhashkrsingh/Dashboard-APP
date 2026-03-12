@@ -6,6 +6,7 @@ import type { CompanyQuote } from "../../types/market";
 interface PerformanceChartProps {
   companies: CompanyQuote[];
   title?: string;
+  description?: string;
 }
 
 function getHeatColor(change: number | null | undefined) {
@@ -18,7 +19,11 @@ function getHeatColor(change: number | null | undefined) {
   return `rgba(220, 38, 38, ${0.15 + value * 0.22})`;
 }
 
-export function PerformanceChart({ companies, title = "Sector Heatmap" }: PerformanceChartProps) {
+export function PerformanceChart({
+  companies,
+  title = "Sector Heatmap",
+  description = "Instant gain/loss map for power companies"
+}: PerformanceChartProps) {
   const data = useMemo(
     () =>
       [...companies]
@@ -36,7 +41,7 @@ export function PerformanceChart({ companies, title = "Sector Heatmap" }: Perfor
       <div className="mb-3 flex items-center justify-between">
         <div>
           <h3 className="font-display text-lg font-semibold text-slate-900">{title}</h3>
-          <p className="text-xs text-slate-500">Instant gain/loss map for power companies</p>
+          <p className="text-xs text-slate-500">{description}</p>
         </div>
       </div>
 

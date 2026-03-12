@@ -8,6 +8,9 @@ interface InsightsPanelProps {
   totalVolume: number;
   volumeLeaderSymbol?: string;
   compact?: boolean;
+  title?: string;
+  subtitle?: string;
+  sectorName?: string;
 }
 
 export function InsightsPanel({
@@ -17,13 +20,16 @@ export function InsightsPanel({
   declines,
   totalVolume,
   volumeLeaderSymbol,
-  compact = false
+  compact = false,
+  title = "Insights Panel",
+  subtitle = "AI + Fundamentals",
+  sectorName = "Power Sector"
 }: InsightsPanelProps) {
   if (compact) {
     return (
       <aside className="glass-card h-full rounded-2xl border border-[#E6EAF2] p-4">
         <div className="mb-3">
-          <h3 className="font-display text-lg font-semibold text-slate-900">Power Sector Insights</h3>
+          <h3 className="font-display text-lg font-semibold text-slate-900">{sectorName} Insights</h3>
           <p className="text-xs text-slate-500">Real-time analytics panel</p>
         </div>
 
@@ -31,7 +37,7 @@ export function InsightsPanel({
           <section className="rounded-xl border border-blue-200 bg-blue-50 p-3">
             <p className="text-xs uppercase tracking-[0.14em] text-blue-700">Sector Performance</p>
             <p className="mt-2 text-sm text-slate-800">
-              Power sector at <b>{formatPrice(sectorSpot)}</b> with <b>{formatPercent(averageChange)}</b> change.
+              {sectorName} at <b>{formatPrice(sectorSpot)}</b> with <b>{formatPercent(averageChange)}</b> change.
             </p>
           </section>
 
@@ -56,8 +62,8 @@ export function InsightsPanel({
   return (
     <section className="glass-card rounded-2xl border border-[#E6EAF2] p-5">
       <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
-        <h3 className="font-display text-xl font-semibold text-slate-900">Insights Panel</h3>
-        <p className="text-xs uppercase tracking-[0.2em] text-blue-600">AI + Fundamentals</p>
+        <h3 className="font-display text-xl font-semibold text-slate-900">{title}</h3>
+        <p className="text-xs uppercase tracking-[0.2em] text-blue-600">{subtitle}</p>
       </div>
 
       <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">

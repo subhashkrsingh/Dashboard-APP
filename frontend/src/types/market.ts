@@ -23,7 +23,7 @@ export interface MarketStatus {
   checkedAt: string;
 }
 
-export interface PowerSectorResponse {
+export interface SectorSnapshot {
   sectorIndex: SectorIndex;
   companies: CompanyQuote[];
   gainers: CompanyQuote[];
@@ -42,6 +42,9 @@ export interface PowerSectorResponse {
   warning?: string;
   cached?: boolean;
 }
+
+export type PowerSectorResponse = SectorSnapshot;
+export type RealEstateSectorResponse = SectorSnapshot;
 
 export interface TimePoint {
   time: string;

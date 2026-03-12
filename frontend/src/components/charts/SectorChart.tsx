@@ -17,6 +17,9 @@ import { TrendIndicator } from "../ui/TrendIndicator";
 interface SectorChartProps {
   sectorIndex: SectorIndex;
   history: TimePoint[];
+  title?: string;
+  subtitle?: string;
+  waitingLabel?: string;
 }
 
 const RANGES = [
@@ -26,7 +29,13 @@ const RANGES = [
   { label: "ALL", points: 0 }
 ] as const;
 
-export function SectorChart({ sectorIndex, history }: SectorChartProps) {
+export function SectorChart({
+  sectorIndex,
+  history,
+  title = "Power Sector Intraday Trend",
+  subtitle,
+  waitingLabel = "Waiting for intraday points..."
+}: SectorChartProps) {
   const [range, setRange] = useState<(typeof RANGES)[number]["points"]>(40);
   const isPositive = (sectorIndex.percentChange ?? 0) >= 0;
 
@@ -42,8 +51,8 @@ export function SectorChart({ sectorIndex, history }: SectorChartProps) {
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
         <div>
           <p className="text-xs uppercase tracking-[0.2em] text-blue-600">Hero Chart</p>
-          <h2 className="font-display text-xl font-semibold text-slate-900">Power Sector Intraday Trend</h2>
-          <p className="text-xs text-slate-500">Live movement of {sectorIndex.name || "NIFTY POWER"}</p>
+          <h2 className="font-display text-xl font-semibold text-slate-900">{title}</h2>
+          <p className="text-xs text-slate-500">{subtitle ?? `Live movement of ${sectorIndex.name || "SECTOR INDEX"}`}</p>
         </div>
 
         <div className="text-right">
@@ -75,7 +84,7 @@ export function SectorChart({ sectorIndex, history }: SectorChartProps) {
       <div className="h-[460px] w-full rounded-xl border border-slate-200 bg-white p-2">
         {chartData.length < 2 ? (
           <div className="flex h-full items-center justify-center text-sm text-slate-500">
-            Waiting for intraday points...
+            {waitingLabel}
           </div>
         ) : (
           <ResponsiveContainer width="100%" height="100%">

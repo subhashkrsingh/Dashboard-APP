@@ -14,6 +14,8 @@ interface StockTableProps {
   historyBySymbol: Record<string, CompanyHistoryPoint[]>;
   signals: Record<string, PriceDirection>;
   query: string;
+  title?: string;
+  subtitle?: string;
 }
 
 function compareNullableNumbers(
@@ -43,7 +45,14 @@ function getRowFlash(signal: PriceDirection | undefined) {
   return "";
 }
 
-export function StockTable({ companies, historyBySymbol, signals, query }: StockTableProps) {
+export function StockTable({
+  companies,
+  historyBySymbol,
+  signals,
+  query,
+  title = "Power Stocks Table",
+  subtitle = "Sticky header, sorting, filtering, and mini trends"
+}: StockTableProps) {
   const [sortKey, setSortKey] = useState<SortKey>("percentChange");
   const [sortDirection, setSortDirection] = useState<SortDirection>("desc");
 
@@ -94,8 +103,8 @@ export function StockTable({ companies, historyBySymbol, signals, query }: Stock
     <section className="glass-card rounded-2xl border border-[#E6EAF2] p-4">
       <div className="mb-3 flex items-center justify-between">
         <div>
-          <h3 className="font-display text-lg font-semibold text-slate-900">Power Stocks Table</h3>
-          <p className="text-xs text-slate-500">Sticky header, sorting, filtering, and mini trends</p>
+          <h3 className="font-display text-lg font-semibold text-slate-900">{title}</h3>
+          <p className="text-xs text-slate-500">{subtitle}</p>
         </div>
         <p className="text-xs text-slate-500">{filteredRows.length} symbols</p>
       </div>
