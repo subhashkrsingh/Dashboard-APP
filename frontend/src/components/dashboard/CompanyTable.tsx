@@ -80,9 +80,12 @@ export function CompanyTable({ companies, signals }: CompanyTableProps) {
         </div>
 
         <input
+          id="company-table-search"
+          name="companyTableSearch"
           type="search"
           value={query}
           onChange={event => setQuery(event.target.value)}
+          autoComplete="off"
           placeholder="Search by symbol or name"
           className="w-full max-w-xs rounded-lg border border-slate-700 bg-slate-950/80 px-3 py-2 text-sm text-slate-100 placeholder:text-slate-500 focus:border-cyan-400 focus:outline-none"
         />

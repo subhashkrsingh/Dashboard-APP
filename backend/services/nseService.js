@@ -17,10 +17,19 @@ const NSE_POWER_STOCK_ENDPOINTS = [
 ];
 
 const NSE_HEADERS = {
-  "User-Agent": "Mozilla/5.0",
-  Accept: "application/json",
-  Referer: "https://www.nseindia.com/",
+  "User-Agent":
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+  Accept: "application/json, text/plain, */*",
   "Accept-Language": "en-US,en;q=0.9",
+  "Accept-Encoding": "gzip, deflate, br",
+  Connection: "keep-alive",
+  Referer: "https://www.nseindia.com/",
+  Origin: "https://www.nseindia.com",
+  "Cache-Control": "no-cache",
+  Pragma: "no-cache",
+  "Sec-Fetch-Dest": "empty",
+  "Sec-Fetch-Mode": "cors",
+  "Sec-Fetch-Site": "same-origin",
   "X-Requested-With": "XMLHttpRequest"
 };
 
@@ -99,6 +108,17 @@ function toCookieHeader(setCookieHeader) {
     .join("; ");
 }
 
+function getNseApiHeaders(cookie) {
+  return cookie
+    ? {
+        ...NSE_HEADERS,
+        Cookie: cookie
+      }
+    : {
+        ...NSE_HEADERS
+      };
+}
+
 function extractList(payload) {
   if (Array.isArray(payload)) return payload;
   if (Array.isArray(payload?.data)) return payload.data;
@@ -130,9 +150,8 @@ function parseStatusError(response, path) {
 async function establishNseSession() {
   const response = await http.get(NSE_BASE_URL, {
     headers: {
-      "User-Agent": NSE_HEADERS["User-Agent"],
-      Accept: "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
-      Referer: NSE_HEADERS.Referer
+      ...NSE_HEADERS,
+      Accept: "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8"
     }
   });
 
@@ -149,11 +168,17 @@ async function establishNseSession() {
   sessionExpiresAt = Date.now() + NSE_COOKIE_TTL_MS;
 }
 
+async function ensureNseSession(forceRefresh = false) {
+  if (forceRefresh || !sessionCookie || Date.now() >= sessionExpiresAt) {
+    await establishNseSession();
+  }
+}
+
 async function nseGet(path, { refreshSession = true } = {}) {
+  await ensureNseSession(false);
+
   let response = await http.get(`${NSE_BASE_URL}${path}`, {
-    headers: {
-      ...NSE_HEADERS
-    }
+    headers: getNseApiHeaders(sessionCookie)
   });
 
   if (response.status >= 200 && response.status < 300) {
@@ -161,25 +186,14 @@ async function nseGet(path, { refreshSession = true } = {}) {
   }
 
   if (refreshSession && (response.status === 401 || response.status === 403 || response.status === 429)) {
-    try {
-      if (!sessionCookie || Date.now() >= sessionExpiresAt) {
-        await establishNseSession();
-      }
+    await ensureNseSession(true);
 
-      response = await http.get(`${NSE_BASE_URL}${path}`, {
-        headers: {
-          ...NSE_HEADERS,
-          Cookie: sessionCookie
-        }
-      });
+    response = await http.get(`${NSE_BASE_URL}${path}`, {
+      headers: getNseApiHeaders(sessionCookie)
+    });
 
-      if (response.status >= 200 && response.status < 300) {
-        return response.data;
-      }
-    } catch (error) {
-      if (!(error instanceof NseServiceError)) {
-        throw error;
-      }
+    if (response.status >= 200 && response.status < 300) {
+      return response.data;
     }
   }
 

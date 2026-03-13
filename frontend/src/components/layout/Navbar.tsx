@@ -48,11 +48,18 @@ export function Navbar({
         </button>
 
         <div className="relative min-w-[220px] flex-1">
+          <label htmlFor="stock-search" className="sr-only">
+            Search stocks
+          </label>
           <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
           <input
+            id="stock-search"
+            name="stockSearch"
             value={search}
             onChange={event => onSearchChange(event.target.value)}
             type="search"
+            autoComplete="off"
+            enterKeyHint="search"
             placeholder="Search stocks..."
             className="w-full rounded-xl border border-slate-300 bg-white py-2 pl-9 pr-4 text-sm text-slate-800 placeholder:text-slate-400 focus:border-blue-500 focus:outline-none"
           />

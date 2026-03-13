@@ -135,6 +135,8 @@ export function CompanyComparisonChart({ companies, historyBySymbol }: CompanyCo
             >
               <span>{company.symbol}</span>
               <input
+                id={`compare-${company.symbol}`}
+                name={`compare-${company.symbol}`}
                 type="checkbox"
                 checked={selected}
                 onChange={() => toggleSymbol(company.symbol)}
