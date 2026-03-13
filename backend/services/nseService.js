@@ -5,6 +5,7 @@ const NSE_SECTOR_ENDPOINT = "/api/sectorIndices";
 const NSE_ALL_INDICES_ENDPOINT = "/api/allIndices";
 const NSE_REQUESTED_INDEX_NAME = "NIFTY POWER";
 const NSE_FALLBACK_INDEX_NAME = "NIFTY ENERGY";
+const NSE_REAL_ESTATE_INDEX_NAME = "NIFTY REALTY";
 const NSE_POWER_STOCK_ENDPOINTS = [
   {
     indexName: NSE_REQUESTED_INDEX_NAME,
@@ -13,6 +14,12 @@ const NSE_POWER_STOCK_ENDPOINTS = [
   {
     indexName: NSE_FALLBACK_INDEX_NAME,
     path: "/api/equity-stockIndices?index=NIFTY%20ENERGY"
+  }
+];
+const NSE_REAL_ESTATE_STOCK_ENDPOINTS = [
+  {
+    indexName: NSE_REAL_ESTATE_INDEX_NAME,
+    path: "/api/equity-stockIndices?index=NIFTY%20REALTY"
   }
 ];
 
@@ -57,6 +64,29 @@ const MAJOR_POWER_COMPANIES = [
     symbol: "RPOWER",
     name: "Reliance Power",
     aliases: ["RPOWER", "RELIANCEPOWER"]
+  }
+];
+const MAJOR_REAL_ESTATE_COMPANIES = [
+  { symbol: "DLF", name: "DLF", aliases: ["DLF"] },
+  {
+    symbol: "GODREJPROP",
+    name: "Godrej Properties",
+    aliases: ["GODREJPROP", "GODREJPROPERTIES"]
+  },
+  {
+    symbol: "OBEROIRLTY",
+    name: "Oberoi Realty",
+    aliases: ["OBEROIRLTY", "OBEROIREALTY"]
+  },
+  {
+    symbol: "PRESTIGE",
+    name: "Prestige Estates",
+    aliases: ["PRESTIGE", "PRESTIGEESTATES"]
+  },
+  {
+    symbol: "PHOENIXLTD",
+    name: "Phoenix Mills",
+    aliases: ["PHOENIXLTD", "PHOENIXMILLS"]
   }
 ];
 
@@ -200,12 +230,9 @@ async function nseGet(path, { refreshSession = true } = {}) {
   throw parseStatusError(response, path);
 }
 
-function findPowerIndex(indexPayload) {
+function findSectorIndex(indexPayload, acceptedIndexNames) {
   const indexes = extractList(indexPayload);
-  const acceptedNames = new Set([
-    normalizeText(NSE_REQUESTED_INDEX_NAME),
-    normalizeText(NSE_FALLBACK_INDEX_NAME)
-  ]);
+  const acceptedNames = new Set(acceptedIndexNames.map(name => normalizeText(name)));
 
   return (
     indexes.find(item => {
@@ -213,6 +240,14 @@ function findPowerIndex(indexPayload) {
       return acceptedNames.has(normalizeText(name));
     }) || null
   );
+}
+
+function findPowerIndex(indexPayload) {
+  return findSectorIndex(indexPayload, [NSE_REQUESTED_INDEX_NAME, NSE_FALLBACK_INDEX_NAME]);
+}
+
+function findRealEstateIndex(indexPayload) {
+  return findSectorIndex(indexPayload, [NSE_REAL_ESTATE_INDEX_NAME]);
 }
 
 async function fetchPowerIndexPayload() {
@@ -236,6 +271,30 @@ async function fetchPowerIndexPayload() {
     "Requested power sector index is unavailable in NSE index feeds.",
     502,
     "POWER_INDEX_MISSING"
+  );
+}
+
+async function fetchRealEstateIndexPayload() {
+  const candidateEndpoints = [NSE_SECTOR_ENDPOINT, NSE_ALL_INDICES_ENDPOINT];
+  let lastError = null;
+
+  for (const endpoint of candidateEndpoints) {
+    try {
+      const payload = await nseGet(endpoint);
+      if (findRealEstateIndex(payload)) return payload;
+    } catch (error) {
+      if (error instanceof NseServiceError && error.code === "NSE_ENDPOINT_NOT_FOUND") {
+        continue;
+      }
+      lastError = error;
+    }
+  }
+
+  if (lastError) throw lastError;
+  throw new NseServiceError(
+    "Requested real estate sector index is unavailable in NSE index feeds.",
+    502,
+    "REAL_ESTATE_INDEX_MISSING"
   );
 }
 
@@ -263,6 +322,32 @@ async function fetchPowerStocksPayload() {
 
   if (lastError) throw lastError;
   throw new NseServiceError("NSE power constituents feed is empty.", 502, "POWER_STOCKS_EMPTY");
+}
+
+async function fetchRealEstateStocksPayload() {
+  let lastError = null;
+
+  for (const candidate of NSE_REAL_ESTATE_STOCK_ENDPOINTS) {
+    try {
+      const payload = await nseGet(candidate.path);
+      const rows = extractList(payload);
+      if (rows.length > 0) {
+        return {
+          payload,
+          requestedIndexName: candidate.indexName,
+          fallbackIndexUsed: false
+        };
+      }
+    } catch (error) {
+      if (error instanceof NseServiceError && error.code === "NSE_ENDPOINT_NOT_FOUND") {
+        continue;
+      }
+      lastError = error;
+    }
+  }
+
+  if (lastError) throw lastError;
+  throw new NseServiceError("NSE real estate constituents feed is empty.", 502, "REAL_ESTATE_STOCKS_EMPTY");
 }
 
 function deriveIndexFromStocksPayload(stocksPayload) {
@@ -333,6 +418,29 @@ function enrichMajorCompanies(stocks) {
   });
 
   return MAJOR_POWER_COMPANIES.map(target => {
+    const matched =
+      target.aliases
+        .map(alias => byNormalizedSymbol.get(normalizeText(alias)))
+        .find(Boolean) || byNormalizedSymbol.get(normalizeText(target.symbol));
+
+    return {
+      company: target.name,
+      symbol: target.symbol,
+      price: matched?.price ?? null,
+      change: matched?.change ?? null,
+      percentChange: matched?.percentChange ?? null,
+      volume: matched?.volume ?? null
+    };
+  });
+}
+
+function enrichTrackedCompanies(stocks, trackedCompanies) {
+  const byNormalizedSymbol = new Map();
+  stocks.forEach(stock => {
+    byNormalizedSymbol.set(normalizeText(stock.symbol), stock);
+  });
+
+  return trackedCompanies.map(target => {
     const matched =
       target.aliases
         .map(alias => byNormalizedSymbol.get(normalizeText(alias)))
@@ -524,7 +632,108 @@ async function getPowerSectorData() {
   };
 }
 
+async function getRealEstateSectorData() {
+  let sectorPayload;
+  let stockPayloadDetails;
+
+  try {
+    [sectorPayload, stockPayloadDetails] = await Promise.all([
+      fetchRealEstateIndexPayload(),
+      fetchRealEstateStocksPayload()
+    ]);
+  } catch (error) {
+    if (error instanceof NseServiceError) throw error;
+    throw new NseServiceError(
+      `Unable to fetch NSE data: ${error?.message || "Unknown error"}`,
+      503,
+      "NSE_NETWORK_ERROR"
+    );
+  }
+
+  const stocksPayload = stockPayloadDetails.payload;
+  const sectorIndex = findRealEstateIndex(sectorPayload);
+  const derivedIndex = deriveIndexFromStocksPayload(stocksPayload);
+  const realEstateIndex = sectorIndex || derivedIndex;
+
+  const constituents = filterConstituents(stocksPayload);
+  const trackedStocks = enrichTrackedCompanies(constituents, MAJOR_REAL_ESTATE_COMPANIES);
+  const allStocks = trackedStocks.map(item => ({
+    company: item.company,
+    symbol: item.symbol,
+    price: item.price,
+    change: item.change,
+    percentChange: item.percentChange,
+    volume: item.volume
+  }));
+
+  const rankedStocks = allStocks.filter(stock => Number.isFinite(stock.percentChange));
+  const sortedByGainers = [...rankedStocks].sort(byPercentChangeDesc);
+  const sortedByLosers = [...rankedStocks].sort(byPercentChangeAsc);
+
+  const resolvedIndexName =
+    realEstateIndex?.index ||
+    realEstateIndex?.indexName ||
+    stocksPayload?.name ||
+    stockPayloadDetails.requestedIndexName ||
+    NSE_REAL_ESTATE_INDEX_NAME;
+
+  const resolvedLastPrice = firstNumber(realEstateIndex?.last, realEstateIndex?.lastPrice, realEstateIndex?.ltP);
+  const resolvedPercentChange = firstNumber(
+    realEstateIndex?.pChange,
+    realEstateIndex?.percentChange,
+    realEstateIndex?.perChange,
+    realEstateIndex?.changePercent
+  );
+  const resolvedIndexChange =
+    firstNumber(realEstateIndex?.change, realEstateIndex?.netChange, realEstateIndex?.ch) ??
+    (resolvedLastPrice !== null && resolvedPercentChange !== null
+      ? (resolvedLastPrice * resolvedPercentChange) / 100
+      : null);
+
+  const allCompanies = [...allStocks]
+    .sort((a, b) => String(a.symbol).localeCompare(String(b.symbol)))
+    .map(company => ({
+      symbol: company.symbol,
+      name: company.company,
+      price: company.price,
+      change: company.change,
+      percentChange: company.percentChange,
+      volume: company.volume
+    }));
+
+  const moversFromAll = rows =>
+    rows.slice(0, 5).map(item => ({
+      symbol: item.symbol,
+      name: item.company,
+      price: item.price,
+      change: item.change,
+      percentChange: item.percentChange,
+      volume: item.volume
+    }));
+
+  return {
+    sectorIndex: {
+      name: String(resolvedIndexName),
+      lastPrice: resolvedLastPrice,
+      change: resolvedIndexChange,
+      percentChange: resolvedPercentChange
+    },
+    companies: allCompanies,
+    gainers: moversFromAll(sortedByGainers),
+    losers: moversFromAll(sortedByLosers),
+    fallbackIndexUsed: false,
+    advanceDecline: buildAdvanceDecline(realEstateIndex, allStocks, stocksPayload),
+    marketStatus: getMarketStatus(),
+    requestedIndex: NSE_REAL_ESTATE_INDEX_NAME,
+    sourceTimestamp: String(
+      realEstateIndex?.timestamp || sectorPayload?.timestamp || stocksPayload?.timestamp || ""
+    ),
+    fetchedAt: new Date().toISOString()
+  };
+}
+
 module.exports = {
   getPowerSectorData,
+  getRealEstateSectorData,
   NseServiceError
 };

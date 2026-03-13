@@ -1,0 +1,107 @@
+{
+  "sectorIndex": {
+    "name": "NIFTY REALTY",
+    "lastPrice": 988.42,
+    "change": 9.18,
+    "percentChange": 0.94
+  },
+  "companies": [
+    {
+      "symbol": "DLF",
+      "name": "DLF",
+      "price": 852.35,
+      "change": 17.95,
+      "percentChange": 2.15,
+      "volume": 4540000
+    },
+    {
+      "symbol": "GODREJPROP",
+      "name": "Godrej Properties",
+      "price": 3159.7,
+      "change": 41.25,
+      "percentChange": 1.32,
+      "volume": 1420000
+    },
+    {
+      "symbol": "OBEROIRLTY",
+      "name": "Oberoi Realty",
+      "price": 1975.8,
+      "change": -11.6,
+      "percentChange": -0.58,
+      "volume": 780000
+    },
+    {
+      "symbol": "PHOENIXLTD",
+      "name": "Phoenix Mills",
+      "price": 3339.2,
+      "change": -26.85,
+      "percentChange": -0.8,
+      "volume": 620000
+    },
+    {
+      "symbol": "PRESTIGE",
+      "name": "Prestige Estates",
+      "price": 1598.4,
+      "change": 29.45,
+      "percentChange": 1.88,
+      "volume": 1150000
+    }
+  ],
+  "gainers": [
+    {
+      "symbol": "DLF",
+      "name": "DLF",
+      "price": 852.35,
+      "change": 17.95,
+      "percentChange": 2.15,
+      "volume": 4540000
+    },
+    {
+      "symbol": "PRESTIGE",
+      "name": "Prestige Estates",
+      "price": 1598.4,
+      "change": 29.45,
+      "percentChange": 1.88,
+      "volume": 1150000
+    },
+    {
+      "symbol": "GODREJPROP",
+      "name": "Godrej Properties",
+      "price": 3159.7,
+      "change": 41.25,
+      "percentChange": 1.32,
+      "volume": 1420000
+    }
+  ],
+  "losers": [
+    {
+      "symbol": "PHOENIXLTD",
+      "name": "Phoenix Mills",
+      "price": 3339.2,
+      "change": -26.85,
+      "percentChange": -0.8,
+      "volume": 620000
+    },
+    {
+      "symbol": "OBEROIRLTY",
+      "name": "Oberoi Realty",
+      "price": 1975.8,
+      "change": -11.6,
+      "percentChange": -0.58,
+      "volume": 780000
+    }
+  ],
+  "advanceDecline": {
+    "advances": 3,
+    "declines": 2,
+    "unchanged": 0
+  },
+  "marketStatus": {
+    "isOpen": false,
+    "label": "CLOSED",
+    "timezone": "Asia/Kolkata",
+    "checkedAt": "2026-03-13T09:15:00.000Z"
+  },
+  "requestedIndex": "NIFTY REALTY",
+  "fetchedAt": "2026-03-13T09:15:00.000Z"
+}

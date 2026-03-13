@@ -5,7 +5,9 @@ const express = require("express");
 const morgan = require("morgan");
 
 const powerSectorRoutes = require("./routes/powerSector");
+const realEstateSectorRoutes = require("./routes/realEstateSector");
 const { startPowerSectorRefresher } = require("./services/powerSectorRefresher");
+const { startRealEstateSectorRefresher } = require("./services/realEstateSectorRefresher");
 
 const app = express();
 
@@ -36,8 +38,10 @@ app.get("/health", (_req, res) => {
 });
 
 startPowerSectorRefresher();
+startRealEstateSectorRefresher();
 
 app.use("/api/power-sector", powerSectorRoutes);
+app.use("/api/real-estate-sector", realEstateSectorRoutes);
 
 app.use((_req, res) => {
   res.status(404).json({ error: "Route not found" });
