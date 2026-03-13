@@ -1,9 +1,28 @@
-import { RealEstateDashboard } from "../dashboards/RealEstateDashboard";
+import { useAppLayoutContext } from "../components/AppLayout";
+import { SectorDashboard } from "../dashboards/SectorDashboard";
+import { useRealEstateSector } from "../hooks/useRealEstateSector";
+import { realEstateSectorConfig } from "../lib/sectorConfig";
 
-interface RealEstatePageProps {
-  onOpenSidebar: () => void;
-}
+export function RealEstatePage() {
+  const { onOpenSidebar } = useAppLayoutContext();
+  const marketData = useRealEstateSector();
 
-export function RealEstatePage({ onOpenSidebar }: RealEstatePageProps) {
-  return <RealEstateDashboard onOpenSidebar={onOpenSidebar} />;
+  return (
+    <SectorDashboard
+      onOpenSidebar={onOpenSidebar}
+      dashboardLabel={realEstateSectorConfig.dashboardLabel}
+      pageTitle="Real Estate Sector Analytics"
+      sectorName={realEstateSectorConfig.sectorName}
+      chartTitle={realEstateSectorConfig.chartTitle}
+      heatmapDescription={realEstateSectorConfig.heatmapDescription}
+      tableTitle={realEstateSectorConfig.tableTitle}
+      tableSubtitle={realEstateSectorConfig.tableSubtitle}
+      marketCapBySymbol={realEstateSectorConfig.marketCapBySymbol}
+      newsTitle={realEstateSectorConfig.newsTitle}
+      newsItems={realEstateSectorConfig.newsItems}
+      dataSourceLabel={realEstateSectorConfig.dataSourceLabel}
+      modules={realEstateSectorConfig.modules}
+      marketData={marketData}
+    />
+  );
 }

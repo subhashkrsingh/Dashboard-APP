@@ -5,6 +5,7 @@ import { HashRouter } from "react-router-dom";
 
 import App from "./App";
 import "./index.css";
+import { SectorDataProvider } from "./providers/SectorDataProvider";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -18,9 +19,11 @@ const queryClient = new QueryClient({
 createRoot(document.getElementById("root") as HTMLElement).render(
   <React.StrictMode>
     <QueryClientProvider client={queryClient}>
-      <HashRouter>
-        <App />
-      </HashRouter>
+      <SectorDataProvider>
+        <HashRouter>
+          <App />
+        </HashRouter>
+      </SectorDataProvider>
     </QueryClientProvider>
   </React.StrictMode>
 );

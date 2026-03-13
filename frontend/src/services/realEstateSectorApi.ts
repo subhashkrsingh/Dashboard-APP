@@ -100,7 +100,9 @@ function buildFallbackResponse(): RealEstateSectorResponse {
       name: "NIFTY REALTY",
       lastPrice: Number(sectorSpot.toFixed(2)),
       change: 28.75,
-      percentChange: 0.96
+      percentChange: 0.96,
+      previousClose: Number((sectorSpot - 28.75).toFixed(2)),
+      tradedVolume: FALLBACK_REAL_ESTATE_QUOTES.reduce((sum, company) => sum + (company.volume ?? 0), 0)
     },
     companies: FALLBACK_REAL_ESTATE_QUOTES,
     gainers: ranked.slice(0, 5),

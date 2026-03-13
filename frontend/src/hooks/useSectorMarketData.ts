@@ -1,13 +1,22 @@
 import { useEffect, useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, type QueryKey, type UseQueryResult } from "@tanstack/react-query";
 
-import type { SectorSnapshot } from "../types/market";
-import { useMarketHistory } from "./useMarketHistory";
+import type { PriceDirection, SectorSnapshot, TimePoint } from "../types/market";
+import { useMarketHistory, type CompanyHistoryPoint } from "./useMarketHistory";
 
 interface UseSectorMarketDataOptions {
-  queryKey: string[];
+  queryKey: QueryKey;
   queryFn: () => Promise<SectorSnapshot>;
   storageKey?: string;
+  refetchInterval?: number;
+  staleTime?: number;
+}
+
+export interface SectorMarketDataResult
+  extends Pick<UseQueryResult<SectorSnapshot, unknown>, "data" | "error" | "isLoading" | "isFetching" | "refetch"> {
+  sectorHistory: TimePoint[];
+  companyHistory: Record<string, CompanyHistoryPoint[]>;
+  signals: Record<string, PriceDirection>;
 }
 
 function readPersistedSnapshot(storageKey: string): SectorSnapshot | undefined {
@@ -23,7 +32,13 @@ function readPersistedSnapshot(storageKey: string): SectorSnapshot | undefined {
   }
 }
 
-export function useSectorMarketData({ queryKey, queryFn, storageKey }: UseSectorMarketDataOptions) {
+export function useSectorMarketData({
+  queryKey,
+  queryFn,
+  storageKey,
+  refetchInterval = 10000,
+  staleTime = 9000
+}: UseSectorMarketDataOptions): SectorMarketDataResult {
   const resolvedStorageKey = storageKey ?? `sector-snapshot:${queryKey.join(":")}`;
   const [persistedSnapshot, setPersistedSnapshot] = useState<SectorSnapshot | undefined>(() =>
     readPersistedSnapshot(resolvedStorageKey)
@@ -32,9 +47,9 @@ export function useSectorMarketData({ queryKey, queryFn, storageKey }: UseSector
   const query = useQuery({
     queryKey,
     queryFn,
-    refetchInterval: 10000,
+    refetchInterval,
     refetchIntervalInBackground: true,
-    staleTime: 9500,
+    staleTime,
     initialData: persistedSnapshot
   });
 

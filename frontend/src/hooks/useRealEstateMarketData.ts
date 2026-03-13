@@ -1,10 +1,5 @@
-import { fetchRealEstateSectorData } from "../services/realEstateSectorApi";
-import { useSectorMarketData } from "./useSectorMarketData";
+import { useRealEstateSector } from "./useRealEstateSector";
 
 export function useRealEstateMarketData() {
-  return useSectorMarketData({
-    queryKey: ["real-estate-sector-dashboard"],
-    queryFn: fetchRealEstateSectorData,
-    storageKey: "sector-snapshot:real-estate-sector-dashboard:v2"
-  });
+  return useRealEstateSector();
 }

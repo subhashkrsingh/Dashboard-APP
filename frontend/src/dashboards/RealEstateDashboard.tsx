@@ -1,4 +1,5 @@
-import { useRealEstateMarketData } from "../hooks/useRealEstateMarketData";
+import { useRealEstateSector } from "../hooks/useRealEstateSector";
+import { realEstateSectorConfig } from "../lib/sectorConfig";
 import { SectorDashboard } from "./SectorDashboard";
 
 interface RealEstateDashboardProps {
@@ -32,7 +33,7 @@ const REAL_ESTATE_NEWS = [
 ];
 
 export function RealEstateDashboard({ onOpenSidebar }: RealEstateDashboardProps) {
-  const marketData = useRealEstateMarketData();
+  const marketData = useRealEstateSector();
 
   return (
     <SectorDashboard
@@ -48,6 +49,7 @@ export function RealEstateDashboard({ onOpenSidebar }: RealEstateDashboardProps)
       newsTitle="Real Estate Sector News"
       newsItems={REAL_ESTATE_NEWS}
       dataSourceLabel="Live API with fallback snapshot"
+      modules={realEstateSectorConfig.modules}
       marketData={marketData}
     />
   );

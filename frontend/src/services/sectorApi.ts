@@ -1,4 +1,4 @@
-import type { CompanyQuote, SectorSnapshot } from "../types/market";
+import type { CompanyQuote, SectorIndex, SectorReturns, SectorSnapshot } from "../types/market";
 
 export const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL || "/api").replace(/\/+$/, "");
 
@@ -27,6 +27,50 @@ function toNumberOrNull(value: unknown): number | null {
   return Number.isFinite(numeric) ? numeric : null;
 }
 
+function normalizeReturns(value: unknown): SectorReturns | undefined {
+  if (!isObject(value)) return undefined;
+
+  const entries = Object.entries(value)
+    .map(([key, metric]) => [String(key).toUpperCase(), toNumberOrNull(metric)] as const)
+    .filter(([, metric]) => metric !== null);
+
+  if (entries.length === 0) {
+    return undefined;
+  }
+
+  return Object.fromEntries(entries) as SectorReturns;
+}
+
+function normalizeSectorIndex(indexPayload: Record<string, unknown>, defaultIndexName: string): SectorIndex {
+  const lastPrice = toNumberOrNull(indexPayload.lastPrice);
+  const percentChange = toNumberOrNull(indexPayload.percentChange);
+  const derivedChange =
+    lastPrice !== null && percentChange !== null ? (lastPrice * percentChange) / 100 : null;
+  const change = toNumberOrNull(indexPayload.change) ?? derivedChange;
+  const previousClose =
+    toNumberOrNull(indexPayload.previousClose) ?? (lastPrice !== null && change !== null ? lastPrice - change : null);
+
+  return {
+    name: String(indexPayload.name ?? defaultIndexName),
+    lastPrice,
+    change,
+    percentChange,
+    indicativeClose: toNumberOrNull(indexPayload.indicativeClose),
+    previousClose,
+    open: toNumberOrNull(indexPayload.open),
+    dayHigh: toNumberOrNull(indexPayload.dayHigh),
+    dayLow: toNumberOrNull(indexPayload.dayLow),
+    yearHigh: toNumberOrNull(indexPayload.yearHigh),
+    yearLow: toNumberOrNull(indexPayload.yearLow),
+    tradedVolume: toNumberOrNull(indexPayload.tradedVolume),
+    tradedValue: toNumberOrNull(indexPayload.tradedValue),
+    ffmCap: toNumberOrNull(indexPayload.ffmCap),
+    pe: toNumberOrNull(indexPayload.pe),
+    pb: toNumberOrNull(indexPayload.pb),
+    returns: normalizeReturns(indexPayload.returns)
+  };
+}
+
 function normalizeCompanies(items: unknown): CompanyQuote[] {
   if (!Array.isArray(items)) return [];
   return items.map(item => normalizeCompany((item as Record<string, unknown>) ?? {}));
@@ -40,12 +84,7 @@ export function normalizeSectorResponse(payload: unknown, options: NormalizeOpti
   if (isObject(payload.sectorIndex) && Array.isArray(payload.companies)) {
     return {
       ...payload,
-      sectorIndex: {
-        name: String(payload.sectorIndex.name ?? options.defaultIndexName),
-        lastPrice: toNumberOrNull(payload.sectorIndex.lastPrice),
-        change: toNumberOrNull(payload.sectorIndex.change),
-        percentChange: toNumberOrNull(payload.sectorIndex.percentChange)
-      },
+      sectorIndex: normalizeSectorIndex(payload.sectorIndex, options.defaultIndexName),
       companies: normalizeCompanies(payload.companies),
       gainers: normalizeCompanies(payload.gainers),
       losers: normalizeCompanies(payload.losers),
@@ -61,12 +100,28 @@ export function normalizeSectorResponse(payload: unknown, options: NormalizeOpti
       (sectorLast !== null && sectorPct !== null ? (sectorLast * sectorPct) / 100 : null);
 
     return {
-      sectorIndex: {
-        name: String(payload.indexName ?? options.defaultIndexName),
-        lastPrice: sectorLast,
-        change: sectorChange,
-        percentChange: sectorPct
-      },
+      sectorIndex: normalizeSectorIndex(
+        {
+          name: payload.indexName ?? options.defaultIndexName,
+          lastPrice: sectorLast,
+          change: sectorChange,
+          percentChange: sectorPct,
+          indicativeClose: payload.indicativeClose,
+          previousClose: payload.previousClose,
+          open: payload.open,
+          dayHigh: payload.dayHigh,
+          dayLow: payload.dayLow,
+          yearHigh: payload.yearHigh,
+          yearLow: payload.yearLow,
+          tradedVolume: payload.tradedVolume,
+          tradedValue: payload.tradedValue,
+          ffmCap: payload.ffmCap,
+          pe: payload.pe,
+          pb: payload.pb,
+          returns: payload.returns
+        },
+        options.defaultIndexName
+      ),
       companies: normalizeCompanies(payload.companies),
       gainers: normalizeCompanies(
         Array.isArray(payload.gainers)

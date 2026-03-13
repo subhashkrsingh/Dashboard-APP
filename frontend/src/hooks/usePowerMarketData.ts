@@ -1,9 +1,5 @@
-import { fetchPowerSectorData } from "../services/powerSectorApi";
-import { useSectorMarketData } from "./useSectorMarketData";
+import { usePowerSector } from "./usePowerSector";
 
 export function usePowerMarketData() {
-  return useSectorMarketData({
-    queryKey: ["power-sector-dashboard"],
-    queryFn: fetchPowerSectorData
-  });
+  return usePowerSector();
 }

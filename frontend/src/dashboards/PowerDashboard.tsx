@@ -1,4 +1,5 @@
-import { usePowerMarketData } from "../hooks/usePowerMarketData";
+import { usePowerSector } from "../hooks/usePowerSector";
+import { powerSectorConfig } from "../lib/sectorConfig";
 import { SectorDashboard } from "./SectorDashboard";
 
 interface PowerDashboardProps {
@@ -32,7 +33,7 @@ const POWER_NEWS = [
 ];
 
 export function PowerDashboard({ onOpenSidebar }: PowerDashboardProps) {
-  const marketData = usePowerMarketData();
+  const marketData = usePowerSector();
 
   return (
     <SectorDashboard
@@ -48,6 +49,7 @@ export function PowerDashboard({ onOpenSidebar }: PowerDashboardProps) {
       newsTitle="Power Sector News"
       newsItems={POWER_NEWS}
       dataSourceLabel="Data via backend proxy"
+      modules={powerSectorConfig.modules}
       marketData={marketData}
     />
   );

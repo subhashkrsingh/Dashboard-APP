@@ -228,6 +228,17 @@ function findRealEstateIndex(indexPayload) {
   return findSectorIndex(indexPayload, [NSE_REAL_ESTATE_INDEX_NAME]);
 }
 
+function findIndexSummaryRow(stocksPayload) {
+  const rows = extractList(stocksPayload);
+  const indexName = String(stocksPayload?.name || "").trim();
+
+  return (
+    rows.find(row => normalizeText(row?.symbol) === normalizeText(indexName)) ||
+    rows.find(row => normalizeText(row?.symbol || row?.index || row?.name).startsWith("NIFTY")) ||
+    null
+  );
+}
+
 async function fetchPowerIndexPayload() {
   const candidateEndpoints = [NSE_SECTOR_ENDPOINT, NSE_ALL_INDICES_ENDPOINT];
   let lastError = null;
@@ -329,13 +340,8 @@ async function fetchRealEstateStocksPayload() {
 }
 
 function deriveIndexFromStocksPayload(stocksPayload) {
-  const rows = extractList(stocksPayload);
   const indexName = String(stocksPayload?.name || "").trim();
-
-  const summaryRow =
-    rows.find(row => normalizeText(row?.symbol) === normalizeText(indexName)) ||
-    rows.find(row => normalizeText(row?.symbol || row?.index || row?.name).startsWith("NIFTY")) ||
-    null;
+  const summaryRow = findIndexSummaryRow(stocksPayload);
 
   return {
     index: indexName || summaryRow?.symbol || NSE_REQUESTED_INDEX_NAME,
@@ -351,6 +357,94 @@ function deriveIndexFromStocksPayload(stocksPayload) {
     declines: firstNumber(stocksPayload?.advance?.declines, summaryRow?.declines),
     unchanged: firstNumber(stocksPayload?.advance?.unchanged, summaryRow?.unchanged),
     timestamp: String(stocksPayload?.timestamp || summaryRow?.timestamp || "")
+  };
+}
+
+function readMetricFromSources(sources, keys) {
+  for (const source of sources) {
+    if (!source || typeof source !== "object") continue;
+    for (const key of keys) {
+      const value = firstNumber(source[key]);
+      if (value !== null) {
+        return value;
+      }
+    }
+  }
+
+  return null;
+}
+
+function buildIndexReturns(sources) {
+  const fieldMap = {
+    "1W": ["perChange1W", "perChangeWeek", "weeklyReturn", "return1Week", "oneWeekReturn"],
+    "1M": ["perChange30d", "perChange1M", "monthlyReturn", "return1Month", "oneMonthReturn"],
+    "3M": ["perChange90d", "perChange3M", "quarterlyReturn", "return3Month", "threeMonthReturn"],
+    "6M": ["perChange180d", "perChange6M", "halfYearReturn", "return6Month", "sixMonthReturn"],
+    YTD: ["perChangeYtd", "ytdReturn", "returnYtd", "yearToDateReturn"],
+    "1Y": ["perChange365d", "perChange1Y", "yearlyReturn", "return1Year", "oneYearReturn"],
+    "3Y": ["perChange3Y", "return3Year", "threeYearReturn"],
+    "5Y": ["perChange5Y", "return5Year", "fiveYearReturn"]
+  };
+
+  const returns = Object.entries(fieldMap).reduce((acc, [window, keys]) => {
+    const metric = readMetricFromSources(sources, keys);
+    if (metric !== null) {
+      acc[window] = metric;
+    }
+    return acc;
+  }, {});
+
+  return Object.keys(returns).length > 0 ? returns : undefined;
+}
+
+function buildSectorIndexDetails(indexRow, summaryRow, stocksPayload, stocks, lastPrice, indexChange) {
+  const sources = [indexRow, summaryRow, stocksPayload];
+  const totalVolume = stocks.reduce((sum, stock) => sum + (stock.volume ?? 0), 0);
+  const previousClose =
+    readMetricFromSources(sources, ["previousClose", "prevClose", "priorClose", "close", "previous"]) ??
+    (lastPrice !== null && indexChange !== null ? lastPrice - indexChange : null);
+  const returns = buildIndexReturns(sources);
+
+  return {
+    indicativeClose: readMetricFromSources(sources, [
+      "indicativeClose",
+      "indicativeClosePrice",
+      "iVal",
+      "indicativeValue"
+    ]),
+    previousClose,
+    open: readMetricFromSources(sources, ["open", "openPrice"]),
+    dayHigh: readMetricFromSources(sources, ["dayHigh", "high", "intradayHigh", "intraDayHigh", "highPrice"]),
+    dayLow: readMetricFromSources(sources, ["dayLow", "low", "intradayLow", "intraDayLow", "lowPrice"]),
+    yearHigh: readMetricFromSources(sources, [
+      "yearHigh",
+      "yearlyHigh",
+      "oneYearHigh",
+      "weekHigh",
+      "wkhi",
+      "yHigh"
+    ]),
+    yearLow: readMetricFromSources(sources, [
+      "yearLow",
+      "yearlyLow",
+      "oneYearLow",
+      "weekLow",
+      "wklo",
+      "yLow"
+    ]),
+    tradedVolume:
+      readMetricFromSources(sources, ["totalTradedVolume", "tradedVolume", "volume", "totalVolume"]) ?? totalVolume,
+    tradedValue: readMetricFromSources(sources, [
+      "tradedValue",
+      "totalTradedValue",
+      "turnover",
+      "value",
+      "valueInCrores"
+    ]),
+    ffmCap: readMetricFromSources(sources, ["ffmCap", "ffmc", "ffmcap", "freeFloatMarketCap", "ffMarketCap"]),
+    pe: readMetricFromSources(sources, ["pe", "peRatio", "PE", "pE"]),
+    pb: readMetricFromSources(sources, ["pb", "pbRatio", "PB", "pB"]),
+    returns
   };
 }
 
@@ -509,6 +603,7 @@ async function getPowerSectorData() {
   const stocksPayload = stockPayloadDetails.payload;
   const sectorIndex = findPowerIndex(sectorPayload);
   const derivedIndex = deriveIndexFromStocksPayload(stocksPayload);
+  const summaryRow = findIndexSummaryRow(stocksPayload);
   const powerIndex = sectorIndex || derivedIndex;
 
   const constituents = filterConstituents(stocksPayload);
@@ -544,6 +639,14 @@ async function getPowerSectorData() {
     (resolvedLastPrice !== null && resolvedPercentChange !== null
       ? (resolvedLastPrice * resolvedPercentChange) / 100
       : null);
+  const indexDetails = buildSectorIndexDetails(
+    sectorIndex,
+    summaryRow,
+    stocksPayload,
+    allStocks,
+    resolvedLastPrice,
+    resolvedIndexChange
+  );
 
   const allCompanies = [...allStocks]
     .sort((a, b) => String(a.symbol).localeCompare(String(b.symbol)))
@@ -571,7 +674,8 @@ async function getPowerSectorData() {
       name: String(resolvedIndexName),
       lastPrice: resolvedLastPrice,
       change: resolvedIndexChange,
-      percentChange: resolvedPercentChange
+      percentChange: resolvedPercentChange,
+      ...indexDetails
     },
     companies: allCompanies,
     gainers: moversFromAll(sortedByGainers),
@@ -608,6 +712,7 @@ async function getRealEstateSectorData() {
   const stocksPayload = stockPayloadDetails.payload;
   const sectorIndex = findRealEstateIndex(sectorPayload);
   const derivedIndex = deriveIndexFromStocksPayload(stocksPayload);
+  const summaryRow = findIndexSummaryRow(stocksPayload);
   const realEstateIndex = sectorIndex || derivedIndex;
 
   const constituents = filterConstituents(stocksPayload);
@@ -643,6 +748,14 @@ async function getRealEstateSectorData() {
     (resolvedLastPrice !== null && resolvedPercentChange !== null
       ? (resolvedLastPrice * resolvedPercentChange) / 100
       : null);
+  const indexDetails = buildSectorIndexDetails(
+    sectorIndex,
+    summaryRow,
+    stocksPayload,
+    allStocks,
+    resolvedLastPrice,
+    resolvedIndexChange
+  );
 
   const allCompanies = [...allStocks]
     .sort((a, b) => String(a.symbol).localeCompare(String(b.symbol)))
@@ -670,7 +783,8 @@ async function getRealEstateSectorData() {
       name: String(resolvedIndexName),
       lastPrice: resolvedLastPrice,
       change: resolvedIndexChange,
-      percentChange: resolvedPercentChange
+      percentChange: resolvedPercentChange,
+      ...indexDetails
     },
     companies: allCompanies,
     gainers: moversFromAll(sortedByGainers),

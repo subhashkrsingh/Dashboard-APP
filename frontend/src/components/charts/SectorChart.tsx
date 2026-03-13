@@ -40,8 +40,21 @@ export function SectorChart({
   const isPositive = (sectorIndex.percentChange ?? 0) >= 0;
 
   const chartData = useMemo(() => {
-    if (range === 0) return history;
-    return history.slice(-range);
+    const baseData = range === 0 ? history : history.slice(-range);
+
+    if (baseData.length !== 1) {
+      return baseData;
+    }
+
+    const firstPoint = baseData[0];
+    return [
+      firstPoint,
+      {
+        ...firstPoint,
+        isoTime: `${firstPoint.isoTime}-placeholder`,
+        time: "Now"
+      }
+    ];
   }, [history, range]);
 
   const strokeColor = isPositive ? "#22C55E" : "#EF4444";

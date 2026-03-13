@@ -1,5 +1,6 @@
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Activity, BarChart3, TrendingDown, TrendingUp } from "lucide-react";
+import { useLocation, useNavigate } from "react-router-dom";
 
 import { InsightsPanel } from "../components/cards/InsightsPanel";
 import { MarketCapOverview } from "../components/cards/MarketCapOverview";
@@ -14,24 +15,15 @@ import { FooterBar } from "../components/dashboard/FooterBar";
 import { Navbar } from "../components/Navbar";
 import { StockTable } from "../components/tables/StockTable";
 import type { CompanyHistoryPoint } from "../hooks/useMarketHistory";
+import type { SectorMarketDataResult } from "../hooks/useSectorMarketData";
 import { formatPercent, formatPrice, formatVolume } from "../lib/formatters";
+import type { SectorModuleConfig } from "../lib/sectorConfig";
 import type { CompanyQuote, PriceDirection, SectorSnapshot, TimePoint } from "../types/market";
 
 interface SectorNewsItem {
   headline: string;
   source: string;
   time: string;
-}
-
-interface SectorDashboardData {
-  data?: SectorSnapshot;
-  error: unknown;
-  isLoading: boolean;
-  isFetching: boolean;
-  refetch: () => void;
-  sectorHistory: TimePoint[];
-  companyHistory: Record<string, CompanyHistoryPoint[]>;
-  signals: Record<string, PriceDirection>;
 }
 
 interface SectorDashboardProps {
@@ -47,7 +39,23 @@ interface SectorDashboardProps {
   newsTitle: string;
   newsItems: SectorNewsItem[];
   dataSourceLabel?: string;
-  marketData: SectorDashboardData;
+  modules: SectorModuleConfig[];
+  marketData: SectorMarketDataResult;
+}
+
+const SECTION_HIGHLIGHT_CLASSES = ["ring-2", "ring-cyan-400", "ring-offset-2", "ring-offset-[#F5F7FB]"];
+const SECTION_WRAPPER_CLASS = "scroll-mt-36 rounded-[28px] transition-[box-shadow] duration-300";
+
+function pulseSectionHighlight(sectionId: string) {
+  const section = document.getElementById(sectionId);
+  if (!section) return false;
+
+  section.classList.add(...SECTION_HIGHLIGHT_CLASSES);
+  window.setTimeout(() => {
+    section.classList.remove(...SECTION_HIGHLIGHT_CLASSES);
+  }, 1600);
+
+  return true;
 }
 
 function getTopByPercent(companies: CompanyQuote[], direction: "max" | "min") {
@@ -72,11 +80,65 @@ export function SectorDashboard({
   newsTitle,
   newsItems,
   dataSourceLabel = "Data via backend proxy",
+  modules,
   marketData
 }: SectorDashboardProps) {
   const [search, setSearch] = useState("");
+  const location = useLocation();
+  const navigate = useNavigate();
   const { data, error, isLoading, isFetching, refetch, sectorHistory, companyHistory, signals } = marketData;
   const blockingError = !data && error;
+  const scrollableModules = useMemo(() => modules.filter(module => module.id !== "overview"), [modules]);
+
+  useEffect(() => {
+    if (isLoading || typeof window === "undefined") {
+      return;
+    }
+
+    const params = new URLSearchParams(location.search);
+    const requestedSection = params.get("section");
+    const pathParts = location.pathname.split("/").filter(Boolean);
+    const finalSegment = pathParts[pathParts.length - 1];
+    const legacyModule = scrollableModules.find(module => module.segment && module.segment === finalSegment);
+    const targetSectionId = requestedSection || legacyModule?.sectionId;
+
+    if (!targetSectionId) {
+      return;
+    }
+
+    let attempts = 0;
+    let timeoutId: number | null = null;
+
+    const scrollToTarget = () => {
+      const section = document.getElementById(targetSectionId);
+
+      if (!section) {
+        if (attempts < 20) {
+          attempts += 1;
+          timeoutId = window.setTimeout(scrollToTarget, 120);
+        }
+        return;
+      }
+
+      section.scrollIntoView({
+        behavior: "smooth",
+        block: "start"
+      });
+      pulseSectionHighlight(targetSectionId);
+
+      if (requestedSection) {
+        navigate(location.pathname, { replace: true });
+      }
+    };
+
+    scrollToTarget();
+
+    return () => {
+      if (timeoutId) {
+        window.clearTimeout(timeoutId);
+      }
+    };
+  }, [isLoading, location.pathname, location.search, navigate, scrollableModules]);
 
   const fallbackCompanies = data?.companies ?? [];
 
@@ -156,6 +218,7 @@ export function SectorDashboard({
               marketCapBySymbol={marketCapBySymbol}
               newsTitle={newsTitle}
               newsItems={newsItems}
+              modules={scrollableModules}
             />
           </>
         ) : null}
@@ -180,6 +243,7 @@ interface DashboardContentProps {
   marketCapBySymbol: Record<string, number>;
   newsTitle: string;
   newsItems: SectorNewsItem[];
+  modules: SectorModuleConfig[];
 }
 
 function DashboardContent({
@@ -195,7 +259,8 @@ function DashboardContent({
   signals,
   marketCapBySymbol,
   newsTitle,
-  newsItems
+  newsItems,
+  modules
 }: DashboardContentProps) {
   const fallbackTopGainer = getTopByPercent(data.companies, "max");
   const fallbackTopLoser = getTopByPercent(data.companies, "min");
@@ -210,6 +275,13 @@ function DashboardContent({
     data.advanceDecline?.advances ?? data.companies.filter(company => (company.percentChange ?? 0) > 0).length;
   const declines =
     data.advanceDecline?.declines ?? data.companies.filter(company => (company.percentChange ?? 0) < 0).length;
+
+  const intradaySectionId = modules.find(module => module.id === "intraday")?.sectionId ?? "intraday-trend";
+  const performanceSectionId = modules.find(module => module.id === "performance")?.sectionId ?? "performance";
+  const insightsSectionId = modules.find(module => module.id === "insights")?.sectionId ?? "insights";
+  const moversSectionId = modules.find(module => module.id === "gainers-losers")?.sectionId ?? "movers";
+  const newsSectionId = modules.find(module => module.id === "news")?.sectionId ?? "news";
+  const stocksSectionId = modules.find(module => module.id === "stocks")?.sectionId ?? "stocks";
 
   return (
     <section className="space-y-5">
@@ -247,47 +319,58 @@ function DashboardContent({
         />
       </section>
 
-      <SectorChart
-        sectorIndex={data.sectorIndex}
-        history={sectorHistory}
-        title={chartTitle}
-        subtitle={`Live movement of ${data.sectorIndex.name || sectorName.toUpperCase()}`}
-      />
-
-      <section className="grid gap-4 xl:grid-cols-[minmax(0,1.45fr)_minmax(340px,1fr)]">
-        <PerformanceChart
-          companies={data.companies}
-          title={`${sectorName} Performance`}
-          description={heatmapDescription}
+      <section id={intradaySectionId} className={SECTION_WRAPPER_CLASS}>
+        <SectorChart
+          sectorIndex={data.sectorIndex}
+          history={sectorHistory}
+          title={chartTitle}
+          subtitle={`Live movement of ${data.sectorIndex.name || sectorName.toUpperCase()}`}
         />
-        <div className="space-y-4">
-          <InsightsPanel
-            sectorSpot={data.sectorIndex.lastPrice}
-            averageChange={averageChange}
-            advances={advances}
-            declines={declines}
-            totalVolume={totalVolume}
-            volumeLeaderSymbol={volumeLeader?.symbol}
-            compact
-            sectorName={sectorName}
-          />
-          <MarketCapOverview companies={data.companies} marketCapBySymbol={marketCapBySymbol} sectorName={sectorName} />
-        </div>
       </section>
 
-      <section className="grid gap-4 xl:grid-cols-2">
+      <section id={performanceSectionId} className={SECTION_WRAPPER_CLASS}>
+        <section className="grid gap-4 xl:grid-cols-[minmax(0,1.45fr)_minmax(340px,1fr)]">
+          <PerformanceChart
+            companies={data.companies}
+            title={`${sectorName} Performance`}
+            description={heatmapDescription}
+          />
+          <MarketCapOverview companies={data.companies} marketCapBySymbol={marketCapBySymbol} sectorName={sectorName} />
+        </section>
+      </section>
+
+      <section id={insightsSectionId} className={SECTION_WRAPPER_CLASS}>
+        <InsightsPanel
+          sectorSpot={data.sectorIndex.lastPrice}
+          averageChange={averageChange}
+          advances={advances}
+          declines={declines}
+          totalVolume={totalVolume}
+          volumeLeaderSymbol={volumeLeader?.symbol}
+          sectorName={sectorName}
+          title={`${sectorName} Insights`}
+          subtitle="Breadth, momentum, and turnover"
+        />
+      </section>
+
+      <section id={moversSectionId} className={SECTION_WRAPPER_CLASS}>
         <TopMoversPanel gainers={data.gainers} losers={data.losers} />
+      </section>
+
+      <section id={newsSectionId} className={SECTION_WRAPPER_CLASS}>
         <SectorNewsPanel title={newsTitle} items={newsItems} />
       </section>
 
-      <StockTable
-        companies={data.companies}
-        historyBySymbol={companyHistory}
-        signals={signals}
-        query={search}
-        title={tableTitle}
-        subtitle={tableSubtitle}
-      />
+      <section id={stocksSectionId} className={SECTION_WRAPPER_CLASS}>
+        <StockTable
+          companies={data.companies}
+          historyBySymbol={companyHistory}
+          signals={signals}
+          query={search}
+          title={tableTitle}
+          subtitle={tableSubtitle}
+        />
+      </section>
     </section>
   );
 }

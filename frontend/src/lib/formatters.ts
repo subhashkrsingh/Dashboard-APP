@@ -25,6 +25,18 @@ export function formatVolume(value: number | null | undefined): string {
   return new Intl.NumberFormat("en-IN", { maximumFractionDigits: 0 }).format(Number(value));
 }
 
+export function formatCompactNumber(
+  value: number | null | undefined,
+  options?: Intl.NumberFormatOptions
+): string {
+  if (!Number.isFinite(value)) return "--";
+  return new Intl.NumberFormat("en-IN", {
+    notation: "compact",
+    maximumFractionDigits: 2,
+    ...options
+  }).format(Number(value));
+}
+
 export function formatClock(iso: string | null | undefined): string {
   if (!iso) return "--";
   const parsed = new Date(iso);

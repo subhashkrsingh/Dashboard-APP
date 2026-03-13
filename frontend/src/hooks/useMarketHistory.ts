@@ -27,11 +27,17 @@ export function useMarketHistory(snapshot: PowerSectorResponse | undefined) {
   const [signals, setSignals] = useState<SignalMap>({});
   const previousPricesRef = useRef<Record<string, number | null>>({});
   const clearSignalsTimeoutRef = useRef<number | null>(null);
+  const isFallbackMode = snapshot?.dataStatus === "stale" || snapshot?.dataStatus === "snapshot";
+  const observationKey = snapshot
+    ? isFallbackMode
+      ? `${snapshot.fetchedAt}:${snapshot.cacheAgeMs ?? snapshot.lastRefreshError?.recordedAt ?? "fallback"}`
+      : snapshot.fetchedAt
+    : undefined;
 
   useEffect(() => {
     if (!snapshot?.fetchedAt) return;
 
-    const isoTime = snapshot.fetchedAt;
+    const isoTime = isFallbackMode ? new Date().toISOString() : snapshot.fetchedAt;
     const time = toShortTime(isoTime);
     const nextSignals: SignalMap = {};
 
@@ -107,7 +113,7 @@ export function useMarketHistory(snapshot: PowerSectorResponse | undefined) {
       }, 1600);
     }
 
-  }, [snapshot?.fetchedAt]);
+  }, [isFallbackMode, observationKey, snapshot]);
 
   useEffect(() => {
     return () => {

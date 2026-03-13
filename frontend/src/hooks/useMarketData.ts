@@ -1,21 +1,10 @@
 import { useEffect, useState } from "react";
-import { useQuery } from "@tanstack/react-query";
 
-import { fetchPowerSectorData } from "../services/powerSectorApi";
-import { useMarketHistory } from "./useMarketHistory";
+import { usePowerSector } from "./usePowerSector";
 
 export function useMarketData() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
-
-  const query = useQuery({
-    queryKey: ["power-sector-dashboard"],
-    queryFn: fetchPowerSectorData,
-    refetchInterval: 10000,
-    refetchIntervalInBackground: true,
-    staleTime: 9500
-  });
-
-  const { sectorHistory, companyHistory, signals } = useMarketHistory(query.data);
+  const marketData = usePowerSector();
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
@@ -29,11 +18,8 @@ export function useMarketData() {
   }, []);
 
   return {
-    ...query,
+    ...marketData,
     sidebarOpen,
-    setSidebarOpen,
-    sectorHistory,
-    companyHistory,
-    signals
+    setSidebarOpen
   };
 }
