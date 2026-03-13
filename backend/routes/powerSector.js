@@ -10,6 +10,10 @@ const {
 
 const router = express.Router();
 
+function getStaleWarning() {
+  return "Live NSE refresh is delayed. Showing cached power sector market data.";
+}
+
 function toRouteSnapshot(snapshot, overrides = {}) {
   return {
     ...snapshot,
@@ -60,7 +64,7 @@ router.get("/", async (req, res, next) => {
           stale: true,
           snapshot: false,
           dataStatus: "stale",
-          warning: error?.message || "Serving stale data due to upstream error."
+          warning: getStaleWarning()
         }),
         lastRefreshError: stale.error
       });
@@ -76,10 +80,7 @@ router.get("/", async (req, res, next) => {
           stale: true,
           snapshot: true,
           dataStatus: "snapshot",
-          warning:
-            error?.message
-              ? `${error.message} Showing bundled fallback snapshot.`
-              : "Showing bundled fallback snapshot while live market data is unavailable."
+          warning: "Live NSE refresh is unavailable. Showing bundled power sector snapshot."
         })
       });
     }

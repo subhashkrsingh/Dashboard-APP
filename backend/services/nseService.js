@@ -3,6 +3,7 @@ const axios = require("axios");
 const NSE_BASE_URL = "https://www.nseindia.com";
 const NSE_SECTOR_ENDPOINT = "/api/sectorIndices";
 const NSE_ALL_INDICES_ENDPOINT = "/api/allIndices";
+const NSE_REQUEST_TIMEOUT_MS = Math.max(Number(process.env.NSE_REQUEST_TIMEOUT_MS) || 25000, 10000);
 const NSE_REQUESTED_INDEX_NAME = "NIFTY POWER";
 const NSE_FALLBACK_INDEX_NAME = "NIFTY ENERGY";
 const NSE_REAL_ESTATE_INDEX_NAME = "NIFTY REALTY";
@@ -66,29 +67,6 @@ const MAJOR_POWER_COMPANIES = [
     aliases: ["RPOWER", "RELIANCEPOWER"]
   }
 ];
-const MAJOR_REAL_ESTATE_COMPANIES = [
-  { symbol: "DLF", name: "DLF", aliases: ["DLF"] },
-  {
-    symbol: "GODREJPROP",
-    name: "Godrej Properties",
-    aliases: ["GODREJPROP", "GODREJPROPERTIES"]
-  },
-  {
-    symbol: "OBEROIRLTY",
-    name: "Oberoi Realty",
-    aliases: ["OBEROIRLTY", "OBEROIREALTY"]
-  },
-  {
-    symbol: "PRESTIGE",
-    name: "Prestige Estates",
-    aliases: ["PRESTIGE", "PRESTIGEESTATES"]
-  },
-  {
-    symbol: "PHOENIXLTD",
-    name: "Phoenix Mills",
-    aliases: ["PHOENIXLTD", "PHOENIXMILLS"]
-  }
-];
 
 class NseServiceError extends Error {
   constructor(message, statusCode = 503, code = "NSE_UNAVAILABLE") {
@@ -100,7 +78,7 @@ class NseServiceError extends Error {
 }
 
 const http = axios.create({
-  timeout: 15000,
+  timeout: NSE_REQUEST_TIMEOUT_MS,
   validateStatus: () => true
 });
 
@@ -434,29 +412,6 @@ function enrichMajorCompanies(stocks) {
   });
 }
 
-function enrichTrackedCompanies(stocks, trackedCompanies) {
-  const byNormalizedSymbol = new Map();
-  stocks.forEach(stock => {
-    byNormalizedSymbol.set(normalizeText(stock.symbol), stock);
-  });
-
-  return trackedCompanies.map(target => {
-    const matched =
-      target.aliases
-        .map(alias => byNormalizedSymbol.get(normalizeText(alias)))
-        .find(Boolean) || byNormalizedSymbol.get(normalizeText(target.symbol));
-
-    return {
-      company: target.name,
-      symbol: target.symbol,
-      price: matched?.price ?? null,
-      change: matched?.change ?? null,
-      percentChange: matched?.percentChange ?? null,
-      volume: matched?.volume ?? null
-    };
-  });
-}
-
 function buildAdvanceDecline(powerIndex, stocks, stocksPayload) {
   const advances = firstNumber(
     stocksPayload?.advance?.advances,
@@ -656,8 +611,7 @@ async function getRealEstateSectorData() {
   const realEstateIndex = sectorIndex || derivedIndex;
 
   const constituents = filterConstituents(stocksPayload);
-  const trackedStocks = enrichTrackedCompanies(constituents, MAJOR_REAL_ESTATE_COMPANIES);
-  const allStocks = trackedStocks.map(item => ({
+  const allStocks = constituents.map(item => ({
     company: item.company,
     symbol: item.symbol,
     price: item.price,

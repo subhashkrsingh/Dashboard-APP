@@ -1,107 +1,189 @@
 {
   "sectorIndex": {
     "name": "NIFTY REALTY",
-    "lastPrice": 988.42,
-    "change": 9.18,
-    "percentChange": 0.94
+    "lastPrice": 707.85,
+    "change": -11.467170000000001,
+    "percentChange": -1.62
   },
   "companies": [
     {
+      "symbol": "ANANTRAJ",
+      "name": "Anant Raj Limited",
+      "price": 453,
+      "change": -16.6,
+      "percentChange": -3.53,
+      "volume": 1077012
+    },
+    {
+      "symbol": "BRIGADE",
+      "name": "Brigade Enterprises Limited",
+      "price": 651.6,
+      "change": -13.4,
+      "percentChange": -2.02,
+      "volume": 114060
+    },
+    {
       "symbol": "DLF",
-      "name": "DLF",
-      "price": 852.35,
-      "change": 17.95,
-      "percentChange": 2.15,
-      "volume": 4540000
+      "name": "DLF Limited",
+      "price": 544.35,
+      "change": -13.75,
+      "percentChange": -2.46,
+      "volume": 3039907
     },
     {
       "symbol": "GODREJPROP",
-      "name": "Godrej Properties",
-      "price": 3159.7,
-      "change": 41.25,
-      "percentChange": 1.32,
-      "volume": 1420000
+      "name": "Godrej Properties Limited",
+      "price": 1576.9,
+      "change": -39.4,
+      "percentChange": -2.44,
+      "volume": 701354
+    },
+    {
+      "symbol": "LODHA",
+      "name": "Lodha Developers Limited",
+      "price": 866.05,
+      "change": -3,
+      "percentChange": -0.35,
+      "volume": 469930
     },
     {
       "symbol": "OBEROIRLTY",
-      "name": "Oberoi Realty",
-      "price": 1975.8,
-      "change": -11.6,
-      "percentChange": -0.58,
-      "volume": 780000
+      "name": "Oberoi Realty Limited",
+      "price": 1456.8,
+      "change": -13.5,
+      "percentChange": -0.92,
+      "volume": 268448
     },
     {
       "symbol": "PHOENIXLTD",
-      "name": "Phoenix Mills",
-      "price": 3339.2,
-      "change": -26.85,
-      "percentChange": -0.8,
-      "volume": 620000
+      "name": "The Phoenix Mills Limited",
+      "price": 1539.5,
+      "change": -20.7,
+      "percentChange": -1.33,
+      "volume": 179858
     },
     {
       "symbol": "PRESTIGE",
-      "name": "Prestige Estates",
-      "price": 1598.4,
-      "change": 29.45,
-      "percentChange": 1.88,
-      "volume": 1150000
+      "name": "Prestige Estates Projects Limited",
+      "price": 1248.5,
+      "change": -4.2,
+      "percentChange": -0.34,
+      "volume": 286317
+    },
+    {
+      "symbol": "SIGNATURE",
+      "name": "Signatureglobal (India) Limited",
+      "price": 786.3,
+      "change": -28.4,
+      "percentChange": -3.49,
+      "volume": 344935
+    },
+    {
+      "symbol": "SOBHA",
+      "name": "Sobha Limited",
+      "price": 1293.5,
+      "change": -46.8,
+      "percentChange": -3.49,
+      "volume": 71293
     }
   ],
   "gainers": [
     {
-      "symbol": "DLF",
-      "name": "DLF",
-      "price": 852.35,
-      "change": 17.95,
-      "percentChange": 2.15,
-      "volume": 4540000
-    },
-    {
       "symbol": "PRESTIGE",
-      "name": "Prestige Estates",
-      "price": 1598.4,
-      "change": 29.45,
-      "percentChange": 1.88,
-      "volume": 1150000
+      "name": "Prestige Estates Projects Limited",
+      "price": 1248.5,
+      "change": -4.2,
+      "percentChange": -0.34,
+      "volume": 286317
     },
     {
-      "symbol": "GODREJPROP",
-      "name": "Godrej Properties",
-      "price": 3159.7,
-      "change": 41.25,
-      "percentChange": 1.32,
-      "volume": 1420000
+      "symbol": "LODHA",
+      "name": "Lodha Developers Limited",
+      "price": 866.05,
+      "change": -3,
+      "percentChange": -0.35,
+      "volume": 469930
+    },
+    {
+      "symbol": "OBEROIRLTY",
+      "name": "Oberoi Realty Limited",
+      "price": 1456.8,
+      "change": -13.5,
+      "percentChange": -0.92,
+      "volume": 268448
+    },
+    {
+      "symbol": "PHOENIXLTD",
+      "name": "The Phoenix Mills Limited",
+      "price": 1539.5,
+      "change": -20.7,
+      "percentChange": -1.33,
+      "volume": 179858
+    },
+    {
+      "symbol": "BRIGADE",
+      "name": "Brigade Enterprises Limited",
+      "price": 651.6,
+      "change": -13.4,
+      "percentChange": -2.02,
+      "volume": 114060
     }
   ],
   "losers": [
     {
-      "symbol": "PHOENIXLTD",
-      "name": "Phoenix Mills",
-      "price": 3339.2,
-      "change": -26.85,
-      "percentChange": -0.8,
-      "volume": 620000
+      "symbol": "ANANTRAJ",
+      "name": "Anant Raj Limited",
+      "price": 453,
+      "change": -16.6,
+      "percentChange": -3.53,
+      "volume": 1077012
     },
     {
-      "symbol": "OBEROIRLTY",
-      "name": "Oberoi Realty",
-      "price": 1975.8,
-      "change": -11.6,
-      "percentChange": -0.58,
-      "volume": 780000
+      "symbol": "SIGNATURE",
+      "name": "Signatureglobal (India) Limited",
+      "price": 786.3,
+      "change": -28.4,
+      "percentChange": -3.49,
+      "volume": 344935
+    },
+    {
+      "symbol": "SOBHA",
+      "name": "Sobha Limited",
+      "price": 1293.5,
+      "change": -46.8,
+      "percentChange": -3.49,
+      "volume": 71293
+    },
+    {
+      "symbol": "DLF",
+      "name": "DLF Limited",
+      "price": 544.35,
+      "change": -13.75,
+      "percentChange": -2.46,
+      "volume": 3039907
+    },
+    {
+      "symbol": "GODREJPROP",
+      "name": "Godrej Properties Limited",
+      "price": 1576.9,
+      "change": -39.4,
+      "percentChange": -2.44,
+      "volume": 701354
     }
   ],
+  "fallbackIndexUsed": false,
   "advanceDecline": {
-    "advances": 3,
-    "declines": 2,
+    "advances": 0,
+    "declines": 10,
     "unchanged": 0
   },
   "marketStatus": {
-    "isOpen": false,
-    "label": "CLOSED",
+    "isOpen": true,
+    "label": "OPEN",
     "timezone": "Asia/Kolkata",
-    "checkedAt": "2026-03-13T09:15:00.000Z"
+    "checkedAt": "2026-03-13T08:20:38.093Z"
   },
   "requestedIndex": "NIFTY REALTY",
-  "fetchedAt": "2026-03-13T09:15:00.000Z"
+  "sourceTimestamp": "13-Mar-2026 13:50",
+  "fetchedAt": "2026-03-13T08:20:38.105Z"
 }

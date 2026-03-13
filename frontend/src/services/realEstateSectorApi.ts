@@ -3,8 +3,6 @@ import axios from "axios";
 import type { CompanyQuote, RealEstateSectorResponse } from "../types/market";
 import { API_BASE_URL, normalizeSectorResponse } from "./sectorApi";
 
-const TRACKED_REAL_ESTATE_STOCKS = ["DLF", "GODREJPROP", "OBEROIRLTY", "PRESTIGE", "PHOENIXLTD"] as const;
-
 const FALLBACK_REAL_ESTATE_QUOTES: CompanyQuote[] = [
   {
     symbol: "DLF",
@@ -56,12 +54,26 @@ function sortByPercentAsc(left: CompanyQuote, right: CompanyQuote) {
   return (left.percentChange ?? Number.POSITIVE_INFINITY) - (right.percentChange ?? Number.POSITIVE_INFINITY);
 }
 
-function filterTrackedStocks(snapshot: RealEstateSectorResponse): RealEstateSectorResponse {
-  const filteredCompanies = snapshot.companies.filter(company =>
-    TRACKED_REAL_ESTATE_STOCKS.includes(company.symbol as (typeof TRACKED_REAL_ESTATE_STOCKS)[number])
-  );
+function getFallbackMarketStatus() {
+  const now = new Date();
+  const istNow = new Date(now.toLocaleString("en-US", { timeZone: "Asia/Kolkata" }));
+  const day = istNow.getDay();
+  const isWeekday = day >= 1 && day <= 5;
+  const minutes = istNow.getHours() * 60 + istNow.getMinutes();
+  const openMinutes = 9 * 60 + 15;
+  const closeMinutes = 15 * 60 + 30;
+  const isOpen = isWeekday && minutes >= openMinutes && minutes <= closeMinutes;
 
-  const companies = filteredCompanies.length > 0 ? filteredCompanies : snapshot.companies;
+  return {
+    isOpen,
+    label: isOpen ? "OPEN" : "CLOSED",
+    timezone: "Asia/Kolkata",
+    checkedAt: now.toISOString()
+  };
+}
+
+function normalizeRealEstateSnapshot(snapshot: RealEstateSectorResponse): RealEstateSectorResponse {
+  const companies = snapshot.companies;
   const ranked = [...companies].filter(company => Number.isFinite(company.percentChange));
 
   return {
@@ -93,12 +105,7 @@ function buildFallbackResponse(): RealEstateSectorResponse {
     companies: FALLBACK_REAL_ESTATE_QUOTES,
     gainers: ranked.slice(0, 5),
     losers: [...ranked].sort(sortByPercentAsc).slice(0, 5),
-    marketStatus: {
-      isOpen: false,
-      label: "CLOSED",
-      timezone: "Asia/Kolkata",
-      checkedAt: new Date().toISOString()
-    },
+    marketStatus: getFallbackMarketStatus(),
     advanceDecline: {
       advances: FALLBACK_REAL_ESTATE_QUOTES.filter(company => (company.percentChange ?? 0) > 0).length,
       declines: FALLBACK_REAL_ESTATE_QUOTES.filter(company => (company.percentChange ?? 0) < 0).length,
@@ -123,7 +130,7 @@ export async function fetchRealEstateSectorData(): Promise<RealEstateSectorRespo
       sourceLabel: "real estate sector"
     });
 
-    return filterTrackedStocks(normalized);
+    return normalizeRealEstateSnapshot(normalized);
   } catch {
     return buildFallbackResponse();
   }
