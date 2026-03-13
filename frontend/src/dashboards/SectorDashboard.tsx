@@ -76,6 +76,7 @@ export function SectorDashboard({
 }: SectorDashboardProps) {
   const [search, setSearch] = useState("");
   const { data, error, isLoading, isFetching, refetch, sectorHistory, companyHistory, signals } = marketData;
+  const blockingError = !data && error;
 
   const fallbackCompanies = data?.companies ?? [];
 
@@ -86,6 +87,8 @@ export function SectorDashboard({
         marketStatus={data?.marketStatus}
         fetchedAt={data?.fetchedAt}
         isFetching={isFetching}
+        dataStatus={data?.dataStatus}
+        cacheAgeMs={data?.cacheAgeMs}
         search={search}
         onSearchChange={setSearch}
         onOpenSidebar={onOpenSidebar}
@@ -102,7 +105,7 @@ export function SectorDashboard({
 
         {isLoading ? <DashboardSkeleton /> : null}
 
-        {!isLoading && (!data || error) ? (
+        {!isLoading && blockingError ? (
           <section className="glass-card rounded-2xl border border-rose-200 bg-rose-50 p-6">
             <h2 className="font-display text-2xl text-rose-700">{sectorName} data unavailable</h2>
             <p className="mt-2 text-sm text-rose-700/90">
@@ -120,7 +123,13 @@ export function SectorDashboard({
 
         {!isLoading && data ? (
           <>
-            {data.stale ? (
+            {data.dataStatus === "snapshot" ? (
+              <section className="glass-card rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
+                {data.warning ?? "Showing bundled or saved snapshot while live market feeds are unavailable."}
+              </section>
+            ) : null}
+
+            {data.stale && data.dataStatus !== "snapshot" ? (
               <section className="glass-card rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-700">
                 {data.warning ?? "Using cached snapshot while the live feed is temporarily restricted."}
               </section>

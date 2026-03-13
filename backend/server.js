@@ -5,6 +5,7 @@ const express = require("express");
 const morgan = require("morgan");
 
 const powerSectorRoutes = require("./routes/powerSector");
+const { startPowerSectorRefresher } = require("./services/powerSectorRefresher");
 
 const app = express();
 
@@ -33,6 +34,8 @@ app.get("/health", (_req, res) => {
     timestamp: new Date().toISOString()
   });
 });
+
+startPowerSectorRefresher();
 
 app.use("/api/power-sector", powerSectorRoutes);
 

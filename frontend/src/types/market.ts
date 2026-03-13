@@ -1,4 +1,5 @@
 export type PriceDirection = "up" | "down" | "flat";
+export type SectorDataStatus = "live" | "stale" | "snapshot";
 
 export interface SectorIndex {
   name: string;
@@ -41,6 +42,14 @@ export interface SectorSnapshot {
   stale?: boolean;
   warning?: string;
   cached?: boolean;
+  snapshot?: boolean;
+  dataStatus?: SectorDataStatus;
+  cacheAgeMs?: number;
+  lastRefreshError?: {
+    code?: string;
+    message: string;
+    recordedAt?: string;
+  };
 }
 
 export type PowerSectorResponse = SectorSnapshot;

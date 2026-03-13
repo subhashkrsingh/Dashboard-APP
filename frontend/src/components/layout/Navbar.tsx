@@ -3,7 +3,7 @@ import { motion } from "framer-motion";
 import { Bell, Menu, Search, UserCircle2 } from "lucide-react";
 
 import { formatClock } from "../../lib/formatters";
-import type { CompanyQuote, MarketStatus } from "../../types/market";
+import type { CompanyQuote, MarketStatus, SectorDataStatus } from "../../types/market";
 import { Badge } from "../ui/Badge";
 
 interface NavbarProps {
@@ -11,9 +11,33 @@ interface NavbarProps {
   marketStatus?: MarketStatus;
   fetchedAt?: string;
   isFetching: boolean;
+  dataStatus?: SectorDataStatus;
+  cacheAgeMs?: number;
   search: string;
   onSearchChange: (value: string) => void;
   onOpenSidebar: () => void;
+}
+
+function getDataStatusBadge(dataStatus: SectorDataStatus | undefined, cacheAgeMs: number | undefined) {
+  if (dataStatus === "snapshot") {
+    return {
+      tone: "negative" as const,
+      label: "Snapshot Mode"
+    };
+  }
+
+  if (dataStatus === "stale") {
+    const ageSeconds = Number.isFinite(cacheAgeMs) ? Math.max(1, Math.round(Number(cacheAgeMs) / 1000)) : null;
+    return {
+      tone: "warning" as const,
+      label: ageSeconds ? `Stale Data ${ageSeconds}s` : "Stale Data"
+    };
+  }
+
+  return {
+    tone: "positive" as const,
+    label: "Live Data"
+  };
 }
 
 export function Navbar({
@@ -21,10 +45,13 @@ export function Navbar({
   marketStatus,
   fetchedAt,
   isFetching,
+  dataStatus,
+  cacheAgeMs,
   search,
   onSearchChange,
   onOpenSidebar
 }: NavbarProps) {
+  const feedBadge = getDataStatusBadge(dataStatus, cacheAgeMs);
   const tickerItems = useMemo(
     () =>
       [...companies]
@@ -70,7 +97,9 @@ export function Navbar({
           Market {marketStatus?.label ?? "CLOSED"}
         </Badge>
 
-        <Badge tone={isFetching ? "accent" : "neutral"}>{isFetching ? "Refreshing" : "Live feed"}</Badge>
+        <Badge tone={isFetching ? "accent" : "neutral"}>{isFetching ? "Refreshing" : "Feed Ready"}</Badge>
+
+        <Badge tone={feedBadge.tone}>{feedBadge.label}</Badge>
 
         <Badge tone="neutral">IST {formatClock(fetchedAt)}</Badge>
 

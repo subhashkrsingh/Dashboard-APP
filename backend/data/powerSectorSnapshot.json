@@ -1,0 +1,99 @@
+{
+  "sectorIndex": {
+    "name": "NIFTY POWER",
+    "lastPrice": 6423.18,
+    "change": 58.42,
+    "percentChange": 0.92
+  },
+  "companies": [
+    {
+      "symbol": "ADANIPOWER",
+      "name": "Adani Power",
+      "price": 584.4,
+      "change": 8.55,
+      "percentChange": 1.48,
+      "volume": 13850000
+    },
+    {
+      "symbol": "NHPC",
+      "name": "NHPC",
+      "price": 92.35,
+      "change": 1.26,
+      "percentChange": 1.38,
+      "volume": 9640000
+    },
+    {
+      "symbol": "NTPC",
+      "name": "NTPC",
+      "price": 363.8,
+      "change": 3.62,
+      "percentChange": 1.01,
+      "volume": 7210000
+    },
+    {
+      "symbol": "POWERGRID",
+      "name": "Power Grid Corporation",
+      "price": 331.45,
+      "change": 2.74,
+      "percentChange": 0.83,
+      "volume": 5120000
+    },
+    {
+      "symbol": "TATAPOWER",
+      "name": "Tata Power",
+      "price": 441.2,
+      "change": -1.56,
+      "percentChange": -0.35,
+      "volume": 11870000
+    }
+  ],
+  "gainers": [
+    {
+      "symbol": "ADANIPOWER",
+      "name": "Adani Power",
+      "price": 584.4,
+      "change": 8.55,
+      "percentChange": 1.48,
+      "volume": 13850000
+    },
+    {
+      "symbol": "NHPC",
+      "name": "NHPC",
+      "price": 92.35,
+      "change": 1.26,
+      "percentChange": 1.38,
+      "volume": 9640000
+    },
+    {
+      "symbol": "NTPC",
+      "name": "NTPC",
+      "price": 363.8,
+      "change": 3.62,
+      "percentChange": 1.01,
+      "volume": 7210000
+    }
+  ],
+  "losers": [
+    {
+      "symbol": "TATAPOWER",
+      "name": "Tata Power",
+      "price": 441.2,
+      "change": -1.56,
+      "percentChange": -0.35,
+      "volume": 11870000
+    }
+  ],
+  "advanceDecline": {
+    "advances": 4,
+    "declines": 1,
+    "unchanged": 0
+  },
+  "marketStatus": {
+    "isOpen": false,
+    "label": "CLOSED",
+    "timezone": "Asia/Kolkata",
+    "checkedAt": "2026-03-13T09:15:00.000Z"
+  },
+  "requestedIndex": "NIFTY POWER",
+  "fetchedAt": "2026-03-13T09:15:00.000Z"
+}
