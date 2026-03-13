@@ -152,9 +152,8 @@ export function Sidebar({ collapsed = false, onToggleCollapse, onClose }: Sideba
         <div className={`flex items-center ${collapsed ? "justify-center" : "justify-between"} gap-2`}>
           {!collapsed ? (
             <div>
-              <p className="text-[11px] uppercase tracking-[0.22em] text-blue-700">Stock Analytics</p>
-              <h2 className="mt-1 font-display text-xl font-semibold text-slate-900">Sector Terminal</h2>
-              <p className="mt-1 text-xs text-slate-500">Nested sector modules for charts, movers, news, and stock scans.</p>
+              <p className="text-[11px] uppercase tracking-[0.22em] text-blue-700">National Stock Exchange</p>
+              <h1 className="mt-1 font-display text-xl font-semibold text-slate-900">Sector Dashboard</h1>
             </div>
           ) : (
             <div className="rounded-lg border border-blue-200 bg-white p-2">
