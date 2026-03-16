@@ -37,7 +37,7 @@ export interface SectorModuleConfig {
 }
 
 export interface SectorConfig {
-  id: "energy-sector" | "real-estate" | "oil-gas";
+  id: "energy-sector" | "real-estate-sector" | "oil-gas";
   label: string;
   dashboardLabel: string;
   basePath: "/energy-sector" | "/real-estate" | "/oil-gas";
@@ -167,7 +167,7 @@ export const energySectorConfig: SectorConfig = {
 };
 
 export const realEstateSectorConfig: SectorConfig = {
-  id: "real-estate",
+  id: "real-estate-sector",
   label: "Real Estate Sector",
   dashboardLabel: "Real Estate Dashboard",
   basePath: "/real-estate",

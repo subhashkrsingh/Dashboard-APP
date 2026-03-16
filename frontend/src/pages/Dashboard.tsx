@@ -6,7 +6,7 @@ import { InsightsPanel } from "../components/cards/InsightsPanel";
 import { MarketCard } from "../components/cards/MarketCard";
 import { SectorCard } from "../components/cards/SectorCard";
 import { PerformanceChart } from "../components/charts/PerformanceChart";
-import { SectorChart } from "../components/charts/SectorChart";
+import { SectorIntradayChart } from "../components/charts/SectorIntradayChart";
 import { DashboardSkeleton } from "../components/dashboard/DashboardSkeleton";
 import { FooterBar } from "../components/dashboard/FooterBar";
 import { Navbar } from "../components/layout/Navbar";
@@ -186,7 +186,14 @@ export function DashboardPage() {
             />
           </section>
 
-          <SectorChart sectorIndex={data.sectorIndex} history={sectorHistory} />
+          <SectorIntradayChart
+            sectorId="energy-sector"
+            title="Sector Intraday Trend"
+            week52High={data.sectorIndex.yearHigh}
+            week52Low={data.sectorIndex.yearLow}
+            intradayHigh={data.sectorIndex.dayHigh}
+            intradayLow={data.sectorIndex.dayLow}
+          />
 
           <section className="grid gap-4 xl:grid-cols-[minmax(0,1.55fr)_minmax(330px,1fr)]">
             <PerformanceChart companies={data.companies} title="Sector Heatmap" />
@@ -241,7 +248,14 @@ export function DashboardPage() {
             </p>
           </section>
 
-          <SectorChart sectorIndex={data.sectorIndex} history={sectorHistory} />
+          <SectorIntradayChart
+            sectorId="energy-sector"
+            title="Sector Intraday Trend"
+            week52High={data.sectorIndex.yearHigh}
+            week52Low={data.sectorIndex.yearLow}
+            intradayHigh={data.sectorIndex.dayHigh}
+            intradayLow={data.sectorIndex.dayLow}
+          />
 
           <section className="grid gap-4 xl:grid-cols-[minmax(0,1.55fr)_minmax(330px,1fr)]">
             <PerformanceChart companies={data.companies} />

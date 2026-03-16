@@ -7,7 +7,7 @@ import { MarketCapOverview } from "../../components/cards/MarketCapOverview";
 import { SectorNewsPanel } from "../../components/cards/SectorNewsPanel";
 import { TopMoversPanel } from "../../components/cards/TopMoversPanel";
 import { PerformanceChart } from "../../components/charts/PerformanceChart";
-import { SectorChart } from "../../components/charts/SectorChart";
+import { SectorIntradayChart } from "../../components/charts/SectorIntradayChart";
 import { SectorIndexOverviewPanel } from "../../components/sector/SectorIndexOverviewPanel";
 import { SectorSummaryCards } from "../../components/sector/SectorSummaryCards";
 import { StockTable } from "../../components/tables/StockTable";
@@ -32,11 +32,13 @@ export function SectorOverviewModulePage() {
 
       <SectorIndexOverviewPanel data={data} />
 
-      <SectorChart
-        sectorIndex={data.sectorIndex}
-        history={sectorHistory}
+      <SectorIntradayChart
+        sectorId={config.id}
         title={`${data.sectorIndex.name} Intraday`}
-        subtitle={`Benchmark movement for ${config.sectorName}`}
+        week52High={data.sectorIndex.yearHigh}
+        week52Low={data.sectorIndex.yearLow}
+        intradayHigh={data.sectorIndex.dayHigh}
+        intradayLow={data.sectorIndex.dayLow}
       />
 
       <SectorSummaryCards data={data} analytics={analytics} signals={signals} />
@@ -86,11 +88,13 @@ export function SectorIntradayModulePage() {
         title={copy?.title ?? config.chartTitle}
         description={copy?.description ?? "Track live benchmark motion for the sector."}
       />
-      <SectorChart
-        sectorIndex={data.sectorIndex}
-        history={sectorHistory}
+      <SectorIntradayChart
+        sectorId={config.id}
         title={config.chartTitle}
-        subtitle={`Live movement of ${data.sectorIndex.name || config.sectorName.toUpperCase()}`}
+        week52High={data.sectorIndex.yearHigh}
+        week52Low={data.sectorIndex.yearLow}
+        intradayHigh={data.sectorIndex.dayHigh}
+        intradayLow={data.sectorIndex.dayLow}
       />
     </div>
   );

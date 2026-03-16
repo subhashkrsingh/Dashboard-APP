@@ -18,10 +18,10 @@ interface IntradayData {
 interface SectorIntradayChartProps {
   sectorId: string;
   title?: string;
-  week52High?: number;
-  week52Low?: number;
-  intradayHigh?: number;
-  intradayLow?: number;
+  week52High?: number | null;
+  week52Low?: number | null;
+  intradayHigh?: number | null;
+  intradayLow?: number | null;
 }
 
 interface ChartDataPoint {
