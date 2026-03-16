@@ -1,5 +1,5 @@
 import { SectorMoversModulePage } from "../sector/SectorModulePages";
 
-export function PowerMoversPage() {
+export function EnergyMoversPage() {
   return <SectorMoversModulePage />;
 }

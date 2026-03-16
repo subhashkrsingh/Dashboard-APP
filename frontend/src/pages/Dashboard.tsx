@@ -45,7 +45,7 @@ function getPageTitle(page: SidebarPage): string {
     case "dashboard":
       return "Dashboard";
     case "companies":
-      return "Power Companies";
+      return "Energy Companies";
     case "analytics":
       return "Sector Analytics";
     case "alerts":
@@ -104,7 +104,7 @@ export function DashboardPage() {
     return (
       <main className="min-h-screen bg-[#F5F7FB] p-4 text-slate-800 md:p-6">
         <section className="glass-card rounded-2xl border border-rose-200 bg-rose-50 p-6">
-          <h2 className="font-display text-2xl text-rose-700">Power sector data unavailable</h2>
+          <h2 className="font-display text-2xl text-rose-700">Energy sector data unavailable</h2>
           <p className="mt-2 text-sm text-rose-700/90">{errorMessage}</p>
           <button
             type="button"
@@ -215,7 +215,7 @@ export function DashboardPage() {
       return (
         <section className="space-y-4">
           <section className="glass-card rounded-2xl border border-blue-200 bg-blue-50 p-4">
-            <h2 className="font-display text-xl font-semibold text-blue-700">Power Companies</h2>
+            <h2 className="font-display text-xl font-semibold text-blue-700">Energy Companies</h2>
             <p className="mt-1 text-sm text-blue-700/90">
               Dedicated universe scanner with sorting, sticky header, and sparkline trend.
             </p>
@@ -263,7 +263,7 @@ export function DashboardPage() {
       return (
         <section className="glass-card rounded-2xl border border-amber-200 bg-amber-50 p-6 text-sm text-amber-700">
           <h2 className="font-display text-xl font-semibold">Alerts Center</h2>
-          <p className="mt-2">Configure price, volume, and momentum alerts for power sector symbols.</p>
+          <p className="mt-2">Configure price, volume, and momentum alerts for energy sector symbols.</p>
         </section>
       );
     }
@@ -368,7 +368,7 @@ export function DashboardPage() {
 
           <div className="space-y-4 px-4 py-4 md:px-6">
             <section className="glass-card rounded-2xl border border-[#E6EAF2] p-4">
-              <p className="text-xs uppercase tracking-[0.2em] text-blue-600">Power Sector Dashboard</p>
+              <p className="text-xs uppercase tracking-[0.2em] text-blue-600">Energy Sector Dashboard</p>
               <div className="mt-2 flex items-center gap-3">
                 <Activity className="h-5 w-5 text-blue-600" />
                 <h1 className="font-display text-2xl font-semibold text-slate-900">{pageTitle}</h1>
@@ -383,7 +383,7 @@ export function DashboardPage() {
 
             {data.fallbackIndexUsed ? (
               <section className="glass-card rounded-xl border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-700">
-                Requested index {data.requestedIndex ?? "NIFTY POWER"} was unavailable. Showing closest live benchmark
+                Requested index {data.requestedIndex ?? "NIFTY ENERGY"} was unavailable. Showing closest live benchmark
                 from feed.
               </section>
             ) : null}

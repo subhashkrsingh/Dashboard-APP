@@ -1,17 +1,17 @@
 const express = require("express");
 
 const { NseServiceError } = require("../services/nseService");
-const { refreshPowerSectorCache } = require("../services/powerSectorRefresher");
+const { refreshEnergySectorCache } = require("../services/energySectorRefresher");
 const {
-  getBundledPowerSectorSnapshot,
-  getFreshPowerSectorCache,
-  getLastSuccessfulPowerSectorSnapshot
-} = require("../services/powerSectorStore");
+  getBundledEnergySectorSnapshot,
+  getFreshEnergySectorCache,
+  getLastSuccessfulEnergySectorSnapshot
+} = require("../services/energySectorStore");
 
 const router = express.Router();
 
 function getStaleWarning() {
-  return "Live NSE refresh is delayed. Showing cached power sector market data.";
+  return "Live NSE refresh is delayed. Showing cached energy sector market data.";
 }
 
 function toRouteSnapshot(snapshot, overrides = {}) {
@@ -27,7 +27,7 @@ function toRouteSnapshot(snapshot, overrides = {}) {
 }
 
 router.get("/", async (req, res, next) => {
-  const cached = getFreshPowerSectorCache();
+  const cached = getFreshEnergySectorCache();
   if (cached) {
     res.set("X-Cache", "HIT");
     return res.json(
@@ -42,7 +42,7 @@ router.get("/", async (req, res, next) => {
   }
 
   try {
-    const snapshot = await refreshPowerSectorCache({ reason: "request-miss" });
+    const snapshot = await refreshEnergySectorCache({ reason: "request-miss" });
     res.set("X-Cache", "MISS");
     return res.json(
       toRouteSnapshot(snapshot, {
@@ -54,7 +54,7 @@ router.get("/", async (req, res, next) => {
       })
     );
   } catch (error) {
-    const stale = getLastSuccessfulPowerSectorSnapshot();
+    const stale = getLastSuccessfulEnergySectorSnapshot();
     if (stale) {
       res.set("X-Cache", "STALE");
       return res.status(200).json({
@@ -70,7 +70,7 @@ router.get("/", async (req, res, next) => {
       });
     }
 
-    const fallback = getBundledPowerSectorSnapshot();
+    const fallback = getBundledEnergySectorSnapshot();
     if (fallback) {
       res.set("X-Cache", "SNAPSHOT");
       return res.status(200).json({
@@ -80,7 +80,7 @@ router.get("/", async (req, res, next) => {
           stale: true,
           snapshot: true,
           dataStatus: "snapshot",
-          warning: "Live NSE refresh is unavailable. Showing bundled power sector snapshot."
+          warning: "Live NSE refresh is unavailable. Showing bundled energy sector snapshot."
         })
       });
     }

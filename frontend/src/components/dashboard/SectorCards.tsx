@@ -33,7 +33,7 @@ export function SectorCards({
   const cards = [
     {
       key: "sector",
-      title: sectorIndex.name || "NIFTY POWER",
+      title: sectorIndex.name || "NIFTY ENERGY",
       value: formatPrice(sectorIndex.lastPrice),
       metric: formatPercent(sectorIndex.percentChange),
       sub: formatSignedPrice(sectorIndex.change),

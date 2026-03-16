@@ -1,5 +1,5 @@
 import { SectorOverviewModulePage } from "../sector/SectorModulePages";
 
-export function PowerOverviewPage() {
+export function EnergyOverviewPage() {
   return <SectorOverviewModulePage />;
 }

@@ -34,7 +34,7 @@ interface NavItem {
 
 const NAV_ITEMS: NavItem[] = [
   { page: "dashboard", href: "#/dashboard", title: "Dashboard", icon: LayoutDashboard },
-  { page: "companies", href: "#/companies", title: "Power Companies", icon: Factory },
+  { page: "companies", href: "#/companies", title: "Energy Companies", icon: Factory },
   { page: "analytics", href: "#/analytics", title: "Sector Analytics", icon: LineChart },
   { page: "alerts", href: "#/alerts", title: "Alerts", icon: Bell },
   { page: "watchlist", href: "#/watchlist", title: "Watchlist", icon: Star },
@@ -57,7 +57,7 @@ export function Sidebar({
         <div className={`flex items-center ${collapsed ? "justify-center" : "justify-between"} gap-2`}>
           {!collapsed ? (
             <div>
-              <p className="text-[11px] uppercase tracking-[0.2em] text-blue-700">NSE Power Sector</p>
+              <p className="text-[11px] uppercase tracking-[0.2em] text-blue-700">NSE Energy Sector</p>
               <h2 className="mt-1 font-display text-base font-semibold text-slate-900">Trading Terminal</h2>
             </div>
           ) : (

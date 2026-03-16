@@ -23,7 +23,7 @@ export function InsightsPanel({
   compact = false,
   title = "Insights Panel",
   subtitle = "AI + Fundamentals",
-  sectorName = "Power Sector"
+  sectorName = "Energy Sector"
 }: InsightsPanelProps) {
   if (compact) {
     return (

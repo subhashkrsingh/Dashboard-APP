@@ -50,7 +50,7 @@ export function StockTable({
   historyBySymbol,
   signals,
   query,
-  title = "Power Stocks Table",
+  title = "Energy Stocks Table",
   subtitle = "Sticky header, sorting, filtering, and mini trends"
 }: StockTableProps) {
   const [sortKey, setSortKey] = useState<SortKey>("percentChange");

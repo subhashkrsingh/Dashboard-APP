@@ -1,20 +1,20 @@
 import { Navigate, Route, Routes } from "react-router-dom";
 
 import { AppLayout } from "./components/AppLayout";
-import { PowerSectorPage } from "./pages/PowerSectorPage";
+import { EnergySectorPage } from "./pages/EnergySectorPage";
 import { RealEstatePage } from "./pages/RealEstatePage";
 
 export default function App() {
   return (
     <Routes>
       <Route element={<AppLayout />}>
-        <Route path="/" element={<Navigate to="/power-sector" replace />} />
+        <Route path="/" element={<Navigate to="/energy-sector" replace />} />
 
-        <Route path="/power-sector/*" element={<PowerSectorPage />} />
+        <Route path="/energy-sector/*" element={<EnergySectorPage />} />
 
         <Route path="/real-estate/*" element={<RealEstatePage />} />
 
-        <Route path="*" element={<Navigate to="/power-sector" replace />} />
+        <Route path="*" element={<Navigate to="/energy-sector" replace />} />
       </Route>
     </Routes>
   );

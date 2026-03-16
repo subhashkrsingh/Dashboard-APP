@@ -1,6 +1,6 @@
 {
   "sectorIndex": {
-    "name": "NIFTY POWER",
+    "name": "NIFTY ENERGY",
     "lastPrice": 6423.18,
     "change": 58.42,
     "percentChange": 0.92
@@ -94,6 +94,6 @@
     "timezone": "Asia/Kolkata",
     "checkedAt": "2026-03-13T09:15:00.000Z"
   },
-  "requestedIndex": "NIFTY POWER",
+  "requestedIndex": "NIFTY ENERGY",
   "fetchedAt": "2026-03-13T09:15:00.000Z"
 }

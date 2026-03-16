@@ -1,10 +1,10 @@
 import { useEffect, useState } from "react";
 
-import { usePowerSector } from "./usePowerSector";
+import { useEnergySector } from "./useEnergySector";
 
 export function useMarketData() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const marketData = usePowerSector();
+  const marketData = useEnergySector();
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {

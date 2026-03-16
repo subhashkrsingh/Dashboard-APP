@@ -4,9 +4,9 @@ const cors = require("cors");
 const express = require("express");
 const morgan = require("morgan");
 
-const powerSectorRoutes = require("./routes/powerSector");
+const energySectorRoutes = require("./routes/energySector");
 const realEstateSectorRoutes = require("./routes/realEstateSector");
-const { startPowerSectorRefresher } = require("./services/powerSectorRefresher");
+const { startEnergySectorRefresher } = require("./services/energySectorRefresher");
 const { startRealEstateSectorRefresher } = require("./services/realEstateSectorRefresher");
 
 const app = express();
@@ -32,15 +32,15 @@ app.use(morgan(process.env.NODE_ENV === "production" ? "combined" : "dev"));
 app.get("/health", (_req, res) => {
   res.json({
     status: "ok",
-    service: "power-sector-backend",
+    service: "energy-sector-backend",
     timestamp: new Date().toISOString()
   });
 });
 
-startPowerSectorRefresher();
+startEnergySectorRefresher();
 startRealEstateSectorRefresher();
 
-app.use("/api/power-sector", powerSectorRoutes);
+app.use("/api/energy-sector", energySectorRoutes);
 app.use("/api/real-estate-sector", realEstateSectorRoutes);
 
 app.use((_req, res) => {
@@ -57,7 +57,7 @@ app.use((error, _req, res, _next) => {
 
 const PORT = Number(process.env.PORT) || 3000;
 app.listen(PORT, () => {
-  console.log(`Power sector API running on port ${PORT}`);
+  console.log(`Energy sector API running on port ${PORT}`);
 });
 
 module.exports = app;

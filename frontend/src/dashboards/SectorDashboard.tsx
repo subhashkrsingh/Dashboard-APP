@@ -16,7 +16,7 @@ import { Navbar } from "../components/Navbar";
 import { StockTable } from "../components/tables/StockTable";
 import type { CompanyHistoryPoint } from "../hooks/useMarketHistory";
 import type { SectorMarketDataResult } from "../hooks/useSectorMarketData";
-import { formatPercent, formatPrice, formatVolume } from "../lib/formatters";
+import { formatClock, formatPercent, formatPrice, formatVolume } from "../lib/formatters";
 import type { SectorModuleConfig } from "../lib/sectorConfig";
 import type { CompanyQuote, PriceDirection, SectorSnapshot, TimePoint } from "../types/market";
 
@@ -65,6 +65,38 @@ function getTopByPercent(companies: CompanyQuote[], direction: "max" | "min") {
     return direction === "max" ? bValue - aValue : aValue - bValue;
   });
   return sorted[0];
+}
+
+function RefreshDiagnostics({
+  apiCacheStatus,
+  lastRefreshError,
+  tone
+}: {
+  apiCacheStatus?: string;
+  lastRefreshError?: SectorSnapshot["lastRefreshError"];
+  tone: "amber" | "rose" | "blue";
+}) {
+  if (!apiCacheStatus && !lastRefreshError) {
+    return null;
+  }
+
+  const toneClass =
+    tone === "amber"
+      ? "border-amber-300/70 bg-white/70 text-amber-900"
+      : tone === "rose"
+      ? "border-rose-300/70 bg-white/70 text-rose-900"
+      : "border-blue-300/70 bg-white/70 text-blue-900";
+
+  return (
+    <div className={`mt-3 rounded-lg border px-3 py-2 text-xs ${toneClass}`}>
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+        {apiCacheStatus ? <span className="font-semibold">API {apiCacheStatus}</span> : null}
+        {lastRefreshError?.code ? <span>Code: {lastRefreshError.code}</span> : null}
+        {lastRefreshError?.recordedAt ? <span>At: {formatClock(lastRefreshError.recordedAt)}</span> : null}
+      </div>
+      {lastRefreshError?.message ? <p className="mt-1 leading-5">{lastRefreshError.message}</p> : null}
+    </div>
+  );
 }
 
 export function SectorDashboard({
@@ -151,6 +183,7 @@ export function SectorDashboard({
         isFetching={isFetching}
         dataStatus={data?.dataStatus}
         cacheAgeMs={data?.cacheAgeMs}
+        apiCacheStatus={data?.apiCacheStatus}
         search={search}
         onSearchChange={setSearch}
         onOpenSidebar={onOpenSidebar}
@@ -188,12 +221,22 @@ export function SectorDashboard({
             {data.dataStatus === "snapshot" ? (
               <section className="glass-card rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
                 {data.warning ?? "Showing bundled or saved snapshot while live market feeds are unavailable."}
+                <RefreshDiagnostics
+                  apiCacheStatus={data.apiCacheStatus}
+                  lastRefreshError={data.lastRefreshError}
+                  tone="rose"
+                />
               </section>
             ) : null}
 
             {data.stale && data.dataStatus !== "snapshot" ? (
               <section className="glass-card rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-700">
                 {data.warning ?? "Using cached snapshot while the live feed is temporarily restricted."}
+                <RefreshDiagnostics
+                  apiCacheStatus={data.apiCacheStatus}
+                  lastRefreshError={data.lastRefreshError}
+                  tone="amber"
+                />
               </section>
             ) : null}
 
@@ -201,6 +244,7 @@ export function SectorDashboard({
               <section className="glass-card rounded-xl border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-700">
                 Requested index {data.requestedIndex ?? "NSE index"} was unavailable. Showing closest live benchmark
                 from feed.
+                <RefreshDiagnostics apiCacheStatus={data.apiCacheStatus} tone="blue" />
               </section>
             ) : null}
 

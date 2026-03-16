@@ -31,7 +31,7 @@ export function HeaderBar({ companies, marketStatus, fetchedAt, isFetching, onTo
           <p className="text-xs uppercase tracking-[0.26em] text-cyan-300/85">NSE Financial Terminal</p>
             <button type="button" onClick={onToggleSidebar} className="text-left">
               <h1 className="mt-2 font-display text-2xl font-semibold text-slate-100 md:text-3xl hover:text-cyan-200">
-                Power Sector Market Dashboard
+                Energy Sector Market Dashboard
               </h1>
             </button>
           </div>

@@ -1,5 +1,5 @@
 import { SectorStocksModulePage } from "../sector/SectorModulePages";
 
-export function PowerStocksPage() {
+export function EnergyStocksPage() {
   return <SectorStocksModulePage />;
 }

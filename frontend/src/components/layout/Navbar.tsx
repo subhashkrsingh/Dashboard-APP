@@ -13,6 +13,7 @@ interface NavbarProps {
   isFetching: boolean;
   dataStatus?: SectorDataStatus;
   cacheAgeMs?: number;
+  apiCacheStatus?: string;
   search: string;
   onSearchChange: (value: string) => void;
   onOpenSidebar: () => void;
@@ -47,11 +48,13 @@ export function Navbar({
   isFetching,
   dataStatus,
   cacheAgeMs,
+  apiCacheStatus,
   search,
   onSearchChange,
   onOpenSidebar
 }: NavbarProps) {
   const feedBadge = getDataStatusBadge(dataStatus, cacheAgeMs);
+  const showApiBadge = Boolean(apiCacheStatus) && (import.meta.env.DEV || dataStatus !== "live");
   const tickerItems = useMemo(
     () =>
       [...companies]
@@ -100,6 +103,8 @@ export function Navbar({
         <Badge tone={isFetching ? "accent" : "neutral"}>{isFetching ? "Refreshing" : "Feed Ready"}</Badge>
 
         <Badge tone={feedBadge.tone}>{feedBadge.label}</Badge>
+
+        {showApiBadge ? <Badge tone="neutral">API {apiCacheStatus}</Badge> : null}
 
         <Badge tone="neutral">IST {formatClock(fetchedAt)}</Badge>
 

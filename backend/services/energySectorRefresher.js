@@ -1,8 +1,8 @@
-const { getPowerSectorData } = require("./nseService");
-const { setPowerSectorCache, setPowerSectorRefreshError } = require("./powerSectorStore");
+const { getEnergySectorData } = require("./nseService");
+const { setEnergySectorCache, setEnergySectorRefreshError } = require("./energySectorStore");
 
-const REFRESH_INTERVAL_MS = Math.max(Number(process.env.POWER_SECTOR_REFRESH_MS) || 15000, 5000);
-const RETRY_COUNT = Math.max(Number(process.env.POWER_SECTOR_REFRESH_RETRIES) || 3, 1);
+const REFRESH_INTERVAL_MS = Math.max(Number(process.env.ENERGY_SECTOR_REFRESH_MS) || 15000, 5000);
+const RETRY_COUNT = Math.max(Number(process.env.ENERGY_SECTOR_REFRESH_RETRIES) || 5, 1);
 
 let refreshTimer = null;
 let refreshInFlight = null;
@@ -29,20 +29,20 @@ async function fetchWithRetry(task, retries = RETRY_COUNT) {
   throw lastError;
 }
 
-async function refreshPowerSectorCache({ reason = "scheduled" } = {}) {
+async function refreshEnergySectorCache({ reason = "scheduled" } = {}) {
   if (refreshInFlight) {
     return refreshInFlight;
   }
 
   refreshInFlight = (async () => {
     try {
-      const snapshot = await fetchWithRetry(() => getPowerSectorData());
-      setPowerSectorCache(snapshot);
-      console.log(`[power-sector] cache updated (${reason})`);
+      const snapshot = await fetchWithRetry(() => getEnergySectorData());
+      setEnergySectorCache(snapshot);
+      console.log(`[energy-sector] cache updated (${reason})`);
       return snapshot;
     } catch (error) {
-      setPowerSectorRefreshError(error);
-      console.warn(`[power-sector] refresh failed (${reason}): ${error?.message || error}`);
+      setEnergySectorRefreshError(error);
+      console.warn(`[energy-sector] refresh failed (${reason}): ${error?.message || error}`);
       throw error;
     } finally {
       refreshInFlight = null;
@@ -52,17 +52,17 @@ async function refreshPowerSectorCache({ reason = "scheduled" } = {}) {
   return refreshInFlight;
 }
 
-function startPowerSectorRefresher() {
+function startEnergySectorRefresher() {
   if (refreshTimer) {
     return refreshTimer;
   }
 
-  refreshPowerSectorCache({ reason: "startup" }).catch(() => {
+  refreshEnergySectorCache({ reason: "startup" }).catch(() => {
     // The route layer handles stale and snapshot fallback if warm-up misses.
   });
 
   refreshTimer = setInterval(() => {
-    refreshPowerSectorCache({ reason: "interval" }).catch(() => {
+    refreshEnergySectorCache({ reason: "interval" }).catch(() => {
       // Keep the loop alive even if NSE blocks periodically.
     });
   }, REFRESH_INTERVAL_MS);
@@ -75,6 +75,6 @@ function startPowerSectorRefresher() {
 }
 
 module.exports = {
-  refreshPowerSectorCache,
-  startPowerSectorRefresher
+  refreshEnergySectorCache,
+  startEnergySectorRefresher
 };

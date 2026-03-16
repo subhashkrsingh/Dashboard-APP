@@ -27,10 +27,10 @@ export default function Header({ marketStatus, isFetching, fetchedAt }) {
         <div>
           <p className="font-body text-xs uppercase tracking-[0.24em] text-cyan-300/80">NSE Live Dashboard</p>
           <h1 className="mt-2 font-display text-2xl font-semibold text-white md:text-3xl">
-            Power Sector Market Monitor
+            Energy Sector Market Monitor
           </h1>
           <p className="mt-2 text-sm text-slate-300">
-            Real-time snapshot of NIFTY POWER and major constituents using NSE public endpoints.
+            Real-time snapshot of NIFTY ENERGY and major constituents using NSE public endpoints.
           </p>
         </div>
 

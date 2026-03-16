@@ -32,6 +32,18 @@ function readPersistedSnapshot(storageKey: string): SectorSnapshot | undefined {
   }
 }
 
+function toClientRefreshError(error: unknown): SectorSnapshot["lastRefreshError"] | undefined {
+  if (error instanceof Error && error.message) {
+    return {
+      code: "API_UNAVAILABLE",
+      message: error.message,
+      recordedAt: new Date().toISOString()
+    };
+  }
+
+  return undefined;
+}
+
 export function useSectorMarketData({
   queryKey,
   queryFn,
@@ -39,6 +51,7 @@ export function useSectorMarketData({
   refetchInterval = 10000,
   staleTime = 9000
 }: UseSectorMarketDataOptions): SectorMarketDataResult {
+  const queryLabel = Array.isArray(queryKey) ? queryKey.join(":") : String(queryKey);
   const resolvedStorageKey = storageKey ?? `sector-snapshot:${queryKey.join(":")}`;
   const [persistedSnapshot, setPersistedSnapshot] = useState<SectorSnapshot | undefined>(() =>
     readPersistedSnapshot(resolvedStorageKey)
@@ -73,9 +86,22 @@ export function useSectorMarketData({
           stale: true,
           snapshot: persistedSnapshot.snapshot ?? false,
           dataStatus: offlineDataStatus,
-          warning: "Using saved market snapshot while the API is temporarily unavailable."
+          warning: "Using saved market snapshot while the API is temporarily unavailable.",
+          lastRefreshError: persistedSnapshot.lastRefreshError ?? toClientRefreshError(query.error)
         }
       : query.data;
+
+  useEffect(() => {
+    if (!import.meta.env.DEV || !data) {
+      return;
+    }
+
+    console.info(`[sector-data] ${queryLabel}`, {
+      xCache: data.apiCacheStatus ?? null,
+      dataStatus: data.dataStatus ?? "live",
+      lastRefreshError: data.lastRefreshError ?? null
+    });
+  }, [data, queryLabel]);
 
   const { sectorHistory, companyHistory, signals } = useMarketHistory(data);
 

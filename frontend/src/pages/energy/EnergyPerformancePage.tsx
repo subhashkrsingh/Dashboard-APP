@@ -1,5 +1,5 @@
 import { SectorPerformanceModulePage } from "../sector/SectorModulePages";
 
-export function PowerPerformancePage() {
+export function EnergyPerformancePage() {
   return <SectorPerformanceModulePage />;
 }

@@ -15,9 +15,9 @@ export function SidebarPanel({ companies, marketStatus, fetchedAt, onClose }: Si
       <div className="rounded-2xl border border-slate-700/80 bg-slate-900/85 p-4">
         <div className="flex items-start justify-between gap-2">
           <div>
-            <p className="text-xs uppercase tracking-[0.24em] text-cyan-300/85">Power Terminal</p>
+            <p className="text-xs uppercase tracking-[0.24em] text-cyan-300/85">Energy Terminal</p>
             <h2 className="mt-2 font-display text-xl font-semibold text-slate-100">Market Desk</h2>
-            <p className="mt-1 text-xs text-slate-400">NSE Power Sector Monitor</p>
+            <p className="mt-1 text-xs text-slate-400">NSE Energy Sector Monitor</p>
           </div>
           {onClose && (
             <button

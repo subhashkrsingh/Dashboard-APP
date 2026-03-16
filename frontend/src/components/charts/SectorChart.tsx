@@ -32,7 +32,7 @@ const RANGES = [
 export function SectorChart({
   sectorIndex,
   history,
-  title = "Power Sector Intraday Trend",
+  title = "Energy Sector Intraday Trend",
   subtitle,
   waitingLabel = "Waiting for intraday points..."
 }: SectorChartProps) {

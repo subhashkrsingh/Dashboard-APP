@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 
 import { toShortTime } from "../lib/formatters";
-import type { PowerSectorResponse, PriceDirection, TimePoint } from "../types/market";
+import type { PriceDirection, SectorSnapshot, TimePoint } from "../types/market";
 
 const MAX_POINTS = 120;
 
@@ -21,7 +21,7 @@ function getDirection(previous: number | null | undefined, current: number | nul
   return "flat";
 }
 
-export function useMarketHistory(snapshot: PowerSectorResponse | undefined) {
+export function useMarketHistory(snapshot: SectorSnapshot | undefined) {
   const [sectorHistory, setSectorHistory] = useState<TimePoint[]>([]);
   const [companyHistory, setCompanyHistory] = useState<CompanyHistoryMap>({});
   const [signals, setSignals] = useState<SignalMap>({});

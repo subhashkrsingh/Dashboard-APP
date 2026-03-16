@@ -2,9 +2,9 @@ const fs = require("fs");
 const path = require("path");
 const NodeCache = require("node-cache");
 
-const CACHE_KEY = "power-sector-snapshot";
-const CACHE_TTL_SECONDS = Math.max(Number(process.env.POWER_SECTOR_CACHE_TTL_SEC) || 20, 10);
-const SNAPSHOT_PATH = path.join(__dirname, "..", "data", "powerSectorSnapshot.json");
+const CACHE_KEY = "energy-sector-snapshot";
+const CACHE_TTL_SECONDS = Math.max(Number(process.env.ENERGY_SECTOR_CACHE_TTL_SEC) || 20, 10);
+const SNAPSHOT_PATH = path.join(__dirname, "..", "data", "energySectorSnapshot.json");
 
 const cache = new NodeCache({
   stdTTL: CACHE_TTL_SECONDS,
@@ -26,12 +26,12 @@ function loadBundledSnapshot() {
     bundledSnapshot = JSON.parse(fs.readFileSync(SNAPSHOT_PATH, "utf8"));
     return bundledSnapshot;
   } catch (error) {
-    console.warn("Unable to load bundled power sector snapshot:", error?.message || error);
+    console.warn("Unable to load bundled energy sector snapshot:", error?.message || error);
     return null;
   }
 }
 
-function setPowerSectorCache(snapshot) {
+function setEnergySectorCache(snapshot) {
   lastSuccessfulSnapshot = snapshot;
   lastSuccessfulAt = Date.now();
   lastRefreshError = null;
@@ -39,7 +39,7 @@ function setPowerSectorCache(snapshot) {
   return snapshot;
 }
 
-function setPowerSectorRefreshError(error) {
+function setEnergySectorRefreshError(error) {
   lastRefreshError = {
     code: error?.code || error?.statusCode || "UNKNOWN",
     message: error?.message || "Unknown refresh error",
@@ -47,7 +47,7 @@ function setPowerSectorRefreshError(error) {
   };
 }
 
-function getFreshPowerSectorCache() {
+function getFreshEnergySectorCache() {
   const snapshot = cache.get(CACHE_KEY);
   if (!snapshot) {
     return null;
@@ -59,7 +59,7 @@ function getFreshPowerSectorCache() {
   };
 }
 
-function getLastSuccessfulPowerSectorSnapshot() {
+function getLastSuccessfulEnergySectorSnapshot() {
   if (!lastSuccessfulSnapshot) {
     return null;
   }
@@ -71,14 +71,14 @@ function getLastSuccessfulPowerSectorSnapshot() {
   };
 }
 
-function getBundledPowerSectorSnapshot() {
+function getBundledEnergySectorSnapshot() {
   return loadBundledSnapshot();
 }
 
 module.exports = {
-  getBundledPowerSectorSnapshot,
-  getFreshPowerSectorCache,
-  getLastSuccessfulPowerSectorSnapshot,
-  setPowerSectorCache,
-  setPowerSectorRefreshError
+  getBundledEnergySectorSnapshot,
+  getFreshEnergySectorCache,
+  getLastSuccessfulEnergySectorSnapshot,
+  setEnergySectorCache,
+  setEnergySectorRefreshError
 };

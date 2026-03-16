@@ -2,24 +2,24 @@ import { createContext, useContext, useMemo, type ReactNode } from "react";
 
 import type { SectorMarketDataResult } from "../hooks/useSectorMarketData";
 import { useSectorMarketData } from "../hooks/useSectorMarketData";
-import { fetchPowerSectorData } from "../services/powerSectorApi";
+import { fetchEnergySectorData } from "../services/energySectorApi";
 import { fetchRealEstateSectorData } from "../services/realEstateSectorApi";
 
 interface SectorDataContextValue {
-  power: SectorMarketDataResult;
+  energy: SectorMarketDataResult;
   realEstate: SectorMarketDataResult;
 }
 
 const SectorDataContext = createContext<SectorDataContextValue | undefined>(undefined);
 
-const POWER_SECTOR_STORAGE_KEY = "sector-snapshot:power-sector:v3";
+const ENERGY_SECTOR_STORAGE_KEY = "sector-snapshot:energy-sector:v1";
 const REAL_ESTATE_STORAGE_KEY = "sector-snapshot:real-estate-sector:v3";
 
 export function SectorDataProvider({ children }: { children: ReactNode }) {
-  const power = useSectorMarketData({
-    queryKey: ["power-sector"],
-    queryFn: fetchPowerSectorData,
-    storageKey: POWER_SECTOR_STORAGE_KEY,
+  const energy = useSectorMarketData({
+    queryKey: ["energy-sector"],
+    queryFn: fetchEnergySectorData,
+    storageKey: ENERGY_SECTOR_STORAGE_KEY,
     refetchInterval: 10000,
     staleTime: 9000
   });
@@ -34,10 +34,10 @@ export function SectorDataProvider({ children }: { children: ReactNode }) {
 
   const value = useMemo(
     () => ({
-      power,
+      energy,
       realEstate
     }),
-    [power, realEstate]
+    [energy, realEstate]
   );
 
   return <SectorDataContext.Provider value={value}>{children}</SectorDataContext.Provider>;

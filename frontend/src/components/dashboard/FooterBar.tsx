@@ -4,7 +4,7 @@ interface FooterBarProps {
 }
 
 export function FooterBar({
-  productLabel = "NSE Power Sector Dashboard",
+  productLabel = "NSE Energy Sector Dashboard",
   dataSourceLabel = "Data via backend proxy"
 }: FooterBarProps) {
   const year = new Date().getFullYear();

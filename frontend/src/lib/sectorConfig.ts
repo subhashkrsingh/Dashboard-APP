@@ -37,10 +37,10 @@ export interface SectorModuleConfig {
 }
 
 export interface SectorConfig {
-  id: "power-sector" | "real-estate";
+  id: "energy-sector" | "real-estate";
   label: string;
   dashboardLabel: string;
-  basePath: "/power-sector" | "/real-estate";
+  basePath: "/energy-sector" | "/real-estate";
   icon: LucideIcon;
   sectorName: string;
   chartTitle: string;
@@ -126,18 +126,18 @@ export function buildSectorModulePath(basePath: string, segment: string) {
   return segment ? `${basePath}/${segment}` : basePath;
 }
 
-export const powerSectorConfig: SectorConfig = {
-  id: "power-sector",
-  label: "Power Sector",
-  dashboardLabel: "Power Sector Dashboard",
-  basePath: "/power-sector",
+export const energySectorConfig: SectorConfig = {
+  id: "energy-sector",
+  label: "Energy Sector",
+  dashboardLabel: "Energy Sector Dashboard",
+  basePath: "/energy-sector",
   icon: Zap,
-  sectorName: "Power Sector",
-  chartTitle: "Power Sector Intraday Trend",
-  heatmapDescription: "Instant gain/loss map for leading power companies",
-  tableTitle: "Power Stocks Table",
-  tableSubtitle: "Sorted view for NTPC, Power Grid, Tata Power, Adani Power, NHPC and peers",
-  newsTitle: "Power Sector News",
+  sectorName: "Energy Sector",
+  chartTitle: "Energy Sector Intraday Trend",
+  heatmapDescription: "Instant gain/loss map for leading energy companies",
+  tableTitle: "Energy Stocks Table",
+  tableSubtitle: "Sorted view for NTPC, Power Grid, Tata Power, Adani Power, JSW Energy and sector peers",
+  newsTitle: "Energy Sector News",
   dataSourceLabel: "Data via backend proxy",
   marketCapBySymbol: {
     NTPC: 366915,
@@ -148,22 +148,22 @@ export const powerSectorConfig: SectorConfig = {
   },
   newsItems: [
     {
-      headline: "Thermal and hydro utilities continue to anchor index breadth.",
+      headline: "Thermal, transmission, and renewable leaders continue to shape energy index breadth.",
       source: "NSE Pulse",
       time: "Today"
     },
     {
-      headline: "Transmission capex cycle remains in focus for large-cap operators.",
+      headline: "Transmission capex and grid modernization remain in focus for large-cap operators.",
       source: "Street Desk",
       time: "1h ago"
     },
     {
-      headline: "Power demand outlook stays resilient into summer consumption window.",
+      headline: "Energy demand outlook stays resilient heading into the next high-consumption window.",
       source: "Energy Wire",
       time: "2h ago"
     }
   ],
-  modules: buildSectorModules("Power Stocks", "Power Sector")
+  modules: buildSectorModules("Energy Stocks", "Energy Sector")
 };
 
 export const realEstateSectorConfig: SectorConfig = {
@@ -207,4 +207,4 @@ export const realEstateSectorConfig: SectorConfig = {
   modules: buildSectorModules("Realty Stocks", "Real Estate Sector")
 };
 
-export const sectorSidebarConfig = [powerSectorConfig, realEstateSectorConfig];
+export const sectorSidebarConfig = [energySectorConfig, realEstateSectorConfig];

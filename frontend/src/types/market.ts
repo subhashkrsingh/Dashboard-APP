@@ -61,6 +61,7 @@ export interface SectorSnapshot {
   snapshot?: boolean;
   dataStatus?: SectorDataStatus;
   cacheAgeMs?: number;
+  apiCacheStatus?: string;
   lastRefreshError?: {
     code?: string;
     message: string;
@@ -68,7 +69,7 @@ export interface SectorSnapshot {
   };
 }
 
-export type PowerSectorResponse = SectorSnapshot;
+export type EnergySectorResponse = SectorSnapshot;
 export type RealEstateSectorResponse = SectorSnapshot;
 
 export interface TimePoint {

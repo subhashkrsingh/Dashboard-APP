@@ -5,6 +5,7 @@ export const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL || "/api").replac
 export interface NormalizeOptions {
   defaultIndexName: string;
   sourceLabel: string;
+  apiCacheStatus?: string;
 }
 
 function normalizeCompany(row: Record<string, unknown>): CompanyQuote {
@@ -76,6 +77,21 @@ function normalizeCompanies(items: unknown): CompanyQuote[] {
   return items.map(item => normalizeCompany((item as Record<string, unknown>) ?? {}));
 }
 
+function normalizeLastRefreshError(value: unknown): SectorSnapshot["lastRefreshError"] | undefined {
+  if (!isObject(value)) return undefined;
+
+  const message = String(value.message ?? "").trim();
+  if (!message) {
+    return undefined;
+  }
+
+  return {
+    code: value.code ? String(value.code) : undefined,
+    message,
+    recordedAt: value.recordedAt ? String(value.recordedAt) : undefined
+  };
+}
+
 export function normalizeSectorResponse(payload: unknown, options: NormalizeOptions): SectorSnapshot {
   if (!isObject(payload)) {
     throw new Error(`Unexpected response from ${options.sourceLabel} API`);
@@ -88,7 +104,9 @@ export function normalizeSectorResponse(payload: unknown, options: NormalizeOpti
       companies: normalizeCompanies(payload.companies),
       gainers: normalizeCompanies(payload.gainers),
       losers: normalizeCompanies(payload.losers),
-      fetchedAt: String(payload.fetchedAt ?? new Date().toISOString())
+      fetchedAt: String(payload.fetchedAt ?? new Date().toISOString()),
+      apiCacheStatus: options.apiCacheStatus,
+      lastRefreshError: normalizeLastRefreshError(payload.lastRefreshError)
     } as SectorSnapshot;
   }
 
@@ -158,7 +176,9 @@ export function normalizeSectorResponse(payload: unknown, options: NormalizeOpti
       requestedIndex: payload.requestedIndex ? String(payload.requestedIndex) : undefined,
       stale: Boolean(payload.stale),
       warning: payload.warning ? String(payload.warning) : undefined,
-      cached: Boolean(payload.cached)
+      cached: Boolean(payload.cached),
+      apiCacheStatus: options.apiCacheStatus,
+      lastRefreshError: normalizeLastRefreshError(payload.lastRefreshError)
     };
   }
 

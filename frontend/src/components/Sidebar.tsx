@@ -12,7 +12,7 @@ interface SidebarProps {
 }
 
 function getActiveGroup(pathname: string) {
-  return sectorSidebarConfig.find(sector => pathname.startsWith(sector.basePath))?.id ?? "power-sector";
+  return sectorSidebarConfig.find(sector => pathname.startsWith(sector.basePath))?.id ?? "energy-sector";
 }
 
 const SECTION_HIGHLIGHT_CLASSES = ["ring-2", "ring-cyan-400", "ring-offset-2", "ring-offset-[#F5F7FB]"];

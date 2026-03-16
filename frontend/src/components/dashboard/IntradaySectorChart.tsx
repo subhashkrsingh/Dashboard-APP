@@ -24,7 +24,7 @@ export function IntradaySectorChart({ sectorIndex, history }: IntradaySectorChar
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
         <div>
           <h3 className="font-display text-lg font-semibold text-slate-100">Intraday Sector Chart</h3>
-          <p className="text-xs text-slate-400">NIFTY POWER index track (updates every 10s)</p>
+          <p className="text-xs text-slate-400">NIFTY ENERGY index track (updates every 10s)</p>
         </div>
         <div className="text-right">
           <p className="text-lg font-semibold text-slate-100">{formatPrice(sectorIndex.lastPrice)}</p>

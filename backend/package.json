@@ -1,7 +1,7 @@
 {
-  "name": "power-dashboard-backend",
+  "name": "energy-dashboard-backend",
   "version": "0.1.0",
-  "description": "NSE Power Sector backend API",
+  "description": "NSE Energy Sector backend API",
   "main": "server.js",
   "scripts": {
     "start": "node server.js",

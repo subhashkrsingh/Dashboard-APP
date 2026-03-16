@@ -1,16 +1,16 @@
 const axios = require("axios");
 
 const NSE_BASE_URL = "https://www.nseindia.com";
-const NSE_SECTOR_ENDPOINT = "/api/sectorIndices";
+const NSE_SECTOR_ENDPOINT = "/api/sectoralIndex";
 const NSE_ALL_INDICES_ENDPOINT = "/api/allIndices";
-const NSE_REQUEST_TIMEOUT_MS = Math.max(Number(process.env.NSE_REQUEST_TIMEOUT_MS) || 25000, 10000);
-const NSE_REQUESTED_INDEX_NAME = "NIFTY POWER";
+const NSE_REQUEST_TIMEOUT_MS = Math.max(Number(process.env.NSE_REQUEST_TIMEOUT_MS) || 60000, 10000);
+const NSE_REQUESTED_INDEX_NAME = "NIFTY ENERGY";
 const NSE_FALLBACK_INDEX_NAME = "NIFTY ENERGY";
 const NSE_REAL_ESTATE_INDEX_NAME = "NIFTY REALTY";
-const NSE_POWER_STOCK_ENDPOINTS = [
+const NSE_ENERGY_STOCK_ENDPOINTS = [
   {
     indexName: NSE_REQUESTED_INDEX_NAME,
-    path: "/api/equity-stockIndices?index=NIFTY%20POWER"
+    path: "/api/equity-stockIndices?index=NIFTY%20ENERGY"
   },
   {
     indexName: NSE_FALLBACK_INDEX_NAME,
@@ -43,7 +43,7 @@ const NSE_HEADERS = {
 
 const NSE_COOKIE_TTL_MS = 50 * 60 * 1000;
 
-const MAJOR_POWER_COMPANIES = [
+const MAJOR_ENERGY_COMPANIES = [
   { symbol: "NTPC", name: "NTPC", aliases: ["NTPC"] },
   {
     symbol: "POWERGRID",
@@ -220,7 +220,7 @@ function findSectorIndex(indexPayload, acceptedIndexNames) {
   );
 }
 
-function findPowerIndex(indexPayload) {
+function findEnergyIndex(indexPayload) {
   return findSectorIndex(indexPayload, [NSE_REQUESTED_INDEX_NAME, NSE_FALLBACK_INDEX_NAME]);
 }
 
@@ -239,14 +239,14 @@ function findIndexSummaryRow(stocksPayload) {
   );
 }
 
-async function fetchPowerIndexPayload() {
+async function fetchEnergyIndexPayload() {
   const candidateEndpoints = [NSE_SECTOR_ENDPOINT, NSE_ALL_INDICES_ENDPOINT];
   let lastError = null;
 
   for (const endpoint of candidateEndpoints) {
     try {
       const payload = await nseGet(endpoint);
-      if (findPowerIndex(payload)) return payload;
+      if (findEnergyIndex(payload)) return payload;
     } catch (error) {
       if (error instanceof NseServiceError && error.code === "NSE_ENDPOINT_NOT_FOUND") {
         continue;
@@ -255,12 +255,8 @@ async function fetchPowerIndexPayload() {
     }
   }
 
-  if (lastError) throw lastError;
-  throw new NseServiceError(
-    "Requested power sector index is unavailable in NSE index feeds.",
-    502,
-    "POWER_INDEX_MISSING"
-  );
+  // If not found, return null instead of throwing, so we can use derived index
+  return null;
 }
 
 async function fetchRealEstateIndexPayload() {
@@ -287,10 +283,10 @@ async function fetchRealEstateIndexPayload() {
   );
 }
 
-async function fetchPowerStocksPayload() {
+async function fetchEnergyStocksPayload() {
   let lastError = null;
 
-  for (const candidate of NSE_POWER_STOCK_ENDPOINTS) {
+  for (const candidate of NSE_ENERGY_STOCK_ENDPOINTS) {
     try {
       const payload = await nseGet(candidate.path);
       const rows = extractList(payload);
@@ -310,7 +306,7 @@ async function fetchPowerStocksPayload() {
   }
 
   if (lastError) throw lastError;
-  throw new NseServiceError("NSE power constituents feed is empty.", 502, "POWER_STOCKS_EMPTY");
+  throw new NseServiceError("NSE energy constituents feed is empty.", 502, "ENERGY_STOCKS_EMPTY");
 }
 
 async function fetchRealEstateStocksPayload() {
@@ -489,7 +485,7 @@ function enrichMajorCompanies(stocks) {
     byNormalizedSymbol.set(normalizeText(stock.symbol), stock);
   });
 
-  return MAJOR_POWER_COMPANIES.map(target => {
+  return MAJOR_ENERGY_COMPANIES.map(target => {
     const matched =
       target.aliases
         .map(alias => byNormalizedSymbol.get(normalizeText(alias)))
@@ -506,24 +502,24 @@ function enrichMajorCompanies(stocks) {
   });
 }
 
-function buildAdvanceDecline(powerIndex, stocks, stocksPayload) {
+function buildAdvanceDecline(energyIndex, stocks, stocksPayload) {
   const advances = firstNumber(
     stocksPayload?.advance?.advances,
-    powerIndex?.advances,
-    powerIndex?.advance,
-    powerIndex?.adv
+    energyIndex?.advances,
+    energyIndex?.advance,
+    energyIndex?.adv
   );
   const declines = firstNumber(
     stocksPayload?.advance?.declines,
-    powerIndex?.declines,
-    powerIndex?.decline,
-    powerIndex?.dec
+    energyIndex?.declines,
+    energyIndex?.decline,
+    energyIndex?.dec
   );
   const unchanged = firstNumber(
     stocksPayload?.advance?.unchanged,
-    powerIndex?.unchanged,
-    powerIndex?.noChange,
-    powerIndex?.flat
+    energyIndex?.unchanged,
+    energyIndex?.noChange,
+    energyIndex?.flat
   );
 
   if (advances !== null || declines !== null || unchanged !== null) {
@@ -582,14 +578,14 @@ function byPercentChangeAsc(a, b) {
   return left - right;
 }
 
-async function getPowerSectorData() {
-  let sectorPayload;
+async function getEnergySectorData() {
+  let sectorPayload = null;
   let stockPayloadDetails;
 
   try {
     [sectorPayload, stockPayloadDetails] = await Promise.all([
-      fetchPowerIndexPayload(),
-      fetchPowerStocksPayload()
+      fetchEnergyIndexPayload(),
+      fetchEnergyStocksPayload()
     ]);
   } catch (error) {
     if (error instanceof NseServiceError) throw error;
@@ -601,10 +597,10 @@ async function getPowerSectorData() {
   }
 
   const stocksPayload = stockPayloadDetails.payload;
-  const sectorIndex = findPowerIndex(sectorPayload);
+  const sectorIndex = sectorPayload ? findEnergyIndex(sectorPayload) : null;
   const derivedIndex = deriveIndexFromStocksPayload(stocksPayload);
   const summaryRow = findIndexSummaryRow(stocksPayload);
-  const powerIndex = sectorIndex || derivedIndex;
+  const energyIndex = sectorIndex || derivedIndex;
 
   const constituents = filterConstituents(stocksPayload);
   const allStocks = constituents.map(item => ({
@@ -621,21 +617,21 @@ async function getPowerSectorData() {
   const sortedByLosers = [...rankedStocks].sort(byPercentChangeAsc);
 
   const resolvedIndexName =
-    powerIndex?.index ||
-    powerIndex?.indexName ||
+    energyIndex?.index ||
+    energyIndex?.indexName ||
     stocksPayload?.name ||
     stockPayloadDetails.requestedIndexName ||
     NSE_REQUESTED_INDEX_NAME;
 
-  const resolvedLastPrice = firstNumber(powerIndex?.last, powerIndex?.lastPrice, powerIndex?.ltP);
+  const resolvedLastPrice = firstNumber(energyIndex?.last, energyIndex?.lastPrice, energyIndex?.ltP);
   const resolvedPercentChange = firstNumber(
-    powerIndex?.pChange,
-    powerIndex?.percentChange,
-    powerIndex?.perChange,
-    powerIndex?.changePercent
+    energyIndex?.pChange,
+    energyIndex?.percentChange,
+    energyIndex?.perChange,
+    energyIndex?.changePercent
   );
   const resolvedIndexChange =
-    firstNumber(powerIndex?.change, powerIndex?.netChange, powerIndex?.ch) ??
+    firstNumber(energyIndex?.change, energyIndex?.netChange, energyIndex?.ch) ??
     (resolvedLastPrice !== null && resolvedPercentChange !== null
       ? (resolvedLastPrice * resolvedPercentChange) / 100
       : null);
@@ -681,11 +677,11 @@ async function getPowerSectorData() {
     gainers: moversFromAll(sortedByGainers),
     losers: moversFromAll(sortedByLosers),
     fallbackIndexUsed: stockPayloadDetails.fallbackIndexUsed,
-    advanceDecline: buildAdvanceDecline(powerIndex, allStocks, stocksPayload),
+    advanceDecline: buildAdvanceDecline(energyIndex, allStocks, stocksPayload),
     marketStatus: getMarketStatus(),
     requestedIndex: NSE_REQUESTED_INDEX_NAME,
     sourceTimestamp: String(
-      powerIndex?.timestamp || sectorPayload?.timestamp || stocksPayload?.timestamp || ""
+      energyIndex?.timestamp || sectorPayload?.timestamp || stocksPayload?.timestamp || ""
     ),
     fetchedAt: new Date().toISOString()
   };
@@ -801,7 +797,7 @@ async function getRealEstateSectorData() {
 }
 
 module.exports = {
-  getPowerSectorData,
+  getEnergySectorData,
   getRealEstateSectorData,
   NseServiceError
 };
