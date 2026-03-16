@@ -2,6 +2,7 @@ import { Navigate, Route, Routes } from "react-router-dom";
 
 import { AppLayout } from "./components/AppLayout";
 import { EnergySectorPage } from "./pages/EnergySectorPage";
+import { OilGasPage } from "./pages/OilGasPage";
 import { RealEstatePage } from "./pages/RealEstatePage";
 
 export default function App() {
@@ -11,7 +12,7 @@ export default function App() {
         <Route path="/" element={<Navigate to="/energy-sector" replace />} />
 
         <Route path="/energy-sector/*" element={<EnergySectorPage />} />
-
+        <Route path="/oil-gas/*" element={<OilGasPage />} />
         <Route path="/real-estate/*" element={<RealEstatePage />} />
 
         <Route path="*" element={<Navigate to="/energy-sector" replace />} />

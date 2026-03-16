@@ -37,10 +37,10 @@ export interface SectorModuleConfig {
 }
 
 export interface SectorConfig {
-  id: "energy-sector" | "real-estate";
+  id: "energy-sector" | "real-estate" | "oil-gas";
   label: string;
   dashboardLabel: string;
-  basePath: "/energy-sector" | "/real-estate";
+  basePath: "/energy-sector" | "/real-estate" | "/oil-gas";
   icon: LucideIcon;
   sectorName: string;
   chartTitle: string;
@@ -199,12 +199,53 @@ export const realEstateSectorConfig: SectorConfig = {
       time: "45m ago"
     },
     {
-      headline: "Interest-rate sensitivity remains a key valuation driver for the sector.",
-      source: "Broker Watch",
-      time: "2h ago"
+      headline: "New project launches keep land prices under pressure in core markets.",
+      source: "Realty Pulse",
+      time: "1h ago"
     }
   ],
   modules: buildSectorModules("Realty Stocks", "Real Estate Sector")
 };
 
-export const sectorSidebarConfig = [energySectorConfig, realEstateSectorConfig];
+export const oilGasSectorConfig: SectorConfig = {
+  id: "oil-gas",
+  label: "Oil & Gas Sector",
+  dashboardLabel: "Oil & Gas Dashboard",
+  basePath: "/oil-gas",
+  icon: Activity,
+  sectorName: "Oil & Gas Sector",
+  chartTitle: "Oil & Gas Sector Intraday Trend",
+  heatmapDescription: "Key pricing action for upstream, downstream, and refining majors",
+  tableTitle: "Oil & Gas Stocks Table",
+  tableSubtitle: "Sorted view for Reliance, ONGC, Oil India, BPCL, HPCL, GAIL and peers",
+  newsTitle: "Oil & Gas Sector News",
+  dataSourceLabel: "Data via backend proxy",
+  marketCapBySymbol: {
+    RELIANCE: 2540000,
+    ONGC: 600000,
+    OIL: 240000,
+    BPCL: 300000,
+    HPCL: 260000,
+    GAIL: 180000
+  },
+  newsItems: [
+    {
+      headline: "Crude oil volatility is driving sector-wide hedging activity.",
+      source: "Energy Pulse",
+      time: "Today"
+    },
+    {
+      headline: "Refining margins show signs of improvement amid global demand recovery.",
+      source: "Market Brief",
+      time: "1h ago"
+    },
+    {
+      headline: "Gas distribution volumes stay strong as domestic demand outpaces supply.",
+      source: "Commodity Desk",
+      time: "2h ago"
+    }
+  ],
+  modules: buildSectorModules("Oil & Gas Stocks", "Oil & Gas Sector")
+};
+
+export const sectorSidebarConfig = [energySectorConfig, oilGasSectorConfig, realEstateSectorConfig];

@@ -24,6 +24,14 @@ const NSE_REAL_ESTATE_STOCK_ENDPOINTS = [
   }
 ];
 
+const NSE_OIL_GAS_INDEX_NAME = "NIFTY OIL & GAS";
+const NSE_OIL_GAS_STOCK_ENDPOINTS = [
+  {
+    indexName: NSE_OIL_GAS_INDEX_NAME,
+    path: "/api/equity-stockIndices?index=NIFTY%20OIL%20%26%20GAS"
+  }
+];
+
 const NSE_HEADERS = {
   "User-Agent":
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
@@ -65,6 +73,39 @@ const MAJOR_ENERGY_COMPANIES = [
     symbol: "RPOWER",
     name: "Reliance Power",
     aliases: ["RPOWER", "RELIANCEPOWER"]
+  }
+];
+
+const MAJOR_OIL_GAS_COMPANIES = [
+  {
+    symbol: "RELIANCE",
+    name: "Reliance Industries",
+    aliases: ["RELIANCE", "RELIANCEIND"]
+  },
+  {
+    symbol: "ONGC",
+    name: "ONGC",
+    aliases: ["ONGC"]
+  },
+  {
+    symbol: "OIL",
+    name: "Oil India",
+    aliases: ["OIL"]
+  },
+  {
+    symbol: "BPCL",
+    name: "BPCL",
+    aliases: ["BPCL"]
+  },
+  {
+    symbol: "HPCL",
+    name: "HPCL",
+    aliases: ["HPCL"]
+  },
+  {
+    symbol: "GAIL",
+    name: "GAIL",
+    aliases: ["GAIL"]
   }
 ];
 
@@ -228,6 +269,10 @@ function findRealEstateIndex(indexPayload) {
   return findSectorIndex(indexPayload, [NSE_REAL_ESTATE_INDEX_NAME]);
 }
 
+function findOilGasIndex(indexPayload) {
+  return findSectorIndex(indexPayload, [NSE_OIL_GAS_INDEX_NAME]);
+}
+
 function findIndexSummaryRow(stocksPayload) {
   const rows = extractList(stocksPayload);
   const indexName = String(stocksPayload?.name || "").trim();
@@ -283,6 +328,26 @@ async function fetchRealEstateIndexPayload() {
   );
 }
 
+async function fetchOilGasIndexPayload() {
+  const candidateEndpoints = [NSE_SECTOR_ENDPOINT, NSE_ALL_INDICES_ENDPOINT];
+  let lastError = null;
+
+  for (const endpoint of candidateEndpoints) {
+    try {
+      const payload = await nseGet(endpoint);
+      if (findOilGasIndex(payload)) return payload;
+    } catch (error) {
+      if (error instanceof NseServiceError && error.code === "NSE_ENDPOINT_NOT_FOUND") {
+        continue;
+      }
+      lastError = error;
+    }
+  }
+
+  // If not found, return null instead of throwing, so we can use derived index.
+  return null;
+}
+
 async function fetchEnergyStocksPayload() {
   let lastError = null;
 
@@ -307,6 +372,32 @@ async function fetchEnergyStocksPayload() {
 
   if (lastError) throw lastError;
   throw new NseServiceError("NSE energy constituents feed is empty.", 502, "ENERGY_STOCKS_EMPTY");
+}
+
+async function fetchOilGasStocksPayload() {
+  let lastError = null;
+
+  for (const candidate of NSE_OIL_GAS_STOCK_ENDPOINTS) {
+    try {
+      const payload = await nseGet(candidate.path);
+      const rows = extractList(payload);
+      if (rows.length > 0) {
+        return {
+          payload,
+          requestedIndexName: candidate.indexName,
+          fallbackIndexUsed: candidate.indexName !== NSE_OIL_GAS_INDEX_NAME
+        };
+      }
+    } catch (error) {
+      if (error instanceof NseServiceError && error.code === "NSE_ENDPOINT_NOT_FOUND") {
+        continue;
+      }
+      lastError = error;
+    }
+  }
+
+  if (lastError) throw lastError;
+  throw new NseServiceError("NSE oil & gas constituents feed is empty.", 502, "OIL_GAS_STOCKS_EMPTY");
 }
 
 async function fetchRealEstateStocksPayload() {
@@ -687,6 +778,115 @@ async function getEnergySectorData() {
   };
 }
 
+async function getOilGasSectorData() {
+  let sectorPayload = null;
+  let stockPayloadDetails;
+
+  try {
+    [sectorPayload, stockPayloadDetails] = await Promise.all([
+      fetchOilGasIndexPayload(),
+      fetchOilGasStocksPayload()
+    ]);
+  } catch (error) {
+    if (error instanceof NseServiceError) throw error;
+    throw new NseServiceError(
+      `Unable to fetch NSE data: ${error?.message || "Unknown error"}`,
+      503,
+      "NSE_NETWORK_ERROR"
+    );
+  }
+
+  const stocksPayload = stockPayloadDetails.payload;
+  const sectorIndex = sectorPayload ? findOilGasIndex(sectorPayload) : null;
+  const derivedIndex = deriveIndexFromStocksPayload(stocksPayload);
+  const summaryRow = findIndexSummaryRow(stocksPayload);
+  const oilGasIndex = sectorIndex || derivedIndex;
+
+  const constituents = filterConstituents(stocksPayload);
+  const allStocks = constituents.map(item => ({
+    company: item.company,
+    symbol: item.symbol,
+    price: item.price,
+    change: item.change,
+    percentChange: item.percentChange,
+    volume: item.volume
+  }));
+
+  const rankedStocks = allStocks.filter(stock => Number.isFinite(stock.percentChange));
+  const sortedByGainers = [...rankedStocks].sort(byPercentChangeDesc);
+  const sortedByLosers = [...rankedStocks].sort(byPercentChangeAsc);
+
+  const resolvedIndexName =
+    oilGasIndex?.index ||
+    oilGasIndex?.indexName ||
+    stocksPayload?.name ||
+    stockPayloadDetails.requestedIndexName ||
+    NSE_OIL_GAS_INDEX_NAME;
+
+  const resolvedLastPrice = firstNumber(oilGasIndex?.last, oilGasIndex?.lastPrice, oilGasIndex?.ltP);
+  const resolvedPercentChange = firstNumber(
+    oilGasIndex?.pChange,
+    oilGasIndex?.percentChange,
+    oilGasIndex?.perChange,
+    oilGasIndex?.changePercent
+  );
+  const resolvedIndexChange =
+    firstNumber(oilGasIndex?.change, oilGasIndex?.netChange, oilGasIndex?.ch) ??
+    (resolvedLastPrice !== null && resolvedPercentChange !== null
+      ? (resolvedLastPrice * resolvedPercentChange) / 100
+      : null);
+  const indexDetails = buildSectorIndexDetails(
+    sectorIndex,
+    summaryRow,
+    stocksPayload,
+    allStocks,
+    resolvedLastPrice,
+    resolvedIndexChange
+  );
+
+  const allCompaniesSorted = [...allStocks]
+    .sort((a, b) => String(a.symbol).localeCompare(String(b.symbol)))
+    .map(company => ({
+      symbol: company.symbol,
+      name: company.company,
+      price: company.price,
+      change: company.change,
+      percentChange: company.percentChange,
+      volume: company.volume
+    }));
+
+  const moversFromAll = rows =>
+    rows.slice(0, 5).map(item => ({
+      symbol: item.symbol,
+      name: item.company,
+      price: item.price,
+      change: item.change,
+      percentChange: item.percentChange,
+      volume: item.volume
+    }));
+
+  return {
+    sectorIndex: {
+      name: String(resolvedIndexName),
+      lastPrice: resolvedLastPrice,
+      change: resolvedIndexChange,
+      percentChange: resolvedPercentChange,
+      ...indexDetails
+    },
+    companies: allCompaniesSorted,
+    gainers: moversFromAll(sortedByGainers),
+    losers: moversFromAll(sortedByLosers),
+    fallbackIndexUsed: stockPayloadDetails.fallbackIndexUsed,
+    advanceDecline: buildAdvanceDecline(oilGasIndex, allStocks, stocksPayload),
+    marketStatus: getMarketStatus(),
+    requestedIndex: NSE_OIL_GAS_INDEX_NAME,
+    sourceTimestamp: String(
+      oilGasIndex?.timestamp || sectorPayload?.timestamp || stocksPayload?.timestamp || ""
+    ),
+    fetchedAt: new Date().toISOString()
+  };
+}
+
 async function getRealEstateSectorData() {
   let sectorPayload;
   let stockPayloadDetails;
@@ -798,6 +998,7 @@ async function getRealEstateSectorData() {
 
 module.exports = {
   getEnergySectorData,
+  getOilGasSectorData,
   getRealEstateSectorData,
   NseServiceError
 };

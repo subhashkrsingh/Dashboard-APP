@@ -5,8 +5,10 @@ const express = require("express");
 const morgan = require("morgan");
 
 const energySectorRoutes = require("./routes/energySector");
+const oilGasSectorRoutes = require("./routes/oilGasSector");
 const realEstateSectorRoutes = require("./routes/realEstateSector");
 const { startEnergySectorRefresher } = require("./services/energySectorRefresher");
+const { startOilGasSectorRefresher } = require("./services/oilGasSectorRefresher");
 const { startRealEstateSectorRefresher } = require("./services/realEstateSectorRefresher");
 
 const app = express();
@@ -38,9 +40,11 @@ app.get("/health", (_req, res) => {
 });
 
 startEnergySectorRefresher();
+startOilGasSectorRefresher();
 startRealEstateSectorRefresher();
 
 app.use("/api/energy-sector", energySectorRoutes);
+app.use("/api/oil-gas", oilGasSectorRoutes);
 app.use("/api/real-estate-sector", realEstateSectorRoutes);
 
 app.use((_req, res) => {
