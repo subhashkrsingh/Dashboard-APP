@@ -13,6 +13,7 @@ export function EnergySectorPage() {
       dashboardLabel={energySectorConfig.dashboardLabel}
       pageTitle="Energy Sector Analytics"
       sectorName={energySectorConfig.sectorName}
+      sectorId={energySectorConfig.id}
       chartTitle={energySectorConfig.chartTitle}
       heatmapDescription={energySectorConfig.heatmapDescription}
       tableTitle={energySectorConfig.tableTitle}

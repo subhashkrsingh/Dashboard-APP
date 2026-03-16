@@ -13,6 +13,7 @@ export function OilGasDashboard() {
       dashboardLabel={oilGasSectorConfig.dashboardLabel}
       pageTitle="Oil & Gas Sector Analytics"
       sectorName={oilGasSectorConfig.sectorName}
+      sectorId={oilGasSectorConfig.id}
       chartTitle={oilGasSectorConfig.chartTitle}
       heatmapDescription={oilGasSectorConfig.heatmapDescription}
       tableTitle={oilGasSectorConfig.tableTitle}

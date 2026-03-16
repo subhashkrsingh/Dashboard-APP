@@ -9,7 +9,7 @@ import { SectorCard } from "../components/cards/SectorCard";
 import { SectorNewsPanel } from "../components/cards/SectorNewsPanel";
 import { TopMoversPanel } from "../components/cards/TopMoversPanel";
 import { PerformanceChart } from "../components/charts/PerformanceChart";
-import { SectorChart } from "../components/charts/SectorChart";
+import { SectorIntradayChart } from "../components/charts/SectorIntradayChart";
 import { DashboardSkeleton } from "../components/dashboard/DashboardSkeleton";
 import { FooterBar } from "../components/dashboard/FooterBar";
 import { Navbar } from "../components/Navbar";
@@ -31,6 +31,7 @@ interface SectorDashboardProps {
   dashboardLabel: string;
   pageTitle: string;
   sectorName: string;
+  sectorId: string;
   chartTitle: string;
   heatmapDescription: string;
   tableTitle: string;
@@ -104,6 +105,7 @@ export function SectorDashboard({
   dashboardLabel,
   pageTitle,
   sectorName,
+  sectorId,
   chartTitle,
   heatmapDescription,
   tableTitle,
@@ -252,6 +254,7 @@ export function SectorDashboard({
               data={data}
               search={search}
               sectorName={sectorName}
+              sectorId={sectorId}
               chartTitle={chartTitle}
               heatmapDescription={heatmapDescription}
               tableTitle={tableTitle}
@@ -277,6 +280,7 @@ interface DashboardContentProps {
   data: SectorSnapshot;
   search: string;
   sectorName: string;
+  sectorId: string;
   chartTitle: string;
   heatmapDescription: string;
   tableTitle: string;
@@ -294,6 +298,7 @@ function DashboardContent({
   data,
   search,
   sectorName,
+  sectorId,
   chartTitle,
   heatmapDescription,
   tableTitle,
@@ -364,11 +369,13 @@ function DashboardContent({
       </section>
 
       <section id={intradaySectionId} className={SECTION_WRAPPER_CLASS}>
-        <SectorChart
-          sectorIndex={data.sectorIndex}
-          history={sectorHistory}
+        <SectorIntradayChart
+          sectorId={sectorId}
           title={chartTitle}
-          subtitle={`Live movement of ${data.sectorIndex.name || sectorName.toUpperCase()}`}
+          week52High={data.sectorIndex.yearHigh}
+          week52Low={data.sectorIndex.yearLow}
+          intradayHigh={data.sectorIndex.dayHigh}
+          intradayLow={data.sectorIndex.dayLow}
         />
       </section>
 

@@ -13,6 +13,7 @@ export function RealEstatePage() {
       dashboardLabel={realEstateSectorConfig.dashboardLabel}
       pageTitle="Real Estate Sector Analytics"
       sectorName={realEstateSectorConfig.sectorName}
+      sectorId={realEstateSectorConfig.id}
       chartTitle={realEstateSectorConfig.chartTitle}
       heatmapDescription={realEstateSectorConfig.heatmapDescription}
       tableTitle={realEstateSectorConfig.tableTitle}

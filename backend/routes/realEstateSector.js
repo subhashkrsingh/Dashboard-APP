@@ -101,4 +101,16 @@ router.get("/", async (req, res, next) => {
   }
 });
 
+router.get("/intraday", async (req, res) => {
+  // Generate sample intraday data for Real Estate sector
+  // In production, this would fetch real intraday data from NSE
+  const times = ["09:15", "09:30", "10:00", "11:00", "12:00", "13:00", "14:00", "15:00"];
+  const values = [3800, 3780, 3820, 3790, 3810, 3785, 3830, 3840];
+
+  res.json({
+    time: times,
+    value: values
+  });
+});
+
 module.exports = router;
