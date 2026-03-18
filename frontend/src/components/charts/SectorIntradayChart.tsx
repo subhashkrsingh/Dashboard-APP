@@ -72,11 +72,18 @@ export function SectorIntradayChart({
 
   const chartData: ChartDataPoint[] = useMemo(() => {
     if (!data) return [];
-    return data.time.map((time, index) => ({
+    const mapped = data.time.map((time, index) => ({
       time,
       value: data.value[index]
     }));
-  }, [data]);
+    if (mapped.length > 0) {
+      const values = mapped.map(d => d.value);
+      const min = Math.min(...values);
+      const max = Math.max(...values);
+      console.debug(`[Intraday ${sectorId}] Points: ${mapped.length}, Range: ${min.toFixed(2)}-${max.toFixed(2)} (span: ${(max-min).toFixed(2)})`);
+    }
+    return mapped;
+  }, [data, sectorId]);
   const openingValue = chartData[0]?.value ?? null;
   const currentValue = chartData[chartData.length - 1]?.value ?? null;
   const absoluteChange =
@@ -183,6 +190,7 @@ export function SectorIntradayChart({
               tick={{ fontSize: 12, fill: "#64748B" }}
             />
             <YAxis
+              domain={['dataMin - 50', 'dataMax + 50']}
               axisLine={false}
               tickLine={false}
               tick={{ fontSize: 12, fill: "#64748B" }}

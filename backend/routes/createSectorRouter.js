@@ -108,24 +108,31 @@ function createSectorRouter({
     const bundled = cached || stale ? null : getBundledSnapshot();
     const preferredSnapshot = cached?.data ?? stale?.data ?? bundled ?? null;
 
+    // Try NSE intraday series, but use synthetic as immediate fallback
+    let nseSeriesOrNull = null;
     if (intradayIndexName) {
       try {
-        const series = await fetchIntradaySeriesFromNse(intradayIndexName);
-        res.set("X-Cache", "LIVE");
-        return res.json({
-          ...series,
-          source: "nse",
-          fetchedAt: new Date().toISOString()
-        });
+        nseSeriesOrNull = await fetchIntradaySeriesFromNse(intradayIndexName);
+        if (nseSeriesOrNull) {
+          res.set("X-Cache", "LIVE");
+          return res.json({
+            ...nseSeriesOrNull,
+            source: "nse-live",
+            fetchedAt: new Date().toISOString()
+          });
+        }
       } catch (error) {
-        // Fall back to synthetic series when NSE intraday is unavailable.
-        console.warn(`[intraday] NSE series fetch failed for ${intradayIndexName}:`, error?.message || error);
+        // NSE failed, use synthetic
       }
     }
 
+    // Return synthetic curve (fast fallback)
     const cacheHeader = cached ? "HIT" : stale ? "STALE" : bundled ? "SNAPSHOT" : "MISS";
     res.set("X-Cache", cacheHeader);
-    return res.json(buildIntradaySeries(preferredSnapshot, { seedPrice: intradaySeedPrice }));
+    res.json({
+      ...buildIntradaySeries(preferredSnapshot, { seedPrice: intradaySeedPrice }),
+      source: "synthetic"
+    });
   });
 
   return router;

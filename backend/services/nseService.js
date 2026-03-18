@@ -4,6 +4,7 @@ const NSE_BASE_URL = "https://www.nseindia.com";
 const NSE_SECTOR_ENDPOINT = "/api/sectoralIndex";
 const NSE_ALL_INDICES_ENDPOINT = "/api/allIndices";
 const NSE_REQUEST_TIMEOUT_MS = Math.max(Number(process.env.NSE_REQUEST_TIMEOUT_MS) || 60000, 10000);
+const NSE_INTRADAY_TIMEOUT_MS = 8000; // Short timeout for intraday (8 sec) to avoid hanging clients
 const NSE_REQUESTED_INDEX_NAME = "NIFTY ENERGY";
 const NSE_FALLBACK_INDEX_NAME = "NIFTY ENERGY";
 const NSE_REAL_ESTATE_INDEX_NAME = "NIFTY REALTY";
@@ -41,7 +42,7 @@ const NSE_HEADERS = {
   "Accept-Language": "en-US,en;q=0.9",
   "Accept-Encoding": "gzip, deflate, br",
   Connection: "keep-alive",
-  Referer: "https://www.nseindia.com/",
+  Referer: "https://www.nseindia.com/market-data/live-equity-market",
   Origin: "https://www.nseindia.com",
   "Cache-Control": "no-cache",
   Pragma: "no-cache",
@@ -174,6 +175,8 @@ function extractList(payload) {
   if (Array.isArray(payload)) return payload;
   if (Array.isArray(payload?.data)) return payload.data;
   if (Array.isArray(payload?.indexData)) return payload.indexData;
+  if (Array.isArray(payload?.grapthData)) return payload.grapthData;
+  if (Array.isArray(payload?.graphData)) return payload.graphData;
   return [];
 }
 
@@ -199,7 +202,10 @@ function parseStatusError(response, path) {
 }
 
 async function establishNseSession() {
-  const response = await http.get(NSE_BASE_URL, {
+  // NSE expects a browser-like session; requesting the live-equity-market page tends to
+  // return cookies needed for all subsequent API calls (including chart-databyindex).
+  const landingUrl = `${NSE_BASE_URL}/market-data/live-equity-market`;
+  const response = await http.get(landingUrl, {
     headers: {
       ...NSE_HEADERS,
       Accept: "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8"
@@ -534,17 +540,54 @@ function parseIntradaySeriesPayload(payload) {
 }
 
 async function fetchIntradaySeriesFromNse(indexName, duration = "1d") {
-  const query = `?index=${encodeURIComponent(indexName)}&duration=${encodeURIComponent(duration)}`;
-  const payload = await nseGet(`${NSE_INTRADAY_ENDPOINT}${query}`);
-  const series = parseIntradaySeriesPayload(payload);
-  if (!series) {
-    throw new NseServiceError(
-      `NSE intraday series payload did not contain usable series for index ${indexName}.`,
-      502,
-      "NSE_INTRADAY_EMPTY"
-    );
-  }
-  return series;
+  // Wrap the fetch with a fast timeout to prevent client hangs.
+  // NSE intraday data is non-critical, so we fail fast and use synthetic curves.
+  return Promise.race([
+    (async () => {
+      const query = `?index=${encodeURIComponent(indexName)}&duration=${encodeURIComponent(duration)}`;
+      try {
+        const payload = await nseGet(`${NSE_INTRADAY_ENDPOINT}${query}`);
+        const series = parseIntradaySeriesPayload(payload);
+
+        if (!series) {
+          if (process.env.NODE_ENV !== "production") {
+            console.debug(
+              "[nse-intraday] NSE returned empty series for",
+              indexName,
+              "- using synthetic intraday curve"
+            );
+          }
+          return null;
+        }
+
+        if (process.env.NODE_ENV !== "production") {
+          console.log("[nse-intraday]", indexName, "series points:", series.time.length);
+        }
+        return series;
+      } catch (error) {
+        if (process.env.NODE_ENV !== "production") {
+          console.warn(
+            "[nse-intraday] fetch error for",
+            indexName,
+            "-",
+            error?.message || error
+          );
+        }
+        return null;
+      }
+    })(),
+    new Promise((_, reject) =>
+      setTimeout(
+        () => reject(new Error("timeout")),
+        NSE_INTRADAY_TIMEOUT_MS
+      )
+    )
+  ]).catch(() => {
+    if (process.env.NODE_ENV !== "production") {
+      console.debug("[nse-intraday] timeout for", indexName, "- using synthetic curve");
+    }
+    return null;
+  });
 }
 
 function readMetricFromSources(sources, keys) {
