@@ -8,5 +8,19 @@ export default defineConfig({
     proxy: {
       "/api": "http://127.0.0.1:3000"
     }
+  },
+  build: {
+    chunkSizeWarningLimit: 650,
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          react: ["react", "react-dom", "react-router-dom"],
+          query: ["@tanstack/react-query", "axios"],
+          charts: ["recharts"],
+          motion: ["framer-motion"],
+          icons: ["lucide-react"]
+        }
+      }
+    }
   }
 });

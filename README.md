@@ -1,102 +1,34 @@
-# NSE Power Sector Financial Dashboard
+# Power Sector Dashboard
 
-Production-grade React + Node.js financial dashboard for NSE power-sector tracking with live polling, animated market UI, and backend-only NSE access.
+Production-ready sector analytics dashboard for NSE energy, oil and gas, and real estate tracking.
 
-## Tech Stack
+## Architecture
 
-- Frontend: React (Vite), TypeScript, Axios, React Query, Recharts, TailwindCSS, Framer Motion
-- Backend: Node.js, Express, Axios, Node Cache, CORS
-- Data: NSE public endpoints (no API key)
+- `backend/`: Express API, NSE proxy layer, cache refreshers, fallback snapshots, health checks
+- `frontend/`: React + Vite dashboard, React Query data layer, production UI
+- `render.yaml`: single-service deployment config that builds the frontend and serves it from the backend
 
-## Live Features
+In production, the recommended setup is:
 
-- MoneyControl/TradingView-style dark dashboard layout
-- Infinite top ticker for power-sector stocks
-- Animated live sector cards:
-  - Sector index
-  - Top gainer
-  - Top loser
-  - Total market volume
-- Sortable + searchable power company table
-- Real-time green/red flash on price updates
-- Intraday live sector line chart (10s polling)
-- Company comparison chart (up to 3 companies, price/% growth)
-- Market movers panel (gainers + losers)
-- Market open/closed indicator
-- Sector performance bar
-- Loading skeletons + stale-data fallback UI
+1. Build `frontend/`
+2. Start `backend/`
+3. Serve the built SPA and `/api/*` from the same origin
 
-## Backend API
+That removes cross-origin issues, avoids frontend rewrite drift, and keeps `VITE_API_BASE_URL=/api`.
 
-### GET `/api/power-sector`
+## API Endpoints
 
-Returns:
+- `GET /api/health`
+- `GET /api/energy-sector`
+- `GET /api/energy-sector/intraday`
+- `GET /api/oil-gas`
+- `GET /api/oil-gas/intraday`
+- `GET /api/real-estate-sector`
+- `GET /api/real-estate-sector/intraday`
 
-```json
-{
-  "sectorIndex": {
-    "name": "NIFTY POWER",
-    "lastPrice": 0,
-    "change": 0,
-    "percentChange": 0
-  },
-  "companies": [
-    {
-      "symbol": "NTPC",
-      "name": "NTPC",
-      "price": 0,
-      "change": 0,
-      "percentChange": 0,
-      "volume": 0
-    }
-  ],
-  "gainers": [],
-  "losers": [],
-  "advanceDecline": {
-    "advances": 0,
-    "declines": 0,
-    "unchanged": 0
-  },
-  "marketStatus": {
-    "isOpen": true,
-    "label": "OPEN",
-    "timezone": "Asia/Kolkata",
-    "checkedAt": "2026-03-10T00:00:00.000Z"
-  },
-  "fetchedAt": "2026-03-10T00:00:00.000Z"
-}
-```
+`/api/health` includes cache readiness, fallback availability, last successful refresh age, and deployment mode.
 
-- Response cache TTL: **10 seconds**
-- If NSE blocks/rate-limits, backend serves latest successful snapshot when available.
-
-## Project Structure
-
-```text
-backend/
-  server.js
-  routes/powerSector.js
-  services/nseService.js
-
-frontend/
-  src/
-    App.tsx
-    main.tsx
-    components/dashboard/
-      HeaderBar.tsx
-      SectorCards.tsx
-      IntradaySectorChart.tsx
-      CompanyComparisonChart.tsx
-      CompanyTable.tsx
-      MarketMoversPanel.tsx
-      PerformanceBar.tsx
-      DashboardSkeleton.tsx
-    hooks/useMarketHistory.ts
-    services/powerSectorApi.ts
-    types/market.ts
-```
-
-## Local Setup
+## Local Development
 
 ### Backend
 
@@ -107,8 +39,6 @@ npm install
 npm start
 ```
 
-Runs on `http://localhost:3000`.
-
 ### Frontend
 
 ```bash
@@ -118,28 +48,35 @@ npm install
 npm run dev
 ```
 
-Runs on `http://localhost:5173`.
+The Vite dev server proxies `/api` to `http://127.0.0.1:3000`.
 
-## Deployment
+## Production Deployment
 
-### Render (Backend)
+### Render
 
-- Root directory: `backend`
-- Build command: `npm install`
-- Start command: `npm start`
-- Env:
-  - `PORT=3000` (Render may override)
-  - `FRONTEND_ORIGIN=https://<your-vercel-domain>`
+The repo includes [`render.yaml`](/c:/Users/Subhash%20kumar%20singh/OneDrive/Desktop/Power%20Sector%20Dashboard/render.yaml) for a single web service deployment.
 
-### Vercel (Frontend)
+Render will:
 
-- Root directory: `frontend`
-- Build command: `npm run build`
-- Output directory: `dist`
-- Env:
-  - `VITE_API_BASE_URL=https://<your-render-domain>/api`
+- install backend and frontend dependencies
+- build the frontend bundle
+- start the Express backend
+- serve both SPA routes and API routes from one domain
 
-## Notes
+### Required Environment Variables
 
-- Frontend never calls NSE directly; all traffic goes through backend `/api/power-sector`.
-- NSE currently shows endpoint variability; backend keeps `sectorIndices` in flow and uses resilient fallbacks when unavailable.
+- `NODE_ENV=production`
+- `SERVE_STATIC_FRONTEND=true`
+- `PORT` provided by platform
+
+Optional:
+
+- `FRONTEND_ORIGIN` only needed if you intentionally split frontend and backend domains
+- `*_CACHE_TTL_SEC` and `*_REFRESH_MS` to tune cache and polling cadence
+
+## Production Notes
+
+- Frontend API calls are centralized through one Axios client.
+- Intraday panels now use the same backend contract as the rest of the dashboard.
+- SPA routes use `BrowserRouter`, and the backend serves `index.html` fallback in production.
+- Each sector route falls back to cached or bundled snapshots when NSE is delayed or blocked.

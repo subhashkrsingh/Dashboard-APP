@@ -72,6 +72,13 @@ export interface SectorSnapshot {
 export type EnergySectorResponse = SectorSnapshot;
 export type RealEstateSectorResponse = SectorSnapshot;
 
+export interface SectorIntradayResponse {
+  time: string[];
+  value: number[];
+  source?: string;
+  fetchedAt: string;
+}
+
 export interface TimePoint {
   time: string;
   isoTime: string;

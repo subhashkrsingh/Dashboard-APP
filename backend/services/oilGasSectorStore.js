@@ -75,9 +75,21 @@ function getBundledOilGasSectorSnapshot() {
   return loadBundledSnapshot();
 }
 
+function getOilGasSectorStatus() {
+  return {
+    hasFreshCache: Boolean(cache.get(CACHE_KEY)),
+    hasLastSuccessfulSnapshot: Boolean(lastSuccessfulSnapshot),
+    hasBundledSnapshot: Boolean(loadBundledSnapshot()),
+    lastSuccessfulAt: lastSuccessfulAt ? new Date(lastSuccessfulAt).toISOString() : null,
+    lastSuccessfulAgeMs: lastSuccessfulAt ? Math.max(0, Date.now() - lastSuccessfulAt) : null,
+    lastRefreshError
+  };
+}
+
 module.exports = {
   getBundledOilGasSectorSnapshot,
   getFreshOilGasSectorCache,
+  getOilGasSectorStatus,
   getLastSuccessfulOilGasSectorSnapshot,
   setOilGasSectorCache,
   setOilGasSectorRefreshError

@@ -192,11 +192,35 @@ export function SectorDashboard({
       />
 
       <div className="space-y-4 px-4 py-4 md:px-6">
-        <section className="glass-card rounded-2xl border border-[#E6EAF2] p-4">
-          <p className="text-xs uppercase tracking-[0.2em] text-blue-600">{dashboardLabel}</p>
-          <div className="mt-2 flex items-center gap-3">
-            <Activity className="h-5 w-5 text-blue-600" />
-            <h1 className="font-display text-2xl font-semibold text-slate-900">{pageTitle}</h1>
+        <section className="glass-card rounded-[28px] border border-[#E6EAF2] p-5 md:p-6">
+          <div className="flex flex-col gap-5 xl:flex-row xl:items-end xl:justify-between">
+            <div>
+              <p className="text-xs uppercase tracking-[0.24em] text-blue-600">{dashboardLabel}</p>
+              <div className="mt-2 flex items-center gap-3">
+                <Activity className="h-5 w-5 text-blue-600" />
+                <h1 className="font-display text-2xl font-semibold text-slate-900 md:text-3xl">{pageTitle}</h1>
+              </div>
+              <p className="mt-3 max-w-3xl text-sm leading-6 text-slate-500">
+                Track breadth, sector rotation, top movers, and live index behaviour from one production-ready desk.
+              </p>
+            </div>
+
+            <div className="grid gap-3 sm:grid-cols-3">
+              <article className="rounded-2xl border border-slate-200 bg-white px-4 py-3">
+                <p className="text-[11px] uppercase tracking-[0.18em] text-slate-500">Spot</p>
+                <p className="mt-2 text-lg font-semibold text-slate-900">{formatPrice(data?.sectorIndex.lastPrice)}</p>
+              </article>
+              <article className="rounded-2xl border border-slate-200 bg-white px-4 py-3">
+                <p className="text-[11px] uppercase tracking-[0.18em] text-slate-500">Change</p>
+                <p className="mt-2 text-lg font-semibold text-slate-900">
+                  {formatPercent(data?.sectorIndex.percentChange)}
+                </p>
+              </article>
+              <article className="rounded-2xl border border-slate-200 bg-white px-4 py-3">
+                <p className="text-[11px] uppercase tracking-[0.18em] text-slate-500">Updated</p>
+                <p className="mt-2 text-lg font-semibold text-slate-900">{formatClock(data?.fetchedAt)}</p>
+              </article>
+            </div>
           </div>
         </section>
 

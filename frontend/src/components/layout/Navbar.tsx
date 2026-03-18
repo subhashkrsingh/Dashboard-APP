@@ -95,6 +95,7 @@ export function Navbar({
           />
         </div>
 
+        <Badge tone="neutral">{tickerItems.length} Active Symbols</Badge>
         <Badge tone={marketStatus?.isOpen ? "positive" : "negative"} pulse>
           <span className={`h-2 w-2 rounded-full ${marketStatus?.isOpen ? "bg-emerald-500" : "bg-rose-500"}`} />
           Market {marketStatus?.label ?? "CLOSED"}
@@ -125,7 +126,7 @@ export function Navbar({
         </button>
       </div>
 
-      <div className="mt-3 overflow-hidden rounded-lg border border-slate-200 bg-white py-2">
+      <div className="mt-3 overflow-hidden rounded-2xl border border-slate-200 bg-white py-2">
         {tickerItems.length === 0 ? (
           <p className="px-3 text-xs text-slate-500">Waiting for ticker data...</p>
         ) : (
@@ -142,7 +143,10 @@ export function Navbar({
             {[...tickerItems, ...tickerItems].map((item, index) => {
               const positive = (item.percentChange ?? 0) >= 0;
               return (
-                <div key={`${item.symbol}-${index}`} className="flex items-center gap-2 whitespace-nowrap text-xs">
+                <div
+                  key={`${item.symbol}-${index}`}
+                  className="flex items-center gap-2 whitespace-nowrap rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs"
+                >
                   <span className="font-semibold text-slate-800">{item.symbol}</span>
                   <span className={positive ? "text-emerald-600" : "text-rose-600"}>
                     {positive ? "+" : ""}

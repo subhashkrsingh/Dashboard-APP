@@ -1,17 +1,10 @@
-import axios from "axios";
-
 import type { EnergySectorResponse } from "../types/market";
-import { API_BASE_URL, normalizeSectorResponse } from "./sectorApi";
+import { fetchSectorSnapshot } from "./sectorApi";
 
 export async function fetchOilGasSectorData(): Promise<EnergySectorResponse> {
-  const response = await axios.get(`${API_BASE_URL}/oil-gas`, {
-    timeout: 20000
-  });
-
-  const normalized = normalizeSectorResponse(response.data, {
+  const normalized = await fetchSectorSnapshot("/oil-gas", {
     defaultIndexName: "NIFTY OIL & GAS",
-    sourceLabel: "oil & gas sector",
-    apiCacheStatus: String(response.headers?.["x-cache"] ?? "").trim() || undefined
+    sourceLabel: "oil & gas sector"
   });
 
   if (import.meta.env.DEV) {

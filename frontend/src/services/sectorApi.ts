@@ -1,11 +1,21 @@
-import type { CompanyQuote, SectorIndex, SectorReturns, SectorSnapshot } from "../types/market";
+import type {
+  CompanyQuote,
+  SectorIndex,
+  SectorIntradayResponse,
+  SectorReturns,
+  SectorSnapshot
+} from "../types/market";
 
-export const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL || "/api").replace(/\/+$/, "");
+import { getApiResource } from "./apiClient";
 
 export interface NormalizeOptions {
   defaultIndexName: string;
   sourceLabel: string;
   apiCacheStatus?: string;
+}
+
+interface SectorIntradayNormalizeOptions {
+  sourceLabel: string;
 }
 
 function normalizeCompany(row: Record<string, unknown>): CompanyQuote {
@@ -183,4 +193,38 @@ export function normalizeSectorResponse(payload: unknown, options: NormalizeOpti
   }
 
   throw new Error(`Unexpected response from ${options.sourceLabel} API`);
+}
+
+export function normalizeIntradayResponse(
+  payload: unknown,
+  options: SectorIntradayNormalizeOptions
+): SectorIntradayResponse {
+  if (!isObject(payload) || !Array.isArray(payload.time) || !Array.isArray(payload.value)) {
+    throw new Error(`Unexpected intraday response from ${options.sourceLabel} API`);
+  }
+
+  return {
+    time: payload.time.map(point => String(point)),
+    value: payload.value.map(point => toNumberOrNull(point) ?? 0),
+    source: payload.source ? String(payload.source) : undefined,
+    fetchedAt: String(payload.fetchedAt ?? new Date().toISOString())
+  };
+}
+
+export async function fetchSectorSnapshot(
+  path: string,
+  options: Omit<NormalizeOptions, "apiCacheStatus">
+): Promise<SectorSnapshot> {
+  const resourceLabel = `${options.sourceLabel} snapshot`;
+  const response = await getApiResource<unknown>(path, resourceLabel);
+
+  return normalizeSectorResponse(response.data, {
+    ...options,
+    apiCacheStatus: response.cacheStatus
+  });
+}
+
+export async function fetchSectorIntraday(sectorId: string, sourceLabel: string): Promise<SectorIntradayResponse> {
+  const response = await getApiResource<unknown>(`/${sectorId}/intraday`, `${sourceLabel} intraday`);
+  return normalizeIntradayResponse(response.data, { sourceLabel });
 }
