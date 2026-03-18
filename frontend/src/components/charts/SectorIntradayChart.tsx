@@ -66,7 +66,8 @@ export function SectorIntradayChart({
   const { data, isLoading, error } = useQuery({
     queryKey: ["intraday", sectorId],
     queryFn: () => fetchSectorIntraday(sectorId, title),
-    refetchInterval: 60000
+    refetchInterval: 60000, // 1 minute
+    staleTime: 300000 // 5 minutes - intraday data doesn't need to be super fresh
   });
 
   const chartData: ChartDataPoint[] = useMemo(() => {

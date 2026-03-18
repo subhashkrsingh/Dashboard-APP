@@ -1,6 +1,6 @@
 const express = require("express");
 
-const { NseServiceError } = require("../services/nseService");
+const { NseServiceError, fetchIntradaySeriesFromNse } = require("../services/nseService");
 const { buildIntradaySeries } = require("../services/intradaySeries");
 
 function toRouteSnapshot(snapshot, overrides = {}) {
@@ -27,7 +27,8 @@ function createSectorRouter({
   getFreshCache,
   getLastSuccessfulSnapshot,
   validateSnapshot = defaultValidateSnapshot,
-  intradaySeedPrice
+  intradaySeedPrice,
+  intradayIndexName
 }) {
   const router = express.Router();
 
@@ -101,13 +102,28 @@ function createSectorRouter({
     }
   });
 
-  router.get("/intraday", (_req, res) => {
+  router.get("/intraday", async (_req, res) => {
     const cached = getFreshCache();
     const stale = cached ? null : getLastSuccessfulSnapshot();
     const bundled = cached || stale ? null : getBundledSnapshot();
     const preferredSnapshot = cached?.data ?? stale?.data ?? bundled ?? null;
-    const cacheHeader = cached ? "HIT" : stale ? "STALE" : bundled ? "SNAPSHOT" : "MISS";
 
+    if (intradayIndexName) {
+      try {
+        const series = await fetchIntradaySeriesFromNse(intradayIndexName);
+        res.set("X-Cache", "LIVE");
+        return res.json({
+          ...series,
+          source: "nse",
+          fetchedAt: new Date().toISOString()
+        });
+      } catch (error) {
+        // Fall back to synthetic series when NSE intraday is unavailable.
+        console.warn(`[intraday] NSE series fetch failed for ${intradayIndexName}:`, error?.message || error);
+      }
+    }
+
+    const cacheHeader = cached ? "HIT" : stale ? "STALE" : bundled ? "SNAPSHOT" : "MISS";
     res.set("X-Cache", cacheHeader);
     return res.json(buildIntradaySeries(preferredSnapshot, { seedPrice: intradaySeedPrice }));
   });

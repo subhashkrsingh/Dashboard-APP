@@ -32,6 +32,8 @@ const NSE_OIL_GAS_STOCK_ENDPOINTS = [
   }
 ];
 
+const NSE_INTRADAY_ENDPOINT = "/api/chart-databyindex";
+
 const NSE_HEADERS = {
   "User-Agent":
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
@@ -445,6 +447,104 @@ function deriveIndexFromStocksPayload(stocksPayload) {
     unchanged: firstNumber(stocksPayload?.advance?.unchanged, summaryRow?.unchanged),
     timestamp: String(stocksPayload?.timestamp || summaryRow?.timestamp || "")
   };
+}
+
+function formatIntradayTimestamp(value) {
+  if (value === null || value === undefined) return null;
+
+  const formatAsTime = date =>
+    date.toLocaleTimeString("en-US", {
+      hour12: false,
+      hour: "2-digit",
+      minute: "2-digit",
+      timeZone: "Asia/Kolkata"
+    });
+
+  // Prefer numeric timestamps (ms since epoch)
+  if (typeof value === "number" && Number.isFinite(value)) {
+    const date = new Date(value);
+    if (!Number.isNaN(date.getTime())) {
+      return formatAsTime(date);
+    }
+  }
+
+  // If the API returns seconds since epoch
+  if (typeof value === "string" && /^[0-9]{10}$/.test(value)) {
+    const date = new Date(Number(value) * 1000);
+    if (!Number.isNaN(date.getTime())) {
+      return formatAsTime(date);
+    }
+  }
+
+  // If already ISO-like
+  if (typeof value === "string" && !Number.isNaN(Date.parse(value))) {
+    return formatAsTime(new Date(value));
+  }
+
+  return String(value);
+}
+
+function parseIntradaySeriesPayload(payload) {
+  const rawPoints = extractList(payload);
+  if (!Array.isArray(rawPoints) || rawPoints.length === 0) {
+    return null;
+  }
+
+  const points = rawPoints
+    .map(point => {
+      if (!point || typeof point !== "object") return null;
+
+      const value = firstNumber(
+        point.close,
+        point.last,
+        point.value,
+        point.price,
+        point.y
+      );
+
+      const timeKey =
+        point.time ||
+        point.timestamp ||
+        point.datetime ||
+        point.date;
+
+      const time = formatIntradayTimestamp(timeKey);
+
+      if (value === null || time == null) return null;
+      return { time, value };
+    })
+    .filter(Boolean);
+
+  if (points.length === 0) return null;
+
+  // Sort points by time (when possible). Fall back to original order otherwise.
+  const sorted = [...points].sort((a, b) => {
+    const aMs = Date.parse(a.time);
+    const bMs = Date.parse(b.time);
+    if (!Number.isNaN(aMs) && !Number.isNaN(bMs)) {
+      return aMs - bMs;
+    }
+    return a.time.localeCompare(b.time);
+  });
+
+  return {
+    time: sorted.map(p => p.time),
+    value: sorted.map(p => p.value)
+  };
+}
+
+async function fetchIntradaySeriesFromNse(indexName, duration = "1d") {
+  const query = `?index=${encodeURIComponent(indexName)}&duration=${encodeURIComponent(duration)}`;
+  const payload = await nseGet(`${NSE_INTRADAY_ENDPOINT}${query}`);
+  const series = parseIntradaySeriesPayload(payload);
+  if (!series) {
+    throw new NseServiceError(
+      `NSE intraday series payload did not contain usable series for index ${indexName}.`,
+      502,
+      "NSE_INTRADAY_EMPTY"
+    );
+  }
+  return series;
 }
 
 function readMetricFromSources(sources, keys) {
@@ -1000,5 +1100,6 @@ module.exports = {
   getEnergySectorData,
   getOilGasSectorData,
   getRealEstateSectorData,
+  fetchIntradaySeriesFromNse,
   NseServiceError
 };

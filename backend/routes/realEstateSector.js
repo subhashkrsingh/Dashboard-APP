@@ -20,5 +20,6 @@ module.exports = createSectorRouter({
   getFreshCache: getFreshRealEstateSectorCache,
   getLastSuccessfulSnapshot: getLastSuccessfulRealEstateSectorSnapshot,
   validateSnapshot: hasExpectedUniverse,
-  intradaySeedPrice: 3800
+  intradaySeedPrice: 3800,
+  intradayIndexName: "NIFTY REALTY"
 });

@@ -13,5 +13,6 @@ module.exports = createSectorRouter({
   getBundledSnapshot: getBundledEnergySectorSnapshot,
   getFreshCache: getFreshEnergySectorCache,
   getLastSuccessfulSnapshot: getLastSuccessfulEnergySectorSnapshot,
-  intradaySeedPrice: 24500
+  intradaySeedPrice: 24500,
+  intradayIndexName: "NIFTY ENERGY"
 });

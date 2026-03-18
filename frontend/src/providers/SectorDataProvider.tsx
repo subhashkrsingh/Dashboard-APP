@@ -23,24 +23,24 @@ export function SectorDataProvider({ children }: { children: ReactNode }) {
     queryKey: ["energy-sector"],
     queryFn: fetchEnergySectorData,
     storageKey: ENERGY_SECTOR_STORAGE_KEY,
-    refetchInterval: 10000,
-    staleTime: 9000
+    refetchInterval: 60000, // 1 minute instead of 10 seconds
+    staleTime: 120000 // 2 minutes instead of 9 seconds
   });
 
   const oilGas = useSectorMarketData({
     queryKey: ["oil-gas-sector"],
     queryFn: fetchOilGasSectorData,
     storageKey: OIL_GAS_SECTOR_STORAGE_KEY,
-    refetchInterval: 10000,
-    staleTime: 9000
+    refetchInterval: 60000, // 1 minute instead of 10 seconds
+    staleTime: 120000 // 2 minutes instead of 9 seconds
   });
 
   const realEstate = useSectorMarketData({
     queryKey: ["real-estate-sector"],
     queryFn: fetchRealEstateSectorData,
     storageKey: REAL_ESTATE_STORAGE_KEY,
-    refetchInterval: 10000,
-    staleTime: 9000
+    refetchInterval: 60000, // 1 minute instead of 10 seconds
+    staleTime: 120000 // 2 minutes instead of 9 seconds
   });
 
   const value = useMemo(

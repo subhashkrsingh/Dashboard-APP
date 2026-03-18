@@ -10,8 +10,12 @@ import { SectorDataProvider } from "./providers/SectorDataProvider";
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
+      staleTime: 1000 * 60 * 2, // 2 minutes - prevent infinite refetch
+      cacheTime: 1000 * 60 * 10, // 10 minutes cache
       retry: 2,
-      refetchOnWindowFocus: false
+      refetchOnWindowFocus: false,
+      refetchOnMount: false, // prevent refetch on component mount
+      refetchInterval: false // disable auto polling
     }
   }
 });
@@ -20,7 +24,12 @@ createRoot(document.getElementById("root") as HTMLElement).render(
   <React.StrictMode>
     <QueryClientProvider client={queryClient}>
       <SectorDataProvider>
-        <BrowserRouter>
+        <BrowserRouter
+          future={{
+            v7_startTransition: true,
+            v7_relativeSplatPath: true,
+          }}
+        >
           <App />
         </BrowserRouter>
       </SectorDataProvider>

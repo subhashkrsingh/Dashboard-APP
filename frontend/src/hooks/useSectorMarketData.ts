@@ -92,7 +92,7 @@ export function useSectorMarketData({
       : query.data;
 
   useEffect(() => {
-    if (!import.meta.env.DEV || !data) {
+    if (!import.meta.env.DEV || !data || !query.isFetching) {
       return;
     }
 
@@ -101,7 +101,7 @@ export function useSectorMarketData({
       dataStatus: data.dataStatus ?? "live",
       lastRefreshError: data.lastRefreshError ?? null
     });
-  }, [data, queryLabel]);
+  }, [data, queryLabel, query.isFetching]);
 
   const { sectorHistory, companyHistory, signals } = useMarketHistory(data);
 
