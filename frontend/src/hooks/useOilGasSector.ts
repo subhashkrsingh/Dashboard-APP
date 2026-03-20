@@ -1,5 +1,5 @@
-import { useSectorDataContext } from "../providers/SectorDataProvider";
+import { useSectorMarketData } from "./useSectorMarketData";
 
 export function useOilGasSector() {
-  return useSectorDataContext().oilGas;
+  return useSectorMarketData("oil-gas");
 }

@@ -7,6 +7,7 @@ import type {
 } from "../types/market";
 
 import { getApiResource } from "./apiClient";
+import { SECTOR_API_MAP, type SectorApiConfig, type SectorId } from "./sectorApiMap";
 
 export interface NormalizeOptions {
   defaultIndexName: string;
@@ -211,20 +212,25 @@ export function normalizeIntradayResponse(
   };
 }
 
-export async function fetchSectorSnapshot(
-  path: string,
-  options: Omit<NormalizeOptions, "apiCacheStatus">
-): Promise<SectorSnapshot> {
-  const resourceLabel = `${options.sourceLabel} snapshot`;
-  const response = await getApiResource<unknown>(path, resourceLabel);
-
+function normalizeSectorFromResponse(response: { data: unknown; cacheStatus?: string }, options: Omit<NormalizeOptions, "apiCacheStatus">) {
   return normalizeSectorResponse(response.data, {
     ...options,
     apiCacheStatus: response.cacheStatus
   });
 }
 
-export async function fetchSectorIntraday(sectorId: string, sourceLabel: string): Promise<SectorIntradayResponse> {
-  const response = await getApiResource<unknown>(`/${sectorId}/intraday`, `${sourceLabel} intraday`);
-  return normalizeIntradayResponse(response.data, { sourceLabel });
+function resolveSectorConfig(sector: SectorId): SectorApiConfig {
+  return SECTOR_API_MAP[sector];
+}
+
+export async function fetchSectorSnapshotById(sector: SectorId): Promise<SectorSnapshot> {
+  const config = resolveSectorConfig(sector);
+  const response = await getApiResource<unknown>(config.snapshotPath, `${config.sourceLabel} snapshot`);
+  return normalizeSectorFromResponse(response, config);
+}
+
+export async function fetchSectorIntradayById(sector: SectorId): Promise<SectorIntradayResponse> {
+  const config = resolveSectorConfig(sector);
+  const response = await getApiResource<unknown>(config.intradayPath, `${config.sourceLabel} intraday`);
+  return normalizeIntradayResponse(response.data, { sourceLabel: config.sourceLabel });
 }

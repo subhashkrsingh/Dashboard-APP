@@ -5,6 +5,11 @@ const express = require("express");
 const morgan = require("morgan");
 const path = require("path");
 
+// Import new caching services
+const { createSectorRouter, createHealthRouter, createAdminRouter } = require("./routes/routes");
+const cacheService = require("./services/cacheService");
+
+// Legacy imports (can be removed after migration)
 const energySectorRoutes = require("./routes/energySector");
 const oilGasSectorRoutes = require("./routes/oilGasSector");
 const realEstateSectorRoutes = require("./routes/realEstateSector");
@@ -60,6 +65,8 @@ app.use(express.json({ limit: "1mb" }));
 app.use(morgan(NODE_ENV === "production" ? "combined" : "dev"));
 
 function buildHealthPayload() {
+  const cacheStats = cacheService.getCacheStats();
+
   return {
     status: "ok",
     service: "power-sector-dashboard-api",
@@ -71,11 +78,13 @@ function buildHealthPayload() {
       sameOriginFrontend: serveStaticFrontend,
       allowedOrigins
     },
-    sectors: {
-      energy: getEnergySectorStatus(),
-      oilGas: getOilGasSectorStatus(),
-      realEstate: getRealEstateSectorStatus()
-    }
+    cache: {
+      size: cacheService.getCacheSize(),
+      ttlMs: cacheService.CACHE_TTL_MS,
+      staleWhileRevalidateMs: cacheService.CACHE_STALE_WHILE_REVALIDATE_MS,
+      stats: cacheStats
+    },
+    sectors: Object.keys(cacheStats)
   };
 }
 
@@ -95,21 +104,59 @@ app.get("/api", (_req, res) => {
       "/api/health",
       "/api/energy-sector",
       "/api/energy-sector/intraday",
+      "/api/energy-sector/refresh",
       "/api/oil-gas",
       "/api/oil-gas/intraday",
+      "/api/oil-gas/refresh",
       "/api/real-estate-sector",
-      "/api/real-estate-sector/intraday"
-    ]
+      "/api/real-estate-sector/intraday",
+      "/api/real-estate-sector/refresh",
+      "/api/admin/cache",
+      "/api/admin/cache/:sector"
+    ],
+    cache: {
+      ttlMs: cacheService.CACHE_TTL_MS,
+      staleWhileRevalidateMs: cacheService.CACHE_STALE_WHILE_REVALIDATE_MS
+    }
   });
 });
 
+// Initialize background refreshers for legacy system (can be removed after migration)
 startEnergySectorRefresher();
 startOilGasSectorRefresher();
 startRealEstateSectorRefresher();
 
-app.use("/api/energy-sector", energySectorRoutes);
-app.use("/api/oil-gas", oilGasSectorRoutes);
-app.use("/api/real-estate-sector", realEstateSectorRoutes);
+// Pre-load cache with initial data
+async function initializeCache() {
+  console.log("[INIT] Pre-loading cache with sector data...");
+
+  const sectors = ["energy", "oilGas", "realEstate"];
+  const promises = sectors.map(sector => {
+    console.log(`[INIT] Triggering initial refresh for ${sector}...`);
+    return cacheService.refreshCache(sector)
+      .then(() => console.log(`[INIT] ✓ ${sector} cache loaded`))
+      .catch(error => console.error(`[INIT] ✗ ${sector} cache failed:`, error.message));
+  });
+
+  try {
+    await Promise.allSettled(promises);
+    console.log("[INIT] Cache initialization complete");
+  } catch (error) {
+    console.error("[INIT] Cache initialization error:", error);
+  }
+}
+
+// Mount new caching-based routes
+app.use("/api/health", createHealthRouter());
+app.use("/api/energy-sector", createSectorRouter("energy", "NIFTY ENERGY"));
+app.use("/api/oil-gas", createSectorRouter("oilGas", "NIFTY OIL & GAS"));
+app.use("/api/real-estate-sector", createSectorRouter("realEstate", "NIFTY REALTY"));
+app.use("/api/admin", createAdminRouter());
+
+// Legacy routes (keep for backward compatibility during migration)
+app.use("/api/energy-sector-legacy", energySectorRoutes);
+app.use("/api/oil-gas-legacy", oilGasSectorRoutes);
+app.use("/api/real-estate-sector-legacy", realEstateSectorRoutes);
 
 if (serveStaticFrontend) {
   app.use(express.static(FRONTEND_DIST_PATH));
@@ -138,8 +185,12 @@ app.use((error, _req, res, _next) => {
   return res.status(500).json({ error: "Internal server error" });
 });
 
-app.listen(PORT, () => {
+app.listen(PORT, async () => {
   console.log(`Power sector dashboard API running on port ${PORT}`);
+  console.log(`Cache TTL: ${cacheService.CACHE_TTL_MS}ms, Stale-while-revalidate: ${cacheService.CACHE_STALE_WHILE_REVALIDATE_MS}ms`);
+
+  // Initialize cache with fresh data
+  await initializeCache();
 });
 
 module.exports = app;

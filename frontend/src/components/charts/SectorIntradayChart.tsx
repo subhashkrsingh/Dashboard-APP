@@ -11,7 +11,8 @@ import {
 } from "recharts";
 
 import { formatPrice } from "../../lib/formatters";
-import { fetchSectorIntraday } from "../../services/sectorApi";
+import { fetchSectorIntradayById } from "../../services/sectorApi";
+import { getSectorApiConfig } from "../../services/sectorApiMap";
 
 interface SectorIntradayChartProps {
   sectorId: string;
@@ -63,12 +64,33 @@ export function SectorIntradayChart({
   intradayHigh,
   intradayLow
 }: SectorIntradayChartProps) {
+  const sectorConfig = getSectorApiConfig(sectorId);
+
   const { data, isLoading, error } = useQuery({
-    queryKey: ["intraday", sectorId],
-    queryFn: () => fetchSectorIntraday(sectorId, title),
-    refetchInterval: 60000, // 1 minute
-    staleTime: 300000 // 5 minutes - intraday data doesn't need to be super fresh
+    queryKey: sectorConfig?.intradayQueryKey ?? ["sector-intraday", "invalid-sector"],
+    queryFn: async () => {
+      if (!sectorConfig) {
+        throw new Error(`Invalid sector "${sectorId}" for intraday feed.`);
+      }
+
+      return fetchSectorIntradayById(sectorConfig.id);
+    },
+    enabled: Boolean(sectorConfig),
+    // Intraday curves can refresh slower than quotes to reduce backend pressure.
+    refetchInterval: 120_000,
+    refetchIntervalInBackground: false,
+    staleTime: 60_000,
+    refetchOnWindowFocus: false
   });
+
+  if (!sectorConfig) {
+    return (
+      <div className="glass-card rounded-[28px] border border-rose-200 bg-rose-50 p-6">
+        <p className="text-sm font-semibold text-rose-700">Invalid sector for intraday chart</p>
+        <p className="mt-2 text-sm text-rose-700/80">No API request was sent because sector mapping is missing.</p>
+      </div>
+    );
+  }
 
   const chartData: ChartDataPoint[] = useMemo(() => {
     if (!data) return [];

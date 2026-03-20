@@ -1,11 +1,8 @@
 import type { EnergySectorResponse } from "../types/market";
-import { fetchSectorSnapshot } from "./sectorApi";
+import { fetchSectorSnapshotById } from "./sectorApi";
 
 export async function fetchEnergySectorData(): Promise<EnergySectorResponse> {
-  const normalized = await fetchSectorSnapshot("/energy-sector", {
-    defaultIndexName: "NIFTY ENERGY",
-    sourceLabel: "energy sector"
-  });
+  const normalized = await fetchSectorSnapshotById("energy-sector");
 
   if (import.meta.env.DEV) {
     console.info("[energy-sector] response", {

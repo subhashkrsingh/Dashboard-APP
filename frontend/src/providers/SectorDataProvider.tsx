@@ -2,9 +2,6 @@ import { createContext, useContext, useMemo, type ReactNode } from "react";
 
 import type { SectorMarketDataResult } from "../hooks/useSectorMarketData";
 import { useSectorMarketData } from "../hooks/useSectorMarketData";
-import { fetchEnergySectorData } from "../services/energySectorApi";
-import { fetchOilGasSectorData } from "../services/oilGasSectorApi";
-import { fetchRealEstateSectorData } from "../services/realEstateSectorApi";
 
 interface SectorDataContextValue {
   energy: SectorMarketDataResult;
@@ -14,34 +11,10 @@ interface SectorDataContextValue {
 
 const SectorDataContext = createContext<SectorDataContextValue | undefined>(undefined);
 
-const ENERGY_SECTOR_STORAGE_KEY = "sector-snapshot:energy-sector:v1";
-const OIL_GAS_SECTOR_STORAGE_KEY = "sector-snapshot:oil-gas-sector:v1";
-const REAL_ESTATE_STORAGE_KEY = "sector-snapshot:real-estate-sector:v3";
-
 export function SectorDataProvider({ children }: { children: ReactNode }) {
-  const energy = useSectorMarketData({
-    queryKey: ["energy-sector"],
-    queryFn: fetchEnergySectorData,
-    storageKey: ENERGY_SECTOR_STORAGE_KEY,
-    refetchInterval: 60000, // 1 minute instead of 10 seconds
-    staleTime: 120000 // 2 minutes instead of 9 seconds
-  });
-
-  const oilGas = useSectorMarketData({
-    queryKey: ["oil-gas-sector"],
-    queryFn: fetchOilGasSectorData,
-    storageKey: OIL_GAS_SECTOR_STORAGE_KEY,
-    refetchInterval: 60000, // 1 minute instead of 10 seconds
-    staleTime: 120000 // 2 minutes instead of 9 seconds
-  });
-
-  const realEstate = useSectorMarketData({
-    queryKey: ["real-estate-sector"],
-    queryFn: fetchRealEstateSectorData,
-    storageKey: REAL_ESTATE_STORAGE_KEY,
-    refetchInterval: 60000, // 1 minute instead of 10 seconds
-    staleTime: 120000 // 2 minutes instead of 9 seconds
-  });
+  const energy = useSectorMarketData("energy-sector");
+  const oilGas = useSectorMarketData("oil-gas");
+  const realEstate = useSectorMarketData("real-estate-sector");
 
   const value = useMemo(
     () => ({

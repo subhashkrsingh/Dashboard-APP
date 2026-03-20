@@ -1,11 +1,8 @@
 import type { RealEstateSectorResponse } from "../types/market";
-import { fetchSectorSnapshot } from "./sectorApi";
+import { fetchSectorSnapshotById } from "./sectorApi";
 
 export async function fetchRealEstateSectorData(): Promise<RealEstateSectorResponse> {
-  const normalized = await fetchSectorSnapshot("/real-estate-sector", {
-    defaultIndexName: "NIFTY REALTY",
-    sourceLabel: "real estate sector"
-  });
+  const normalized = await fetchSectorSnapshotById("real-estate-sector");
 
   if (import.meta.env.DEV) {
     console.info("[real-estate-sector] response", {

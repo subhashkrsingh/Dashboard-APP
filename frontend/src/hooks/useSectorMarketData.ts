@@ -1,26 +1,22 @@
-import { useEffect, useState } from "react";
-import { useQuery, type QueryKey, type UseQueryResult } from "@tanstack/react-query";
+import { useEffect, useMemo, useState } from "react";
+import { useQuery, type UseQueryResult } from "@tanstack/react-query";
 
 import type { PriceDirection, SectorSnapshot, TimePoint } from "../types/market";
 import { useMarketHistory, type CompanyHistoryPoint } from "./useMarketHistory";
+import { fetchSectorSnapshotById } from "../services/sectorApi";
+import { getSectorApiConfig } from "../services/sectorApiMap";
 
-interface UseSectorMarketDataOptions {
-  queryKey: QueryKey;
-  queryFn: () => Promise<SectorSnapshot>;
-  storageKey?: string;
-  refetchInterval?: number;
-  staleTime?: number;
-}
+const INVALID_SECTOR_QUERY_KEY = ["sector-market", "invalid-sector"] as const;
 
 export interface SectorMarketDataResult
-  extends Pick<UseQueryResult<SectorSnapshot, unknown>, "data" | "error" | "isLoading" | "isFetching" | "refetch"> {
+  extends Pick<UseQueryResult<SectorSnapshot, Error>, "data" | "error" | "isLoading" | "isFetching" | "refetch"> {
   sectorHistory: TimePoint[];
   companyHistory: Record<string, CompanyHistoryPoint[]>;
   signals: Record<string, PriceDirection>;
 }
 
-function readPersistedSnapshot(storageKey: string): SectorSnapshot | undefined {
-  if (typeof window === "undefined") {
+function readPersistedSnapshot(storageKey: string | undefined): SectorSnapshot | undefined {
+  if (!storageKey || typeof window === "undefined") {
     return undefined;
   }
 
@@ -29,6 +25,22 @@ function readPersistedSnapshot(storageKey: string): SectorSnapshot | undefined {
     return raw ? (JSON.parse(raw) as SectorSnapshot) : undefined;
   } catch {
     return undefined;
+  }
+}
+
+function persistSnapshot(storageKey: string | undefined, snapshot: SectorSnapshot | undefined) {
+  if (!storageKey || !snapshot || typeof window === "undefined") {
+    return;
+  }
+
+  if (typeof window === "undefined") {
+    return;
+  }
+
+  try {
+    window.localStorage.setItem(storageKey, JSON.stringify(snapshot));
+  } catch {
+    // localStorage can fail in private mode; ignore and keep runtime cache only.
   }
 }
 
@@ -44,71 +56,102 @@ function toClientRefreshError(error: unknown): SectorSnapshot["lastRefreshError"
   return undefined;
 }
 
-export function useSectorMarketData({
-  queryKey,
-  queryFn,
-  storageKey,
-  refetchInterval = 10000,
-  staleTime = 9000
-}: UseSectorMarketDataOptions): SectorMarketDataResult {
-  const queryLabel = Array.isArray(queryKey) ? queryKey.join(":") : String(queryKey);
-  const resolvedStorageKey = storageKey ?? `sector-snapshot:${queryKey.join(":")}`;
+export function useSectorMarketData(sector: string | undefined): SectorMarketDataResult {
+  const sectorConfig = getSectorApiConfig(sector);
+  const resolvedStorageKey = sectorConfig?.storageKey;
   const [persistedSnapshot, setPersistedSnapshot] = useState<SectorSnapshot | undefined>(() =>
     readPersistedSnapshot(resolvedStorageKey)
   );
 
+  useEffect(() => {
+    setPersistedSnapshot(readPersistedSnapshot(resolvedStorageKey));
+  }, [resolvedStorageKey]);
+
   const query = useQuery({
-    queryKey,
-    queryFn,
-    refetchInterval,
-    refetchIntervalInBackground: true,
-    staleTime,
+    queryKey: sectorConfig?.queryKey ?? INVALID_SECTOR_QUERY_KEY,
+    queryFn: async () => {
+      if (!sectorConfig) {
+        throw new Error(`Invalid sector "${String(sector)}".`);
+      }
+
+      return fetchSectorSnapshotById(sectorConfig.id);
+    },
+    enabled: Boolean(sectorConfig),
+    // 60s polling keeps dashboard responsive while avoiding noisy re-fetch loops.
+    refetchInterval: 60_000,
+    // Background tabs should not keep hitting APIs every minute.
+    refetchIntervalInBackground: false,
+    // Keep this query fresh long enough to maximize cache hits during navigation.
+    staleTime: 45_000,
+    gcTime: 30 * 60_000,
+    // This dashboard controls refetch manually/interval-wise, so no mount bursts.
+    refetchOnMount: false,
+    refetchOnWindowFocus: false,
     initialData: persistedSnapshot
   });
 
   useEffect(() => {
-    if (!query.data || typeof window === "undefined") {
+    if (!query.data) {
       return;
     }
 
-    window.localStorage.setItem(resolvedStorageKey, JSON.stringify(query.data));
+    persistSnapshot(resolvedStorageKey, query.data);
     setPersistedSnapshot(query.data);
   }, [query.data, resolvedStorageKey]);
 
-  const offlineDataStatus: SectorSnapshot["dataStatus"] =
-    persistedSnapshot?.snapshot ? "snapshot" : "stale";
+  const data = useMemo(() => {
+    if (query.data) {
+      return query.data;
+    }
 
-  const data =
-    query.isError && persistedSnapshot
-      ? {
-          ...persistedSnapshot,
-          cached: true,
-          stale: true,
-          snapshot: persistedSnapshot.snapshot ?? false,
-          dataStatus: offlineDataStatus,
-          warning: "Using saved market snapshot while the API is temporarily unavailable.",
-          lastRefreshError: persistedSnapshot.lastRefreshError ?? toClientRefreshError(query.error)
-        }
-      : query.data;
+    if (!query.isError || !persistedSnapshot) {
+      return undefined;
+    }
+
+    const offlineDataStatus: SectorSnapshot["dataStatus"] = persistedSnapshot.snapshot ? "snapshot" : "stale";
+    return {
+      ...persistedSnapshot,
+      cached: true,
+      stale: true,
+      snapshot: persistedSnapshot.snapshot ?? false,
+      dataStatus: offlineDataStatus,
+      warning: "Using saved market snapshot while the API is temporarily unavailable.",
+      lastRefreshError: persistedSnapshot.lastRefreshError ?? toClientRefreshError(query.error)
+    };
+  }, [persistedSnapshot, query.data, query.error, query.isError]);
 
   useEffect(() => {
     if (!import.meta.env.DEV || !data || !query.isFetching) {
       return;
     }
 
-    console.info(`[sector-data] ${queryLabel}`, {
+    console.info(`[sector-data] ${sectorConfig?.id ?? String(sector)}`, {
       xCache: data.apiCacheStatus ?? null,
       dataStatus: data.dataStatus ?? "live",
       lastRefreshError: data.lastRefreshError ?? null
     });
-  }, [data, queryLabel, query.isFetching]);
+  }, [data, query.isFetching, sector, sectorConfig?.id]);
+
+  const error = useMemo(() => {
+    if (data) {
+      return null;
+    }
+
+    if (!sectorConfig) {
+      return new Error(`Invalid sector "${String(sector)}".`);
+    }
+
+    return query.error;
+  }, [data, query.error, sector, sectorConfig]);
 
   const { sectorHistory, companyHistory, signals } = useMarketHistory(data);
 
   return {
     ...query,
     data,
-    error: data ? null : query.error,
+    error,
+    isLoading: sectorConfig ? query.isLoading : false,
+    isFetching: sectorConfig ? query.isFetching : false,
     sectorHistory,
     companyHistory,
     signals
