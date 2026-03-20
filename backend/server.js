@@ -29,7 +29,7 @@ const serveStaticFrontend =
 
 const allowedOrigins = String(process.env.FRONTEND_ORIGIN || "")
   .split(",")
-  .map(item => item.trim())
+  .map(item => item.trim().replace(/\/+$/, ""))
   .filter(Boolean);
 
 app.disable("x-powered-by");
@@ -37,10 +37,13 @@ app.set("trust proxy", 1);
 
 app.use(
   cors((req, callback) => {
-    const requestOrigin = req.header("origin");
+    const requestOrigin = String(req.header("origin") || "").trim().replace(/\/+$/, "") || undefined;
     const requestHost = req.get("host");
     const requestProtocol = req.header("x-forwarded-proto") || req.protocol;
-    const sameOrigin = requestOrigin && requestHost && requestOrigin === `${requestProtocol}://${requestHost}`;
+    const sameOrigin =
+      requestOrigin &&
+      requestHost &&
+      requestOrigin === `${requestProtocol}://${requestHost}`.replace(/\/+$/, "");
     const allowDevelopmentOrigin = NODE_ENV !== "production" && allowedOrigins.length === 0;
     const originAllowed =
       !requestOrigin || sameOrigin || allowDevelopmentOrigin || allowedOrigins.includes(requestOrigin);
@@ -51,6 +54,12 @@ app.use(
         credentials: false
       });
     }
+
+    console.warn("[CORS] Origin denied", {
+      requestOrigin,
+      allowedOrigins,
+      host: requestHost
+    });
 
     return callback(new Error("CORS_ORIGIN_DENIED"));
   })
