@@ -147,7 +147,7 @@ app.use((error, _req, res, _next) => {
 
 async function bootstrap() {
   console.log("[BOOT] Starting backend bootstrap...");
-  await cacheService.warmAllSectors();
+  await cacheService.preloadCache();
   startRefreshScheduler({
     cacheService,
     sectors: cacheService.SECTORS,

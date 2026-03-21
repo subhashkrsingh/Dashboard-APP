@@ -68,6 +68,16 @@ function createSectorRouter(sector) {
     });
   });
 
+  // Never allow sector-router 404s; always return valid JSON.
+  router.use((req, res) => {
+    return res.status(400).json({
+      error: "INVALID_SECTOR_ROUTE",
+      message: "Valid sector routes: /, /intraday, /intrada, /refresh",
+      sector,
+      path: req.originalUrl
+    });
+  });
+
   return router;
 }
 

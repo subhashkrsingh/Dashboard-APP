@@ -198,13 +198,17 @@ async function warmSector(sector) {
 }
 
 async function warmAllSectors() {
+  console.log("[CACHE WARM] start");
   const tasks = SECTORS.map(sector => warmSector(sector));
   const results = await Promise.all(tasks);
 
   const failedSectors = SECTORS.filter((_sector, index) => !results[index]);
   if (failedSectors.length > 0) {
+    console.error(`[CACHE WARM] failed sectors: ${failedSectors.join(", ")}`);
     throw new Error(`Cache warmup failed for sectors: ${failedSectors.join(", ")}`);
   }
+
+  console.log("[CACHE WARM] complete");
 }
 
 function getCacheStats() {
@@ -270,6 +274,7 @@ module.exports = {
   getSectorState,
   refreshSectorInBackground,
   refreshCache,
+  preloadCache: warmAllSectors,
   warmAllSectors,
   getCacheStats,
   getCacheSize,
