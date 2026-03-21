@@ -127,15 +127,16 @@ function updateCacheData(sector, data, { status = "fresh", error = null } = {}) 
 }
 
 async function refreshSectorInBackground(sector, options = {}) {
-  const { reason = "background", force = false } = options;
+  const { reason = "background" } = options;
 
   if (!isValidSector(sector)) {
     return false;
   }
 
   const state = refreshState[sector];
-  if (!force && state.promise) {
-    return state.promise;
+  if (state.isRefreshing || state.promise) {
+    console.warn(`[REFRESH SKIPPED] ${sector}`);
+    return state.promise || Promise.resolve(false);
   }
 
   state.isRefreshing = true;
