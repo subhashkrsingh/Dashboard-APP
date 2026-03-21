@@ -7,55 +7,61 @@
 
 const express = require("express");
 const cacheService = require("../services/cacheService");
-const fetchService = require("../services/fetchService");
 const { buildIntradaySeries } = require("../services/intradaySeries");
 
 /**
  * Create sector router with caching
  */
-function createSectorRouter(sector, intradayIndexName) {
+function createSectorRouter(sector) {
   const router = express.Router();
+
+  function withCacheMetadata(payload, cacheEntry) {
+    return {
+      ...payload,
+      dataStatus: cacheEntry.dataStatus,
+      lastUpdated: cacheEntry.lastUpdated,
+      refreshError: cacheEntry.refreshError,
+      _cache: {
+        status: cacheEntry.dataStatus,
+        ageMs: cacheEntry.ageMs,
+        lastUpdated: cacheEntry.lastUpdated,
+        refreshError: cacheEntry.refreshError,
+        isRefreshing: cacheEntry.isRefreshing
+      }
+    };
+  }
+
+  function sendNoCacheResponse(res, routeName, cacheEntry) {
+    return res.status(500).json({
+      error: "CACHE_UNAVAILABLE",
+      message: `No cached ${routeName} data is available yet. Refresh is running in background.`,
+      sector,
+      dataStatus: cacheEntry.dataStatus,
+      lastUpdated: cacheEntry.lastUpdated,
+      refreshError: cacheEntry.refreshError
+    });
+  }
 
   /**
    * GET /api/:sector - Main sector data endpoint
    */
-  router.get("/", async (req, res) => {
+  router.get("/", (req, res) => {
     const startTime = Date.now();
 
     try {
       const cacheEntry = cacheService.getCacheEntry(sector);
 
       if (!cacheEntry.data) {
-        // No data available at all
-        return res.status(503).json({
-          error: "Service temporarily unavailable",
-          message: "No data available and refresh failed",
-          sector,
-          status: cacheEntry.status,
-          warning: cacheEntry.warning
-        });
+        return sendNoCacheResponse(res, "sector", cacheEntry);
       }
 
-      // Return data with cache metadata
-      const response = {
-        ...cacheEntry.data,
-        _cache: {
-          status: cacheEntry.status,
-          ageMs: cacheEntry.ageMs,
-          lastUpdated: cacheEntry.lastUpdated,
-          warning: cacheEntry.warning
-        }
-      };
-
-      // Set cache headers
       res.set({
-        'X-Cache-Status': cacheEntry.status.toUpperCase(),
-        'X-Cache-Age': cacheEntry.ageMs || 0,
-        'X-Response-Time': Date.now() - startTime
+        "X-Cache-Status": cacheEntry.dataStatus.toUpperCase(),
+        "X-Cache-Age": String(cacheEntry.ageMs || 0),
+        "X-Response-Time": String(Date.now() - startTime)
       });
 
-      return res.json(response);
-
+      return res.json(withCacheMetadata(cacheEntry.data, cacheEntry));
     } catch (error) {
       console.error(`[API] Error in ${sector} endpoint:`, error);
       return res.status(500).json({
@@ -69,54 +75,33 @@ function createSectorRouter(sector, intradayIndexName) {
   /**
    * GET /api/:sector/intraday - Intraday chart data
    */
-  router.get("/intraday", async (req, res) => {
+  const intradayHandler = (req, res) => {
     const startTime = Date.now();
 
     try {
-      // Try to get real NSE intraday data first
-      const realData = await fetchService.fetchIntradaySeriesFromNse(sector);
-
-      if (realData && realData.time && realData.value && realData.time.length > 0) {
-        // Return real NSE data
-        return res.json({
-          time: realData.time,
-          value: realData.value,
-          source: "nse-live",
-          fetchedAt: new Date().toISOString(),
-          _cache: {
-            status: 'live',
-            ageMs: 0,
-            lastUpdated: new Date(),
-            warning: null
-          }
-        });
-      }
-
-      // Fallback to synthetic data using sector snapshot
       const cacheEntry = cacheService.getCacheEntry(sector);
 
-      if (cacheEntry.data?.sectorIndex) {
-        const syntheticSeries = buildIntradaySeries(cacheEntry.data);
-
-        return res.json({
-          ...syntheticSeries,
-          source: "synthetic",
-          _cache: {
-            status: cacheEntry.status,
-            ageMs: cacheEntry.ageMs,
-            lastUpdated: cacheEntry.lastUpdated,
-            warning: cacheEntry.warning || "Using synthetic data (NSE intraday unavailable)"
-          }
-        });
+      if (!cacheEntry.data?.sectorIndex) {
+        return sendNoCacheResponse(res, "intraday", cacheEntry);
       }
 
-      // No data available
-      return res.status(503).json({
-        error: "Intraday data unavailable",
-        message: "No sector data available for synthetic generation",
-        sector
+      const syntheticSeries = buildIntradaySeries(cacheEntry.data);
+
+      res.set({
+        "X-Cache-Status": cacheEntry.dataStatus.toUpperCase(),
+        "X-Cache-Age": String(cacheEntry.ageMs || 0),
+        "X-Response-Time": String(Date.now() - startTime)
       });
 
+      return res.json(
+        withCacheMetadata(
+          {
+            ...syntheticSeries,
+            source: "synthetic-cache"
+          },
+          cacheEntry
+        )
+      );
     } catch (error) {
       console.error(`[API] Error in ${sector}/intraday endpoint:`, error);
       return res.status(500).json({
@@ -125,14 +110,17 @@ function createSectorRouter(sector, intradayIndexName) {
         sector
       });
     }
-  });
+  };
+
+  router.get("/intraday", intradayHandler);
+  router.get("/intrada", intradayHandler);
 
   /**
    * POST /api/:sector/refresh - Manual refresh endpoint
    */
   router.post("/refresh", async (req, res) => {
     try {
-      const refreshPromise = cacheService.refreshCache(sector);
+      const refreshPromise = cacheService.refreshCache(sector, { reason: "manual-api" });
 
       // Don't wait for completion, return immediately
       res.json({

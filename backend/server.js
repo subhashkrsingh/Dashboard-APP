@@ -13,12 +13,6 @@ const cacheService = require("./services/cacheService");
 const energySectorRoutes = require("./routes/energySector");
 const oilGasSectorRoutes = require("./routes/oilGasSector");
 const realEstateSectorRoutes = require("./routes/realEstateSector");
-const { getEnergySectorStatus } = require("./services/energySectorStore");
-const { startEnergySectorRefresher } = require("./services/energySectorRefresher");
-const { getOilGasSectorStatus } = require("./services/oilGasSectorStore");
-const { startOilGasSectorRefresher } = require("./services/oilGasSectorRefresher");
-const { getRealEstateSectorStatus } = require("./services/realEstateSectorStore");
-const { startRealEstateSectorRefresher } = require("./services/realEstateSectorRefresher");
 
 const app = express();
 const PORT = Number(process.env.PORT) || 3000;
@@ -113,12 +107,15 @@ app.get("/api", (_req, res) => {
       "/api/health",
       "/api/energy-sector",
       "/api/energy-sector/intraday",
+      "/api/energy-sector/intrada",
       "/api/energy-sector/refresh",
       "/api/oil-gas",
       "/api/oil-gas/intraday",
+      "/api/oil-gas/intrada",
       "/api/oil-gas/refresh",
       "/api/real-estate-sector",
       "/api/real-estate-sector/intraday",
+      "/api/real-estate-sector/intrada",
       "/api/real-estate-sector/refresh",
       "/api/admin/cache",
       "/api/admin/cache/:sector"
@@ -130,11 +127,6 @@ app.get("/api", (_req, res) => {
   });
 });
 
-// Initialize background refreshers for legacy system (can be removed after migration)
-startEnergySectorRefresher();
-startOilGasSectorRefresher();
-startRealEstateSectorRefresher();
-
 // Pre-load cache with initial data
 async function initializeCache() {
   console.log("[INIT] Pre-loading cache with sector data...");
@@ -143,8 +135,8 @@ async function initializeCache() {
   const promises = sectors.map(sector => {
     console.log(`[INIT] Triggering initial refresh for ${sector}...`);
     return cacheService.refreshCache(sector)
-      .then(() => console.log(`[INIT] ✓ ${sector} cache loaded`))
-      .catch(error => console.error(`[INIT] ✗ ${sector} cache failed:`, error.message));
+      .then(() => console.log(`[INIT] OK ${sector} cache loaded`))
+      .catch(error => console.error(`[INIT] FAILED ${sector} cache failed:`, error.message));
   });
 
   try {
@@ -157,9 +149,9 @@ async function initializeCache() {
 
 // Mount new caching-based routes
 app.use("/api/health", createHealthRouter());
-app.use("/api/energy-sector", createSectorRouter("energy", "NIFTY ENERGY"));
-app.use("/api/oil-gas", createSectorRouter("oilGas", "NIFTY OIL & GAS"));
-app.use("/api/real-estate-sector", createSectorRouter("realEstate", "NIFTY REALTY"));
+app.use("/api/energy-sector", createSectorRouter("energy"));
+app.use("/api/oil-gas", createSectorRouter("oilGas"));
+app.use("/api/real-estate-sector", createSectorRouter("realEstate"));
 app.use("/api/admin", createAdminRouter());
 
 // Legacy routes (keep for backward compatibility during migration)
@@ -200,6 +192,9 @@ app.listen(PORT, async () => {
 
   // Initialize cache with fresh data
   await initializeCache();
+  cacheService.startSectorRefreshIntervals(["energy", "oilGas", "realEstate"]);
+  console.log("[INIT] Background refresh intervals started for energy, oilGas, realEstate");
 });
 
 module.exports = app;
+
