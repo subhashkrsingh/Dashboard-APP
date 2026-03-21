@@ -3,8 +3,8 @@ const axios = require("axios");
 const NSE_BASE_URL = "https://www.nseindia.com";
 const NSE_SECTOR_ENDPOINT = "/api/sectoralIndex";
 const NSE_ALL_INDICES_ENDPOINT = "/api/allIndices";
-const NSE_REQUEST_TIMEOUT_MS = Math.max(Number(process.env.NSE_REQUEST_TIMEOUT_MS) || 20000, 1000);
-const NSE_INTRADAY_TIMEOUT_MS = Math.max(Number(process.env.NSE_INTRADAY_TIMEOUT_MS) || 20000, 1000);
+const NSE_REQUEST_TIMEOUT_MS = Math.max(Number(process.env.NSE_REQUEST_TIMEOUT_MS) || 30000, 1000);
+const NSE_INTRADAY_TIMEOUT_MS = Math.max(Number(process.env.NSE_INTRADAY_TIMEOUT_MS) || 30000, 1000);
 const NSE_REQUESTED_INDEX_NAME = "NIFTY ENERGY";
 const NSE_FALLBACK_INDEX_NAME = "NIFTY ENERGY";
 const NSE_REAL_ESTATE_INDEX_NAME = "NIFTY REALTY";
@@ -38,11 +38,11 @@ const NSE_INTRADAY_ENDPOINT = "/api/chart-databyindex";
 const NSE_HEADERS = {
   "User-Agent":
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-  Accept: "application/json, text/plain, */*",
+  Accept: "application/json",
   "Accept-Language": "en-US,en;q=0.9",
   "Accept-Encoding": "gzip, deflate, br",
   Connection: "keep-alive",
-  Referer: "https://www.nseindia.com/market-data/live-equity-market",
+  Referer: "https://www.nseindia.com/",
   Origin: "https://www.nseindia.com",
   "Cache-Control": "no-cache",
   Pragma: "no-cache",
@@ -122,6 +122,9 @@ class NseServiceError extends Error {
 }
 
 const http = axios.create({
+  headers: {
+    ...NSE_HEADERS
+  },
   timeout: NSE_REQUEST_TIMEOUT_MS,
   validateStatus: () => true
 });
@@ -206,10 +209,7 @@ async function establishNseSession() {
   // return cookies needed for all subsequent API calls (including chart-databyindex).
   const landingUrl = `${NSE_BASE_URL}/market-data/live-equity-market`;
   const response = await http.get(landingUrl, {
-    headers: {
-      ...NSE_HEADERS,
-      Accept: "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8"
-    }
+    headers: { ...NSE_HEADERS }
   });
 
   if (response.status < 200 || response.status >= 400) {

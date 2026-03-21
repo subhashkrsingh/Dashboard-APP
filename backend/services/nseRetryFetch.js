@@ -1,6 +1,6 @@
-const NSE_TIMEOUT_MS = Math.max(Number(process.env.NSE_FETCH_TIMEOUT_MS) || 20000, 1000);
+const NSE_TIMEOUT_MS = Math.max(Number(process.env.NSE_FETCH_TIMEOUT_MS) || 30000, 1000);
 const NSE_MAX_RETRIES = Math.max(Number(process.env.NSE_FETCH_RETRIES) || 3, 1);
-const NSE_RETRY_BASE_DELAY_MS = Math.max(Number(process.env.NSE_FETCH_RETRY_BASE_DELAY_MS) || 750, 100);
+const NSE_RETRY_BASE_DELAY_MS = Math.max(Number(process.env.NSE_FETCH_RETRY_BASE_DELAY_MS) || 1000, 100);
 
 function delay(ms) {
   return new Promise(resolve => setTimeout(resolve, ms));
@@ -17,6 +17,14 @@ function withTimeout(promise, timeoutMs, timeoutMessage) {
 
 function exponentialBackoff(attempt) {
   return NSE_RETRY_BASE_DELAY_MS * (2 ** (attempt - 1));
+}
+
+function isRateLimited(error) {
+  return (
+    Number(error?.statusCode) === 429 ||
+    String(error?.code || "").toUpperCase().includes("RATE_LIMIT") ||
+    String(error?.message || "").toLowerCase().includes("rate limit")
+  );
 }
 
 async function retryNseFetch({ sector, execute, label = "snapshot" }) {
@@ -41,7 +49,10 @@ async function retryNseFetch({ sector, execute, label = "snapshot" }) {
 
       if (attempt < NSE_MAX_RETRIES) {
         console.warn(`[NSE RETRY] attempt ${attempt}/${NSE_MAX_RETRIES} ${sector}`);
-        await delay(exponentialBackoff(attempt));
+        const baseDelayMs = exponentialBackoff(attempt);
+        const rateLimitMultiplier = isRateLimited(error) ? 3 : 1;
+        const jitterMs = Math.floor(Math.random() * 250);
+        await delay(baseDelayMs * rateLimitMultiplier + jitterMs);
       }
     }
   }
