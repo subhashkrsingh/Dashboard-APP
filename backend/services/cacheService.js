@@ -1,318 +1,277 @@
-/**
- * Production-grade in-memory cache with stale-while-revalidate semantics.
- *
- * Key guarantees:
- * - Requests always read from memory first (no request-path network wait).
- * - Refresh failures never clear good cached data.
- * - Only callers with no cache at all should return 500.
- */
+const fs = require("fs");
+const path = require("path");
+const { fetchSectorDataSafe } = require("./fetchService");
 
-const CACHE_TTL_MS = Math.max(Number(process.env.CACHE_TTL_MS) || 2 * 60 * 1000, 5000);
-const CACHE_STALE_WHILE_REVALIDATE_MS = Math.max(
-  Number(process.env.CACHE_STALE_WHILE_REVALIDATE_MS) || 5 * 60 * 1000,
-  CACHE_TTL_MS
-);
-const CACHE_REFRESH_INTERVAL_MS = Math.max(Number(process.env.CACHE_REFRESH_INTERVAL_MS) || 30 * 1000, 5000);
-const CACHE_REFRESH_MIN_INTERVAL_MS = Math.max(Number(process.env.CACHE_REFRESH_MIN_INTERVAL_MS) || 10 * 1000, 1000);
+const SECTORS = ["energy", "oilGas", "realEstate"];
+const CACHE_FRESH_MS = Math.max(Number(process.env.CACHE_FRESH_MS) || 60 * 1000, 1000);
 
-const cache = new Map();
-const refreshTimers = new Map();
+const SNAPSHOT_FILES = {
+  energy: path.join(__dirname, "..", "data", "energySectorSnapshot.json"),
+  oilGas: path.join(__dirname, "..", "data", "oilGasSectorSnapshot.json"),
+  realEstate: path.join(__dirname, "..", "data", "realEstateSectorSnapshot.json")
+};
 
-function logCacheEvent(level, event, sector, details = {}) {
-  const payload = {
-    timestamp: new Date().toISOString(),
-    event,
-    sector,
-    ...details
-  };
-
-  const line = JSON.stringify(payload);
-  if (level === "error") {
-    console.error(line);
-    return;
+const cache = {
+  energy: {
+    data: null,
+    lastUpdated: null,
+    status: "stale",
+    error: null
+  },
+  oilGas: {
+    data: null,
+    lastUpdated: null,
+    status: "stale",
+    error: null
+  },
+  realEstate: {
+    data: null,
+    lastUpdated: null,
+    status: "stale",
+    error: null
   }
-  if (level === "warn") {
-    console.warn(line);
-    return;
-  }
-  console.log(line);
+};
+
+const refreshState = {
+  energy: { isRefreshing: false, promise: null, refreshCount: 0 },
+  oilGas: { isRefreshing: false, promise: null, refreshCount: 0 },
+  realEstate: { isRefreshing: false, promise: null, refreshCount: 0 }
+};
+
+function isValidSector(sector) {
+  return Object.prototype.hasOwnProperty.call(cache, sector);
 }
 
-function resolveRefreshIntervalMs(sector) {
-  const sectorOverrides = {
-    energy: Number(process.env.ENERGY_SECTOR_REFRESH_MS) || 0,
-    oilGas: Number(process.env.OIL_GAS_SECTOR_REFRESH_MS) || 0,
-    realEstate: Number(process.env.REAL_ESTATE_REFRESH_MS) || 0
-  };
-
-  const candidate = sectorOverrides[sector] || CACHE_REFRESH_INTERVAL_MS;
-  return Math.max(candidate, 5000);
-}
-
-function initializeCacheEntry(sector) {
-  if (!cache.has(sector)) {
-    cache.set(sector, {
-      data: null,
-      lastSuccessfulSnapshot: null,
-      lastUpdated: null,
-      expiryAtMs: 0,
-      isRefreshing: false,
-      refreshPromise: null,
-      lastRefreshAttemptAtMs: 0,
-      refreshCount: 0,
-      errorCount: 0,
-      lastError: null
-    });
-  }
-
-  return cache.get(sector);
-}
-
-function getSnapshot(entry) {
-  return entry.data || entry.lastSuccessfulSnapshot || null;
-}
-
-function isFresh(entry, nowMs = Date.now()) {
-  return Boolean(getSnapshot(entry) && entry.lastUpdated && nowMs <= entry.expiryAtMs);
-}
-
-function isWithinSwrWindow(entry, nowMs = Date.now()) {
-  if (!entry.lastUpdated || !getSnapshot(entry)) {
-    return false;
-  }
-
-  return nowMs <= entry.lastUpdated.getTime() + CACHE_STALE_WHILE_REVALIDATE_MS;
-}
-
-function buildCachePayload(entry, status) {
-  const snapshot = getSnapshot(entry);
+function toErrorPayload(error, reason = "refresh") {
+  if (!error) return null;
   return {
-    data: snapshot,
-    dataStatus: status,
-    lastUpdated: entry.lastUpdated,
-    refreshError: entry.lastError,
-    ageMs: entry.lastUpdated ? Date.now() - entry.lastUpdated.getTime() : null,
-    isRefreshing: entry.isRefreshing
-  };
-}
-
-function setCacheData(sector, data) {
-  const entry = initializeCacheEntry(sector);
-  const nowMs = Date.now();
-
-  entry.data = data;
-  entry.lastSuccessfulSnapshot = data;
-  entry.lastUpdated = new Date(nowMs);
-  entry.expiryAtMs = nowMs + CACHE_TTL_MS;
-  entry.errorCount = 0;
-  entry.lastError = null;
-}
-
-function setCacheError(sector, error, reason) {
-  const entry = initializeCacheEntry(sector);
-  entry.errorCount += 1;
-  entry.lastError = {
+    reason,
     message: error?.message || String(error),
     code: error?.code || "REFRESH_FAILED",
-    statusCode: Number(error?.statusCode) || 503,
-    reason: reason || "unknown",
     at: new Date().toISOString()
   };
 }
 
-function triggerBackgroundRefresh(sector, options = {}) {
-  const { force = false, reason = "background" } = options;
-  const entry = initializeCacheEntry(sector);
-  const nowMs = Date.now();
+function computeStatus(sector) {
+  const entry = cache[sector];
 
-  if (entry.refreshPromise) {
-    return entry.refreshPromise;
+  if (!entry.data || !entry.lastUpdated) {
+    entry.status = "stale";
+    return entry.status;
   }
 
-  if (!force && entry.lastRefreshAttemptAtMs && nowMs - entry.lastRefreshAttemptAtMs < CACHE_REFRESH_MIN_INTERVAL_MS) {
-    return null;
-  }
-
-  entry.isRefreshing = true;
-  entry.lastRefreshAttemptAtMs = nowMs;
-  entry.refreshCount += 1;
-  const attempt = entry.refreshCount;
-  const startedAtMs = Date.now();
-
-  logCacheEvent("info", "REFRESH START", sector, { reason, attempt });
-
-  const fetchService = require("./fetchService");
-
-  const refreshPromise = fetchService
-    .fetchSectorData(sector)
-    .then((data) => {
-      setCacheData(sector, data);
-      const updatedEntry = initializeCacheEntry(sector);
-      logCacheEvent("info", "REFRESH SUCCESS", sector, {
-        reason,
-        attempt,
-        durationMs: Date.now() - startedAtMs,
-        lastUpdated: updatedEntry.lastUpdated?.toISOString() || null
-      });
-      return data;
-    })
-    .catch((error) => {
-      setCacheError(sector, error, reason);
-      logCacheEvent("error", "REFRESH FAILED", sector, {
-        reason,
-        attempt,
-        durationMs: Date.now() - startedAtMs,
-        error: error?.message || String(error)
-      });
-      throw error;
-    })
-    .finally(() => {
-      const currentEntry = initializeCacheEntry(sector);
-      currentEntry.isRefreshing = false;
-      currentEntry.refreshPromise = null;
-    });
-
-  entry.refreshPromise = refreshPromise;
-  return refreshPromise;
+  const ageMs = Date.now() - entry.lastUpdated.getTime();
+  entry.status = ageMs <= CACHE_FRESH_MS ? "fresh" : "stale";
+  return entry.status;
 }
 
-function getCacheEntry(sector) {
-  const entry = initializeCacheEntry(sector);
-  const snapshot = getSnapshot(entry);
-
-  if (!snapshot) {
-    triggerBackgroundRefresh(sector, { reason: "empty-cache" })?.catch(() => {
-      // Failure is tracked in cache metadata; callers still receive immediate response.
-    });
-    return buildCachePayload(entry, "stale");
+function getSectorState(sector, options = {}) {
+  const { triggerRefresh = true, reason = "read" } = options;
+  if (!isValidSector(sector)) {
+    return {
+      hasData: false,
+      data: null,
+      status: "stale",
+      lastUpdated: null,
+      error: toErrorPayload(new Error(`Unknown sector: ${sector}`), reason),
+      isRefreshing: false
+    };
   }
 
-  const ageMs = entry.lastUpdated ? Date.now() - entry.lastUpdated.getTime() : null;
+  const status = computeStatus(sector);
+  const entry = cache[sector];
+  const state = refreshState[sector];
+  const hasData = Boolean(entry.data);
 
-  if (isFresh(entry)) {
-    logCacheEvent("info", "CACHE HIT", sector, {
-      dataStatus: "fresh",
-      ageMs
-    });
-    return buildCachePayload(entry, "fresh");
-  }
-
-  logCacheEvent("warn", "CACHE STALE", sector, {
-    dataStatus: "stale",
-    ageMs,
-    withinSwrWindow: isWithinSwrWindow(entry)
-  });
-
-  triggerBackgroundRefresh(sector, { reason: "stale-read" })?.catch(() => {
-    // Failure is tracked in cache metadata; stale data remains available.
-  });
-
-  return buildCachePayload(entry, "stale");
-}
-
-function refreshCache(sector, options = {}) {
-  return triggerBackgroundRefresh(sector, {
-    force: true,
-    reason: options.reason || "manual"
-  });
-}
-
-function startSectorRefreshInterval(sector, customIntervalMs = null) {
-  if (refreshTimers.has(sector)) {
-    return refreshTimers.get(sector);
-  }
-
-  const intervalMs = Math.max(customIntervalMs || resolveRefreshIntervalMs(sector), 5000);
-  const timer = setInterval(() => {
-    const refreshPromise = triggerBackgroundRefresh(sector, { reason: "interval" });
-    if (refreshPromise?.catch) {
-      refreshPromise.catch(() => {
-        // Error metadata/logging already handled by triggerBackgroundRefresh.
+  if (hasData && status === "fresh") {
+    console.log(`[CACHE HIT] ${sector}`);
+  } else if (hasData) {
+    console.warn(`[CACHE STALE] ${sector}`);
+    if (triggerRefresh) {
+      refreshSectorInBackground(sector, { reason }).catch(() => {
+        // refresh errors are captured in cache state
       });
     }
-  }, intervalMs);
-
-  if (typeof timer.unref === "function") {
-    timer.unref();
+  } else if (triggerRefresh) {
+    refreshSectorInBackground(sector, { reason: "warmup-miss" }).catch(() => {
+      // refresh errors are captured in cache state
+    });
   }
 
-  refreshTimers.set(sector, timer);
-  logCacheEvent("info", "REFRESH INTERVAL START", sector, { intervalMs });
-  return timer;
+  return {
+    hasData,
+    data: entry.data,
+    status,
+    lastUpdated: entry.lastUpdated,
+    error: entry.error,
+    isRefreshing: state.isRefreshing
+  };
 }
 
-function startSectorRefreshIntervals(sectors = []) {
-  sectors.forEach((sector) => {
-    startSectorRefreshInterval(sector);
-  });
+function loadBundledSnapshot(sector) {
+  const snapshotPath = SNAPSHOT_FILES[sector];
+  if (!snapshotPath) return null;
+
+  try {
+    return JSON.parse(fs.readFileSync(snapshotPath, "utf8"));
+  } catch (error) {
+    return null;
+  }
 }
 
-function stopSectorRefreshInterval(sector) {
-  const timer = refreshTimers.get(sector);
-  if (!timer) {
+function updateCacheData(sector, data, { status = "fresh", error = null } = {}) {
+  cache[sector].data = data;
+  cache[sector].lastUpdated = new Date();
+  cache[sector].status = status;
+  cache[sector].error = error;
+}
+
+async function refreshSectorInBackground(sector, options = {}) {
+  const { reason = "background", force = false } = options;
+
+  if (!isValidSector(sector)) {
     return false;
   }
 
-  clearInterval(timer);
-  refreshTimers.delete(sector);
-  return true;
+  const state = refreshState[sector];
+  if (!force && state.promise) {
+    return state.promise;
+  }
+
+  state.isRefreshing = true;
+  state.refreshCount += 1;
+  console.log(`[REFRESH START] ${sector}`);
+
+  const refreshPromise = (async () => {
+    const result = await fetchSectorDataSafe(sector);
+
+    if (result.ok && result.data) {
+      updateCacheData(sector, result.data, { status: "fresh", error: null });
+      console.log(`[REFRESH SUCCESS] ${sector}`);
+      return true;
+    }
+
+    const existingData = cache[sector].data;
+    cache[sector].status = existingData ? "stale" : "stale";
+    cache[sector].error = toErrorPayload(result.error, reason);
+    console.error(`[REFRESH FAILED] ${sector}`);
+    return false;
+  })()
+    .catch((error) => {
+      const existingData = cache[sector].data;
+      cache[sector].status = existingData ? "stale" : "stale";
+      cache[sector].error = toErrorPayload(error, reason);
+      console.error(`[REFRESH FAILED] ${sector}`);
+      return false;
+    })
+    .finally(() => {
+      state.isRefreshing = false;
+      state.promise = null;
+    });
+
+  state.promise = refreshPromise;
+  return refreshPromise;
 }
 
-function stopAllSectorRefreshIntervals() {
-  for (const sector of refreshTimers.keys()) {
-    stopSectorRefreshInterval(sector);
+async function warmSector(sector) {
+  console.log(`[REFRESH START] ${sector}`);
+  const liveResult = await fetchSectorDataSafe(sector);
+  if (liveResult.ok && liveResult.data) {
+    updateCacheData(sector, liveResult.data, { status: "fresh", error: null });
+    console.log(`[REFRESH SUCCESS] ${sector}`);
+    return true;
+  }
+
+  const fallback = loadBundledSnapshot(sector);
+  if (fallback) {
+    updateCacheData(sector, fallback, {
+      status: "stale",
+      error: toErrorPayload(liveResult.error, "warmup-fallback")
+    });
+    console.error(`[REFRESH FAILED] ${sector}`);
+    return true;
+  }
+
+  cache[sector].error = toErrorPayload(liveResult.error, "warmup");
+  console.error(`[REFRESH FAILED] ${sector}`);
+  return false;
+}
+
+async function warmAllSectors() {
+  const tasks = SECTORS.map(sector => warmSector(sector));
+  const results = await Promise.all(tasks);
+
+  const failedSectors = SECTORS.filter((_sector, index) => !results[index]);
+  if (failedSectors.length > 0) {
+    throw new Error(`Cache warmup failed for sectors: ${failedSectors.join(", ")}`);
   }
 }
 
 function getCacheStats() {
-  const nowMs = Date.now();
   const stats = {};
 
-  for (const [sector, entry] of cache.entries()) {
-    const snapshot = getSnapshot(entry);
+  for (const sector of SECTORS) {
+    const entry = cache[sector];
+    const state = refreshState[sector];
+    const status = computeStatus(sector);
+    const ageMs = entry.lastUpdated ? Date.now() - entry.lastUpdated.getTime() : null;
+
     stats[sector] = {
-      dataStatus: isFresh(entry, nowMs) ? "fresh" : "stale",
-      hasData: Boolean(snapshot),
-      isRefreshing: entry.isRefreshing,
-      ageMs: entry.lastUpdated ? nowMs - entry.lastUpdated.getTime() : null,
-      ttlMsRemaining: entry.lastUpdated ? Math.max(entry.expiryAtMs - nowMs, 0) : null,
-      withinSwrWindow: isWithinSwrWindow(entry, nowMs),
-      refreshCount: entry.refreshCount,
-      errorCount: entry.errorCount,
+      hasData: Boolean(entry.data),
+      status,
+      dataStatus: status,
       lastUpdated: entry.lastUpdated,
-      refreshError: entry.lastError
+      ageMs,
+      error: entry.error,
+      refreshError: entry.error,
+      isRefreshing: state.isRefreshing,
+      refreshCount: state.refreshCount
     };
   }
 
   return stats;
 }
 
+function getCacheSize() {
+  return SECTORS.filter(sector => Boolean(cache[sector].data)).length;
+}
+
+function refreshCache(sector, options = {}) {
+  return refreshSectorInBackground(sector, options);
+}
+
 function clearCache(sector = null) {
-  if (sector) {
-    cache.delete(sector);
+  if (sector && isValidSector(sector)) {
+    cache[sector] = {
+      data: null,
+      lastUpdated: null,
+      status: "stale",
+      error: null
+    };
     return;
   }
 
-  cache.clear();
-}
-
-function getCacheSize() {
-  return cache.size;
+  for (const key of SECTORS) {
+    cache[key] = {
+      data: null,
+      lastUpdated: null,
+      status: "stale",
+      error: null
+    };
+  }
 }
 
 module.exports = {
-  getCacheEntry,
-  setCacheData,
-  triggerBackgroundRefresh,
+  cache,
+  SECTORS,
+  CACHE_FRESH_MS,
+  CACHE_TTL_MS: CACHE_FRESH_MS,
+  CACHE_STALE_WHILE_REVALIDATE_MS: CACHE_FRESH_MS,
+  getSectorState,
+  refreshSectorInBackground,
   refreshCache,
-  startSectorRefreshInterval,
-  startSectorRefreshIntervals,
-  stopSectorRefreshInterval,
-  stopAllSectorRefreshIntervals,
+  warmAllSectors,
   getCacheStats,
-  clearCache,
   getCacheSize,
-  CACHE_TTL_MS,
-  CACHE_STALE_WHILE_REVALIDATE_MS,
-  CACHE_REFRESH_INTERVAL_MS
+  clearCache
 };

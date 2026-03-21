@@ -3,14 +3,8 @@ const axios = require("axios");
 const NSE_BASE_URL = "https://www.nseindia.com";
 const NSE_SECTOR_ENDPOINT = "/api/sectoralIndex";
 const NSE_ALL_INDICES_ENDPOINT = "/api/allIndices";
-const NSE_REQUEST_TIMEOUT_MS = Math.min(
-  Math.max(Number(process.env.NSE_REQUEST_TIMEOUT_MS) || 12000, 10000),
-  15000
-);
-const NSE_INTRADAY_TIMEOUT_MS = Math.min(
-  Math.max(Number(process.env.NSE_INTRADAY_TIMEOUT_MS) || 10000, 10000),
-  15000
-);
+const NSE_REQUEST_TIMEOUT_MS = Math.max(Number(process.env.NSE_REQUEST_TIMEOUT_MS) || 20000, 1000);
+const NSE_INTRADAY_TIMEOUT_MS = Math.max(Number(process.env.NSE_INTRADAY_TIMEOUT_MS) || 20000, 1000);
 const NSE_REQUESTED_INDEX_NAME = "NIFTY ENERGY";
 const NSE_FALLBACK_INDEX_NAME = "NIFTY ENERGY";
 const NSE_REAL_ESTATE_INDEX_NAME = "NIFTY REALTY";

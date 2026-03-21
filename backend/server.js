@@ -5,14 +5,9 @@ const express = require("express");
 const morgan = require("morgan");
 const path = require("path");
 
-// Import new caching services
 const { createSectorRouter, createHealthRouter, createAdminRouter } = require("./routes/routes");
 const cacheService = require("./services/cacheService");
-
-// Legacy imports (can be removed after migration)
-const energySectorRoutes = require("./routes/energySector");
-const oilGasSectorRoutes = require("./routes/oilGasSector");
-const realEstateSectorRoutes = require("./routes/realEstateSector");
+const { startRefreshScheduler } = require("./services/refreshScheduler");
 
 const app = express();
 const PORT = Number(process.env.PORT) || 3000;
@@ -83,8 +78,7 @@ function buildHealthPayload() {
     },
     cache: {
       size: cacheService.getCacheSize(),
-      ttlMs: cacheService.CACHE_TTL_MS,
-      staleWhileRevalidateMs: cacheService.CACHE_STALE_WHILE_REVALIDATE_MS,
+      freshMs: cacheService.CACHE_FRESH_MS,
       stats: cacheStats
     },
     sectors: Object.keys(cacheStats)
@@ -105,59 +99,24 @@ app.get("/api", (_req, res) => {
     environment: NODE_ENV,
     routes: [
       "/api/health",
-      "/api/energy-sector",
       "/api/energy-sector/intraday",
-      "/api/energy-sector/intrada",
-      "/api/energy-sector/refresh",
-      "/api/oil-gas",
+      "/api/oil-gas-sector/intraday",
       "/api/oil-gas/intraday",
-      "/api/oil-gas/intrada",
-      "/api/oil-gas/refresh",
-      "/api/real-estate-sector",
       "/api/real-estate-sector/intraday",
-      "/api/real-estate-sector/intrada",
-      "/api/real-estate-sector/refresh",
-      "/api/admin/cache",
-      "/api/admin/cache/:sector"
+      "/api/admin/cache"
     ],
     cache: {
-      ttlMs: cacheService.CACHE_TTL_MS,
-      staleWhileRevalidateMs: cacheService.CACHE_STALE_WHILE_REVALIDATE_MS
+      freshMs: cacheService.CACHE_FRESH_MS
     }
   });
 });
 
-// Pre-load cache with initial data
-async function initializeCache() {
-  console.log("[INIT] Pre-loading cache with sector data...");
-
-  const sectors = ["energy", "oilGas", "realEstate"];
-  const promises = sectors.map(sector => {
-    console.log(`[INIT] Triggering initial refresh for ${sector}...`);
-    return cacheService.refreshCache(sector)
-      .then(() => console.log(`[INIT] OK ${sector} cache loaded`))
-      .catch(error => console.error(`[INIT] FAILED ${sector} cache failed:`, error.message));
-  });
-
-  try {
-    await Promise.allSettled(promises);
-    console.log("[INIT] Cache initialization complete");
-  } catch (error) {
-    console.error("[INIT] Cache initialization error:", error);
-  }
-}
-
-// Mount new caching-based routes
 app.use("/api/health", createHealthRouter());
 app.use("/api/energy-sector", createSectorRouter("energy"));
+app.use("/api/oil-gas-sector", createSectorRouter("oilGas"));
 app.use("/api/oil-gas", createSectorRouter("oilGas"));
 app.use("/api/real-estate-sector", createSectorRouter("realEstate"));
 app.use("/api/admin", createAdminRouter());
-
-// Legacy routes (keep for backward compatibility during migration)
-app.use("/api/energy-sector-legacy", energySectorRoutes);
-app.use("/api/oil-gas-legacy", oilGasSectorRoutes);
-app.use("/api/real-estate-sector-legacy", realEstateSectorRoutes);
 
 if (serveStaticFrontend) {
   app.use(express.static(FRONTEND_DIST_PATH));
@@ -186,15 +145,26 @@ app.use((error, _req, res, _next) => {
   return res.status(500).json({ error: "Internal server error" });
 });
 
-app.listen(PORT, async () => {
-  console.log(`Power sector dashboard API running on port ${PORT}`);
-  console.log(`Cache TTL: ${cacheService.CACHE_TTL_MS}ms, Stale-while-revalidate: ${cacheService.CACHE_STALE_WHILE_REVALIDATE_MS}ms`);
+async function bootstrap() {
+  console.log("[BOOT] Starting backend bootstrap...");
+  await cacheService.warmAllSectors();
+  startRefreshScheduler({
+    cacheService,
+    sectors: cacheService.SECTORS,
+    intervalMs: 60 * 1000
+  });
 
-  // Initialize cache with fresh data
-  await initializeCache();
-  cacheService.startSectorRefreshIntervals(["energy", "oilGas", "realEstate"]);
-  console.log("[INIT] Background refresh intervals started for energy, oilGas, realEstate");
-});
+  app.listen(PORT, () => {
+    console.log(`Power sector dashboard API running on port ${PORT}`);
+    console.log("[BOOT] Warm cache ready. Refresh scheduler started.");
+  });
+}
+
+if (require.main === module) {
+  bootstrap().catch((error) => {
+    console.error("[BOOT] Startup failed:", error?.message || error);
+    process.exit(1);
+  });
+}
 
 module.exports = app;
-

@@ -1,209 +1,110 @@
-/**
- * Production-Ready API Routes with Advanced Caching
- *
- * Uses the cacheService for Redis-like caching behavior with
- * stale-while-revalidate, background refresh, and resilient fallbacks.
- */
-
 const express = require("express");
 const cacheService = require("../services/cacheService");
 const { buildIntradaySeries } = require("../services/intradaySeries");
 
-/**
- * Create sector router with caching
- */
+function withMetadata(payload, cacheEntry) {
+  return {
+    ...payload,
+    dataStatus: cacheEntry.status,
+    lastUpdated: cacheEntry.lastUpdated,
+    refreshError: cacheEntry.error,
+    _cache: {
+      status: cacheEntry.status,
+      lastUpdated: cacheEntry.lastUpdated,
+      refreshError: cacheEntry.error,
+      isRefreshing: cacheEntry.isRefreshing
+    }
+  };
+}
+
+function warmingUpResponse(res, sector, cacheEntry) {
+  return res.status(503).json({
+    error: "CACHE_WARMING_UP",
+    message: "Cache is warming up. Please retry shortly.",
+    sector,
+    dataStatus: "stale",
+    lastUpdated: cacheEntry?.lastUpdated || null,
+    refreshError: cacheEntry?.error || null
+  });
+}
+
 function createSectorRouter(sector) {
   const router = express.Router();
 
-  function withCacheMetadata(payload, cacheEntry) {
-    return {
-      ...payload,
-      dataStatus: cacheEntry.dataStatus,
-      lastUpdated: cacheEntry.lastUpdated,
-      refreshError: cacheEntry.refreshError,
-      _cache: {
-        status: cacheEntry.dataStatus,
-        ageMs: cacheEntry.ageMs,
-        lastUpdated: cacheEntry.lastUpdated,
-        refreshError: cacheEntry.refreshError,
-        isRefreshing: cacheEntry.isRefreshing
-      }
-    };
-  }
-
-  function sendNoCacheResponse(res, routeName, cacheEntry) {
-    return res.status(500).json({
-      error: "CACHE_UNAVAILABLE",
-      message: `No cached ${routeName} data is available yet. Refresh is running in background.`,
-      sector,
-      dataStatus: cacheEntry.dataStatus,
-      lastUpdated: cacheEntry.lastUpdated,
-      refreshError: cacheEntry.refreshError
-    });
-  }
-
-  /**
-   * GET /api/:sector - Main sector data endpoint
-   */
   router.get("/", (req, res) => {
-    const startTime = Date.now();
+    const cacheEntry = cacheService.getSectorState(sector, { triggerRefresh: true, reason: "route-snapshot" });
 
-    try {
-      const cacheEntry = cacheService.getCacheEntry(sector);
-
-      if (!cacheEntry.data) {
-        return sendNoCacheResponse(res, "sector", cacheEntry);
-      }
-
-      res.set({
-        "X-Cache-Status": cacheEntry.dataStatus.toUpperCase(),
-        "X-Cache-Age": String(cacheEntry.ageMs || 0),
-        "X-Response-Time": String(Date.now() - startTime)
-      });
-
-      return res.json(withCacheMetadata(cacheEntry.data, cacheEntry));
-    } catch (error) {
-      console.error(`[API] Error in ${sector} endpoint:`, error);
-      return res.status(500).json({
-        error: "Internal server error",
-        message: error.message,
-        sector
-      });
+    if (!cacheEntry.hasData) {
+      return warmingUpResponse(res, sector, cacheEntry);
     }
+
+    res.set("X-Cache-Status", cacheEntry.status.toUpperCase());
+    return res.json(withMetadata(cacheEntry.data, cacheEntry));
   });
 
-  /**
-   * GET /api/:sector/intraday - Intraday chart data
-   */
   const intradayHandler = (req, res) => {
-    const startTime = Date.now();
+    const cacheEntry = cacheService.getSectorState(sector, { triggerRefresh: true, reason: "route-intraday" });
 
-    try {
-      const cacheEntry = cacheService.getCacheEntry(sector);
-
-      if (!cacheEntry.data?.sectorIndex) {
-        return sendNoCacheResponse(res, "intraday", cacheEntry);
-      }
-
-      const syntheticSeries = buildIntradaySeries(cacheEntry.data);
-
-      res.set({
-        "X-Cache-Status": cacheEntry.dataStatus.toUpperCase(),
-        "X-Cache-Age": String(cacheEntry.ageMs || 0),
-        "X-Response-Time": String(Date.now() - startTime)
-      });
-
-      return res.json(
-        withCacheMetadata(
-          {
-            ...syntheticSeries,
-            source: "synthetic-cache"
-          },
-          cacheEntry
-        )
-      );
-    } catch (error) {
-      console.error(`[API] Error in ${sector}/intraday endpoint:`, error);
-      return res.status(500).json({
-        error: "Internal server error",
-        message: error.message,
-        sector
-      });
+    if (!cacheEntry.hasData) {
+      return warmingUpResponse(res, sector, cacheEntry);
     }
+
+    const intraday = buildIntradaySeries(cacheEntry.data);
+    res.set("X-Cache-Status", cacheEntry.status.toUpperCase());
+    return res.json(withMetadata(intraday, cacheEntry));
   };
 
   router.get("/intraday", intradayHandler);
   router.get("/intrada", intradayHandler);
 
-  /**
-   * POST /api/:sector/refresh - Manual refresh endpoint
-   */
-  router.post("/refresh", async (req, res) => {
-    try {
-      const refreshPromise = cacheService.refreshCache(sector, { reason: "manual-api" });
+  router.post("/refresh", (req, res) => {
+    cacheService.refreshSectorInBackground(sector, { reason: "manual-refresh", force: true }).catch(() => {
+      // Error is reflected in cache metadata.
+    });
 
-      // Don't wait for completion, return immediately
-      res.json({
-        message: `Refresh triggered for ${sector}`,
-        sector,
-        refreshStarted: true
-      });
-
-      // Log completion in background
-      if (refreshPromise) {
-        refreshPromise
-          .then(() => console.log(`[API] Manual refresh completed for ${sector}`))
-          .catch(error => console.error(`[API] Manual refresh failed for ${sector}:`, error));
-      }
-
-    } catch (error) {
-      console.error(`[API] Error triggering refresh for ${sector}:`, error);
-      return res.status(500).json({
-        error: "Failed to trigger refresh",
-        message: error.message,
-        sector
-      });
-    }
+    return res.status(202).json({
+      message: `Refresh triggered for ${sector}`,
+      sector
+    });
   });
 
   return router;
 }
 
-/**
- * Health endpoint with cache statistics
- */
 function createHealthRouter() {
   const router = express.Router();
 
   router.get("/", (req, res) => {
-    const cacheStats = cacheService.getCacheStats();
-    const uptime = Math.round(process.uptime());
-
     res.json({
       status: "ok",
-      service: "power-sector-dashboard-api",
-      environment: process.env.NODE_ENV || "development",
-      uptimeSeconds: uptime,
-      timestamp: new Date().toISOString(),
       cache: {
         size: cacheService.getCacheSize(),
-        ttlMs: cacheService.CACHE_TTL_MS,
-        staleWhileRevalidateMs: cacheService.CACHE_STALE_WHILE_REVALIDATE_MS,
-        stats: cacheStats
-      },
-      sectors: Object.keys(cacheStats)
+        stats: cacheService.getCacheStats()
+      }
     });
   });
 
   return router;
 }
 
-/**
- * Admin routes for cache management
- */
 function createAdminRouter() {
   const router = express.Router();
 
-  // Clear specific cache
-  router.delete("/cache/:sector", (req, res) => {
-    const { sector } = req.params;
-    cacheService.clearCache(sector);
-    res.json({ message: `Cache cleared for ${sector}` });
+  router.get("/cache", (req, res) => {
+    return res.json({
+      cacheSize: cacheService.getCacheSize(),
+      stats: cacheService.getCacheStats()
+    });
   });
 
-  // Clear all caches
+  router.delete("/cache/:sector", (req, res) => {
+    cacheService.clearCache(req.params.sector);
+    return res.json({ message: `Cache cleared for ${req.params.sector}` });
+  });
+
   router.delete("/cache", (req, res) => {
     cacheService.clearCache();
-    res.json({ message: "All caches cleared" });
-  });
-
-  // Get detailed cache stats
-  router.get("/cache", (req, res) => {
-    const stats = cacheService.getCacheStats();
-    res.json({
-      cacheSize: cacheService.getCacheSize(),
-      stats
-    });
+    return res.json({ message: "All caches cleared" });
   });
 
   return router;
