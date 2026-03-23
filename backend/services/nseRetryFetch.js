@@ -1,36 +1,29 @@
 const NSE_TIMEOUT_MS = Math.max(Number(process.env.NSE_FETCH_TIMEOUT_MS) || 30000, 1000);
-const NSE_MAX_RETRIES = Math.max(Number(process.env.NSE_FETCH_RETRIES) || 3, 1);
-const NSE_RETRY_BASE_DELAY_MS = Math.max(Number(process.env.NSE_FETCH_RETRY_BASE_DELAY_MS) || 1000, 100);
+const NSE_RETRY_DELAYS_MS = [500, 1500, 3000];
+const NSE_MAX_ATTEMPTS = NSE_RETRY_DELAYS_MS.length + 1;
 
 function delay(ms) {
   return new Promise(resolve => setTimeout(resolve, ms));
 }
 
 function withTimeout(promise, timeoutMs, timeoutMessage) {
-  return Promise.race([
-    promise,
-    new Promise((_, reject) => {
-      setTimeout(() => reject(new Error(timeoutMessage)), timeoutMs);
-    })
-  ]);
-}
+  let timeoutHandle = null;
 
-function exponentialBackoff(attempt) {
-  return NSE_RETRY_BASE_DELAY_MS * (2 ** (attempt - 1));
-}
+  const timeoutPromise = new Promise((_, reject) => {
+    timeoutHandle = setTimeout(() => reject(new Error(timeoutMessage)), timeoutMs);
+  });
 
-function isRateLimited(error) {
-  return (
-    Number(error?.statusCode) === 429 ||
-    String(error?.code || "").toUpperCase().includes("RATE_LIMIT") ||
-    String(error?.message || "").toLowerCase().includes("rate limit")
-  );
+  return Promise.race([promise, timeoutPromise]).finally(() => {
+    if (timeoutHandle) {
+      clearTimeout(timeoutHandle);
+    }
+  });
 }
 
 async function retryNseFetch({ sector, execute, label = "snapshot" }) {
   let lastError = null;
 
-  for (let attempt = 1; attempt <= NSE_MAX_RETRIES; attempt += 1) {
+  for (let attempt = 1; attempt <= NSE_MAX_ATTEMPTS; attempt += 1) {
     try {
       const data = await withTimeout(
         Promise.resolve().then(() => execute()),
@@ -47,12 +40,10 @@ async function retryNseFetch({ sector, execute, label = "snapshot" }) {
     } catch (error) {
       lastError = error;
 
-      if (attempt < NSE_MAX_RETRIES) {
-        console.warn(`[NSE RETRY] attempt ${attempt}/${NSE_MAX_RETRIES} ${sector}`);
-        const baseDelayMs = exponentialBackoff(attempt);
-        const rateLimitMultiplier = isRateLimited(error) ? 3 : 1;
-        const jitterMs = Math.floor(Math.random() * 250);
-        await delay(baseDelayMs * rateLimitMultiplier + jitterMs);
+      if (attempt < NSE_MAX_ATTEMPTS) {
+        const waitMs = NSE_RETRY_DELAYS_MS[attempt - 1] ?? NSE_RETRY_DELAYS_MS[NSE_RETRY_DELAYS_MS.length - 1];
+        console.warn(`[NSE RETRY] attempt ${attempt}/${NSE_MAX_ATTEMPTS} ${sector} wait=${waitMs}ms`);
+        await delay(waitMs);
       }
     }
   }
@@ -61,7 +52,7 @@ async function retryNseFetch({ sector, execute, label = "snapshot" }) {
     ok: false,
     data: null,
     error: lastError,
-    attempts: NSE_MAX_RETRIES
+    attempts: NSE_MAX_ATTEMPTS
   };
 }
 

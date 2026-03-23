@@ -1,83 +1,18 @@
 const express = require("express");
-const cacheService = require("../services/cacheService");
-const { buildIntradaySeries } = require("../services/intradaySeries");
-const { getMarketStatus } = require("../services/marketStatus");
-
-function withLiveMarketStatus(payload) {
-  if (!payload || typeof payload !== "object") {
-    return payload;
-  }
-
-  // Keep market-open/closed status real-time even when serving cached snapshots.
-  if (!Object.prototype.hasOwnProperty.call(payload, "sectorIndex")) {
-    return payload;
-  }
-
-  return {
-    ...payload,
-    marketStatus: getMarketStatus()
-  };
-}
-
-function withMetadata(payload, cacheEntry) {
-  const nextPayload = withLiveMarketStatus(payload);
-
-  return {
-    ...nextPayload,
-    dataStatus: cacheEntry.status,
-    lastUpdated: cacheEntry.lastUpdated,
-    refreshError: cacheEntry.error,
-    _cache: {
-      status: cacheEntry.status,
-      lastUpdated: cacheEntry.lastUpdated,
-      refreshError: cacheEntry.error,
-      isRefreshing: cacheEntry.isRefreshing
-    }
-  };
-}
-
-function warmingUpResponse(res, sector, cacheEntry) {
-  return res.status(503).json({
-    error: "CACHE_WARMING_UP",
-    message: "Cache is warming up. Please retry shortly.",
-    sector,
-    dataStatus: "stale",
-    lastUpdated: cacheEntry?.lastUpdated || null,
-    refreshError: cacheEntry?.error || null
-  });
-}
+const cacheService = require("../services/swrCacheService");
+const { createSWRCacheMiddleware } = require("../middleware/swrCacheMiddleware");
 
 function createSectorRouter(sector) {
   const router = express.Router();
 
-  router.get("/", (req, res) => {
-    const cacheEntry = cacheService.getSectorState(sector, { triggerRefresh: true, reason: "route-snapshot" });
+  router.get("/", createSWRCacheMiddleware({ sector, type: "snapshot" }));
 
-    if (!cacheEntry.hasData) {
-      return warmingUpResponse(res, sector, cacheEntry);
-    }
-
-    res.set("X-Cache-Status", cacheEntry.status.toUpperCase());
-    return res.json(withMetadata(cacheEntry.data, cacheEntry));
-  });
-
-  const intradayHandler = (req, res) => {
-    const cacheEntry = cacheService.getSectorState(sector, { triggerRefresh: true, reason: "route-intraday" });
-
-    if (!cacheEntry.hasData) {
-      return warmingUpResponse(res, sector, cacheEntry);
-    }
-
-    const intraday = buildIntradaySeries(cacheEntry.data);
-    res.set("X-Cache-Status", cacheEntry.status.toUpperCase());
-    return res.json(withMetadata(intraday, cacheEntry));
-  };
-
+  const intradayHandler = createSWRCacheMiddleware({ sector, type: "intraday" });
   router.get("/intraday", intradayHandler);
   router.get("/intrada", intradayHandler);
 
   router.post("/refresh", (req, res) => {
-    cacheService.refreshSectorInBackground(sector, { reason: "manual-refresh", force: true }).catch(() => {
+    cacheService.refreshSectorInBackground(sector, { type: "snapshot", reason: "manual-refresh" }).catch(() => {
       // Error is reflected in cache metadata.
     });
 
@@ -103,7 +38,7 @@ function createSectorRouter(sector) {
 function createHealthRouter() {
   const router = express.Router();
 
-  router.get("/", (req, res) => {
+  router.get("/", (_req, res) => {
     res.json({
       status: "ok",
       cache: {
@@ -119,7 +54,7 @@ function createHealthRouter() {
 function createAdminRouter() {
   const router = express.Router();
 
-  router.get("/cache", (req, res) => {
+  router.get("/cache", (_req, res) => {
     return res.json({
       cacheSize: cacheService.getCacheSize(),
       stats: cacheService.getCacheStats()
