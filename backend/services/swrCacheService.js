@@ -1,3 +1,5 @@
+const fs = require("fs");
+const path = require("path");
 const { fetchSectorDataSafe } = require("./fetchService");
 const { fetchIntradaySeriesFromNse } = require("./nseService");
 const { buildIntradaySeries } = require("./intradaySeries");
@@ -16,6 +18,12 @@ const INTRADAY_SEED_PRICE_BY_SECTOR = {
   energy: 24500,
   oilGas: 11230,
   realEstate: 3800
+};
+
+const SNAPSHOT_FILES = {
+  energy: path.join(__dirname, "..", "data", "energySectorSnapshot.json"),
+  oilGas: path.join(__dirname, "..", "data", "oilGasSectorSnapshot.json"),
+  realEstate: path.join(__dirname, "..", "data", "realEstateSectorSnapshot.json")
 };
 
 function createEntry(ttl) {
@@ -96,6 +104,19 @@ function isStale(entry, now = Date.now()) {
 function updateEntry(entry, data) {
   entry.data = data;
   entry.timestamp = Date.now();
+}
+
+function loadBundledSnapshot(sector) {
+  const snapshotPath = SNAPSHOT_FILES[sector];
+  if (!snapshotPath) {
+    return null;
+  }
+
+  try {
+    return JSON.parse(fs.readFileSync(snapshotPath, "utf8"));
+  } catch (error) {
+    return null;
+  }
 }
 
 function buildSyntheticIntradayForSector(sector) {
@@ -242,6 +263,23 @@ async function getOrRefresh(type, sector) {
     };
   }
 
+  if (type === "snapshot" && !available) {
+    const bundledSnapshot = loadBundledSnapshot(sector);
+    if (bundledSnapshot) {
+      console.warn(`[CACHE STALE] snapshot:${sector} (bundled-fallback)`);
+      updateEntry(entry, bundledSnapshot);
+      scheduleRefresh(type, sector, "cache-miss").catch(() => {
+        // Keep serving bundled snapshot until live fetch succeeds.
+      });
+      return {
+        data: entry.data,
+        cached: true,
+        stale: true,
+        timestamp: new Date(entry.timestamp).toISOString()
+      };
+    }
+  }
+
   try {
     const hadDataBeforeRefresh = available;
     await scheduleRefresh(type, sector, "cache-miss");
@@ -285,9 +323,17 @@ function refreshSectorInBackground(sector, options = {}) {
 }
 
 async function preloadCache() {
-  const preloadTasks = SECTORS.map(sector =>
-    scheduleRefresh("snapshot", sector, "startup").catch(() => null)
-  );
+  const preloadTasks = SECTORS.map(async sector => {
+    try {
+      await scheduleRefresh("snapshot", sector, "startup");
+    } catch (error) {
+      const fallbackSnapshot = loadBundledSnapshot(sector);
+      if (fallbackSnapshot) {
+        console.warn(`[CACHE STALE] snapshot:${sector} (startup-bundled-fallback)`);
+        updateEntry(snapshotCache[sector], fallbackSnapshot);
+      }
+    }
+  });
   await Promise.all(preloadTasks);
 }
 

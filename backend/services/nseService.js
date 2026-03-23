@@ -1,4 +1,7 @@
 const axios = require("axios");
+const dns = require("dns");
+const httpModule = require("http");
+const https = require("https");
 const { getMarketStatus } = require("./marketStatus");
 
 const NSE_BASE_URL = "https://www.nseindia.com";
@@ -52,6 +55,39 @@ const NSE_HEADERS = {
 };
 
 const NSE_COOKIE_TTL_MS = 50 * 60 * 1000;
+
+function lookupPreferIpv4(hostname, options, callback) {
+  const normalizedOptions = typeof options === "object" && options !== null ? options : {};
+
+  dns.lookup(
+    hostname,
+    {
+      ...normalizedOptions,
+      family: 4,
+      all: false,
+      verbatim: false
+    },
+    (ipv4Error, address, family) => {
+      if (!ipv4Error) {
+        callback(null, address, family);
+        return;
+      }
+
+      // Fallback to default resolver behavior if IPv4-only lookup fails.
+      dns.lookup(hostname, normalizedOptions, callback);
+    }
+  );
+}
+
+const HTTP_AGENT = new httpModule.Agent({
+  keepAlive: true,
+  lookup: lookupPreferIpv4
+});
+
+const HTTPS_AGENT = new https.Agent({
+  keepAlive: true,
+  lookup: lookupPreferIpv4
+});
 
 const MAJOR_ENERGY_COMPANIES = [
   { symbol: "NTPC", name: "NTPC", aliases: ["NTPC"] },
@@ -125,6 +161,9 @@ const http = axios.create({
     ...NSE_HEADERS
   },
   timeout: NSE_REQUEST_TIMEOUT_MS,
+  httpAgent: HTTP_AGENT,
+  httpsAgent: HTTPS_AGENT,
+  family: 4,
   validateStatus: () => true
 });
 
