@@ -3,10 +3,16 @@ const path = require("path");
 const { fetchSectorDataSafe } = require("./fetchService");
 const { fetchIntradaySeriesFromNse } = require("./nseService");
 const { buildIntradaySeries } = require("./intradaySeries");
+const { getMarketStatus } = require("./marketStatus");
 
 const SECTORS = ["energy", "oilGas", "realEstate"];
 const SNAPSHOT_TTL_MS = 5 * 60 * 1000;
 const INTRADAY_TTL_MS = 60 * 1000;
+const OPEN_MARKET_SNAPSHOT_MAX_AGE_MS = Math.max(
+  Number(process.env.OPEN_MARKET_SNAPSHOT_MAX_AGE_MS) || 15 * 1000,
+  1000
+);
+const LIVE_PRIORITY_WAIT_MS = Math.max(Number(process.env.LIVE_PRIORITY_WAIT_MS) || 500, 100);
 
 const INTRADAY_INDEX_BY_SECTOR = {
   energy: "NIFTY ENERGY",
@@ -93,17 +99,22 @@ function hasData(entry) {
   return entry.timestamp > 0 && entry.data !== null;
 }
 
-function isStale(entry, now = Date.now()) {
+function isStale(entry, now = Date.now(), ttlOverrideMs = null) {
   if (!hasData(entry)) {
     return true;
   }
 
-  return now - entry.timestamp > entry.ttl;
+  const ttlMs = Number.isFinite(ttlOverrideMs) && ttlOverrideMs !== null ? ttlOverrideMs : entry.ttl;
+  return now - entry.timestamp > ttlMs;
 }
 
 function updateEntry(entry, data) {
   entry.data = data;
   entry.timestamp = Date.now();
+}
+
+function delay(ms) {
+  return new Promise(resolve => setTimeout(resolve, ms));
 }
 
 function loadBundledSnapshot(sector) {
@@ -169,6 +180,25 @@ function resolveCache(type) {
   throw new Error(`Unknown cache type: ${type}`);
 }
 
+function getEffectiveTtlMs(type, entry, { marketOpen = false } = {}) {
+  if (type === "snapshot" && marketOpen) {
+    return Math.min(entry.ttl, OPEN_MARKET_SNAPSHOT_MAX_AGE_MS);
+  }
+
+  return entry.ttl;
+}
+
+async function tryLivePriorityRefresh(type, sector, entry, reason, waitMs = LIVE_PRIORITY_WAIT_MS) {
+  const previousTimestamp = entry.timestamp;
+  const refreshPromise = scheduleRefresh(type, sector, reason)
+    .then(() => "updated")
+    .catch(() => "failed");
+
+  const outcome = await Promise.race([refreshPromise, delay(waitMs).then(() => "timeout")]);
+  const refreshed = outcome === "updated" && entry.timestamp > previousTimestamp;
+  return refreshed;
+}
+
 async function executeRefresh(type, sector) {
   if (type === "snapshot") {
     return fetchSnapshotForSector(sector);
@@ -215,7 +245,8 @@ function scheduleRefresh(type, sector, reason) {
   return promise;
 }
 
-async function getOrRefresh(type, sector) {
+async function getOrRefresh(type, sector, options = {}) {
+  const { preferLive = false } = options;
   if (!isValidSector(sector)) {
     throw new Error(`Invalid sector: ${sector}`);
   }
@@ -223,8 +254,32 @@ async function getOrRefresh(type, sector) {
   const cache = resolveCache(type);
   const entry = cache[sector];
   const now = Date.now();
+  const marketOpen = type === "snapshot" ? getMarketStatus().isOpen : false;
+  const livePriority = type === "snapshot" && (preferLive || marketOpen);
+  const effectiveTtlMs = getEffectiveTtlMs(type, entry, { marketOpen });
   const available = hasData(entry);
-  const stale = isStale(entry, now);
+  const stale = isStale(entry, now, effectiveTtlMs);
+
+  // Strict live-priority mode: when the market is open, always attempt a live
+  // snapshot refresh for sector endpoints, then fall back to cache quickly.
+  if (type === "snapshot" && marketOpen && available) {
+    const refreshedInTime = await tryLivePriorityRefresh(type, sector, entry, "open-market-force-live");
+    if (refreshedInTime) {
+      return {
+        data: entry.data,
+        cached: false,
+        stale: false,
+        timestamp: new Date(entry.timestamp).toISOString()
+      };
+    }
+
+    return {
+      data: entry.data,
+      cached: true,
+      stale: isStale(entry, Date.now(), effectiveTtlMs),
+      timestamp: new Date(entry.timestamp).toISOString()
+    };
+  }
 
   if (available && !stale) {
     console.log(`[CACHE HIT] ${type}:${sector}`);
@@ -238,9 +293,22 @@ async function getOrRefresh(type, sector) {
 
   if (available && stale) {
     console.warn(`[CACHE STALE] ${type}:${sector}`);
+    if (livePriority) {
+      const refreshedInTime = await tryLivePriorityRefresh(type, sector, entry, "stale-live-priority");
+      if (refreshedInTime) {
+        return {
+          data: entry.data,
+          cached: false,
+          stale: false,
+          timestamp: new Date(entry.timestamp).toISOString()
+        };
+      }
+    }
+
     scheduleRefresh(type, sector, "stale-read").catch(() => {
       // Intentionally silent: stale cache is still served.
     });
+
     return {
       data: entry.data,
       cached: true,
@@ -307,8 +375,12 @@ function getSnapshot(sector) {
   return getOrRefresh("snapshot", sector);
 }
 
-function getIntraday(sector) {
-  return getOrRefresh("intraday", sector);
+function getSnapshotWithOptions(sector, options = {}) {
+  return getOrRefresh("snapshot", sector, options);
+}
+
+function getIntraday(sector, options = {}) {
+  return getOrRefresh("intraday", sector, options);
 }
 
 function refreshSectorInBackground(sector, options = {}) {
@@ -350,7 +422,11 @@ function getCacheStats() {
     stats[sector] = {
       snapshot: {
         hasData: hasData(snapshotEntry),
-        stale: isStale(snapshotEntry, now),
+        stale: isStale(
+          snapshotEntry,
+          now,
+          getEffectiveTtlMs("snapshot", snapshotEntry, { marketOpen: getMarketStatus().isOpen })
+        ),
         timestamp: snapshotEntry.timestamp ? new Date(snapshotEntry.timestamp).toISOString() : null,
         ageMs: snapshotAgeMs,
         ttlMs: snapshotEntry.ttl,
@@ -400,6 +476,7 @@ module.exports = {
   SNAPSHOT_TTL_MS,
   INTRADAY_TTL_MS,
   getSnapshot,
+  getSnapshotWithOptions,
   getIntraday,
   refreshSectorInBackground,
   preloadCache,
