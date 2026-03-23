@@ -2,10 +2,12 @@ const express = require("express");
 
 const { NseServiceError, fetchIntradaySeriesFromNse } = require("../services/nseService");
 const { buildIntradaySeries } = require("../services/intradaySeries");
+const { getMarketStatus } = require("../services/marketStatus");
 
 function toRouteSnapshot(snapshot, overrides = {}) {
   return {
     ...snapshot,
+    marketStatus: getMarketStatus(),
     cacheAgeMs: overrides.cacheAgeMs,
     cached: overrides.cached ?? false,
     stale: overrides.stale ?? false,

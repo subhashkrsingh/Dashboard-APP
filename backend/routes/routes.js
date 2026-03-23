@@ -1,10 +1,29 @@
 const express = require("express");
 const cacheService = require("../services/cacheService");
 const { buildIntradaySeries } = require("../services/intradaySeries");
+const { getMarketStatus } = require("../services/marketStatus");
 
-function withMetadata(payload, cacheEntry) {
+function withLiveMarketStatus(payload) {
+  if (!payload || typeof payload !== "object") {
+    return payload;
+  }
+
+  // Keep market-open/closed status real-time even when serving cached snapshots.
+  if (!Object.prototype.hasOwnProperty.call(payload, "sectorIndex")) {
+    return payload;
+  }
+
   return {
     ...payload,
+    marketStatus: getMarketStatus()
+  };
+}
+
+function withMetadata(payload, cacheEntry) {
+  const nextPayload = withLiveMarketStatus(payload);
+
+  return {
+    ...nextPayload,
     dataStatus: cacheEntry.status,
     lastUpdated: cacheEntry.lastUpdated,
     refreshError: cacheEntry.error,

@@ -1,4 +1,5 @@
 const axios = require("axios");
+const { getMarketStatus } = require("./marketStatus");
 
 const NSE_BASE_URL = "https://www.nseindia.com";
 const NSE_SECTOR_ENDPOINT = "/api/sectoralIndex";
@@ -780,24 +781,6 @@ function buildAdvanceDecline(energyIndex, stocks, stocksPayload) {
     },
     { advances: 0, declines: 0, unchanged: 0 }
   );
-}
-
-function getMarketStatus() {
-  const now = new Date();
-  const istNow = new Date(now.toLocaleString("en-US", { timeZone: "Asia/Kolkata" }));
-  const day = istNow.getDay();
-  const isWeekday = day >= 1 && day <= 5;
-  const minutes = istNow.getHours() * 60 + istNow.getMinutes();
-  const openMinutes = 9 * 60 + 15;
-  const closeMinutes = 15 * 60 + 30;
-  const isOpen = isWeekday && minutes >= openMinutes && minutes <= closeMinutes;
-
-  return {
-    isOpen,
-    label: isOpen ? "OPEN" : "CLOSED",
-    timezone: "Asia/Kolkata",
-    checkedAt: now.toISOString()
-  };
 }
 
 function byPercentChangeDesc(a, b) {
