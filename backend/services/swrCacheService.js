@@ -98,6 +98,16 @@ function updateEntry(entry, data) {
   entry.timestamp = Date.now();
 }
 
+function buildSyntheticIntradayForSector(sector) {
+  const seedPrice = INTRADAY_SEED_PRICE_BY_SECTOR[sector];
+  const seedSnapshot = snapshotCache[sector].data;
+  return {
+    ...buildIntradaySeries(seedSnapshot, { seedPrice }),
+    source: "synthetic",
+    fetchedAt: new Date().toISOString()
+  };
+}
+
 async function fetchSnapshotForSector(sector) {
   const result = await fetchSectorDataSafe(sector);
   if (result.ok && result.data) {
@@ -109,7 +119,6 @@ async function fetchSnapshotForSector(sector) {
 
 async function fetchIntradayForSector(sector) {
   const indexName = INTRADAY_INDEX_BY_SECTOR[sector];
-  const seedPrice = INTRADAY_SEED_PRICE_BY_SECTOR[sector];
 
   try {
     const nseSeries = await fetchIntradaySeriesFromNse(indexName);
@@ -124,12 +133,7 @@ async function fetchIntradayForSector(sector) {
     // Silent fallback to synthetic intraday curve.
   }
 
-  const seedSnapshot = snapshotCache[sector].data;
-  return {
-    ...buildIntradaySeries(seedSnapshot, { seedPrice }),
-    source: "synthetic",
-    fetchedAt: new Date().toISOString()
-  };
+  return buildSyntheticIntradayForSector(sector);
 }
 
 function resolveCache(type) {
@@ -220,6 +224,20 @@ async function getOrRefresh(type, sector) {
       data: entry.data,
       cached: true,
       stale: true,
+      timestamp: new Date(entry.timestamp).toISOString()
+    };
+  }
+
+  if (type === "intraday" && !available) {
+    const immediateSynthetic = buildSyntheticIntradayForSector(sector);
+    updateEntry(entry, immediateSynthetic);
+    scheduleRefresh(type, sector, "cache-miss").catch(() => {
+      // Keep serving the synthetic fallback until a live refresh succeeds.
+    });
+    return {
+      data: entry.data,
+      cached: false,
+      stale: false,
       timestamp: new Date(entry.timestamp).toISOString()
     };
   }
