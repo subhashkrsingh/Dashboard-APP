@@ -55,38 +55,18 @@ const NSE_HEADERS = {
 };
 
 const NSE_COOKIE_TTL_MS = 50 * 60 * 1000;
-
-function lookupPreferIpv4(hostname, options, callback) {
-  const normalizedOptions = typeof options === "object" && options !== null ? options : {};
-
-  dns.lookup(
-    hostname,
-    {
-      ...normalizedOptions,
-      family: 4,
-      all: false,
-      verbatim: false
-    },
-    (ipv4Error, address, family) => {
-      if (!ipv4Error) {
-        callback(null, address, family);
-        return;
-      }
-
-      // Fallback to default resolver behavior if IPv4-only lookup fails.
-      dns.lookup(hostname, normalizedOptions, callback);
-    }
-  );
+try {
+  dns.setDefaultResultOrder("ipv4first");
+} catch (error) {
+  // No-op for Node runtimes that do not support result-order override.
 }
 
 const HTTP_AGENT = new httpModule.Agent({
-  keepAlive: true,
-  lookup: lookupPreferIpv4
+  keepAlive: true
 });
 
 const HTTPS_AGENT = new https.Agent({
-  keepAlive: true,
-  lookup: lookupPreferIpv4
+  keepAlive: true
 });
 
 const MAJOR_ENERGY_COMPANIES = [
@@ -163,7 +143,6 @@ const http = axios.create({
   timeout: NSE_REQUEST_TIMEOUT_MS,
   httpAgent: HTTP_AGENT,
   httpsAgent: HTTPS_AGENT,
-  family: 4,
   validateStatus: () => true
 });
 

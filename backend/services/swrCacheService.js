@@ -13,6 +13,7 @@ const OPEN_MARKET_SNAPSHOT_MAX_AGE_MS = Math.max(
   1000
 );
 const LIVE_PRIORITY_WAIT_MS = Math.max(Number(process.env.LIVE_PRIORITY_WAIT_MS) || 500, 100);
+const REFRESH_HARD_TIMEOUT_MS = Math.max(Number(process.env.REFRESH_HARD_TIMEOUT_MS) || 45000, 5000);
 
 const INTRADAY_INDEX_BY_SECTOR = {
   energy: "NIFTY ENERGY",
@@ -115,6 +116,20 @@ function updateEntry(entry, data) {
 
 function delay(ms) {
   return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+function withTimeout(promise, timeoutMs, timeoutMessage) {
+  let timeoutHandle = null;
+
+  const timeoutPromise = new Promise((_, reject) => {
+    timeoutHandle = setTimeout(() => reject(new Error(timeoutMessage)), timeoutMs);
+  });
+
+  return Promise.race([promise, timeoutPromise]).finally(() => {
+    if (timeoutHandle) {
+      clearTimeout(timeoutHandle);
+    }
+  });
 }
 
 function loadBundledSnapshot(sector) {
@@ -226,7 +241,11 @@ function scheduleRefresh(type, sector, reason) {
 
   const promise = (async () => {
     try {
-      const payload = await executeRefresh(type, sector);
+      const payload = await withTimeout(
+        executeRefresh(type, sector),
+        REFRESH_HARD_TIMEOUT_MS,
+        `Refresh timeout after ${REFRESH_HARD_TIMEOUT_MS}ms`
+      );
       updateEntry(entry, payload);
       lastRefreshError[type][sector] = null;
       console.log(`[REFRESH SUCCESS] ${type}:${sector}`);

@@ -19,6 +19,15 @@ interface SectorIntradayNormalizeOptions {
   sourceLabel: string;
 }
 
+interface CacheEnvelope {
+  data: unknown;
+  cacheMeta?: {
+    stale?: boolean;
+    cached?: boolean;
+    timestamp?: unknown;
+  };
+}
+
 function normalizeCompany(row: Record<string, unknown>): CompanyQuote {
   return {
     symbol: String(row.symbol ?? ""),
@@ -37,6 +46,57 @@ function isObject(value: unknown): value is Record<string, unknown> {
 function toNumberOrNull(value: unknown): number | null {
   const numeric = Number(value);
   return Number.isFinite(numeric) ? numeric : null;
+}
+
+function toIsoTimestamp(value: unknown): string | undefined {
+  if (typeof value === "number" && Number.isFinite(value)) {
+    return new Date(value).toISOString();
+  }
+
+  const text = String(value ?? "").trim();
+  if (!text) {
+    return undefined;
+  }
+
+  const numeric = Number(text);
+  if (Number.isFinite(numeric) && !text.includes("-") && !text.includes(":")) {
+    return new Date(numeric).toISOString();
+  }
+
+  const parsed = new Date(text);
+  if (Number.isNaN(parsed.getTime())) {
+    return undefined;
+  }
+
+  return parsed.toISOString();
+}
+
+function unwrapCacheEnvelope(payload: unknown): CacheEnvelope {
+  if (!isObject(payload) || !("data" in payload)) {
+    return { data: payload };
+  }
+
+  const cacheMetaFromLegacy = {
+    stale: typeof payload.stale === "boolean" ? payload.stale : undefined,
+    cached: typeof payload.cached === "boolean" ? payload.cached : undefined,
+    timestamp: payload.timestamp
+  };
+
+  if (isObject(payload._cache)) {
+    return {
+      data: payload.data,
+      cacheMeta: {
+        stale: typeof payload._cache.stale === "boolean" ? payload._cache.stale : cacheMetaFromLegacy.stale,
+        cached: cacheMetaFromLegacy.cached ?? (typeof payload._cache.stale === "boolean" ? true : undefined),
+        timestamp: payload._cache.timestamp ?? cacheMetaFromLegacy.timestamp
+      }
+    };
+  }
+
+  return {
+    data: payload.data,
+    cacheMeta: cacheMetaFromLegacy
+  };
 }
 
 function normalizeReturns(value: unknown): SectorReturns | undefined {
@@ -200,23 +260,42 @@ export function normalizeIntradayResponse(
   payload: unknown,
   options: SectorIntradayNormalizeOptions
 ): SectorIntradayResponse {
-  if (!isObject(payload) || !Array.isArray(payload.time) || !Array.isArray(payload.value)) {
+  const unwrapped = unwrapCacheEnvelope(payload);
+  const normalizedPayload = unwrapped.data;
+
+  if (!isObject(normalizedPayload) || !Array.isArray(normalizedPayload.time) || !Array.isArray(normalizedPayload.value)) {
     throw new Error(`Unexpected intraday response from ${options.sourceLabel} API`);
   }
 
   return {
-    time: payload.time.map(point => String(point)),
-    value: payload.value.map(point => toNumberOrNull(point) ?? 0),
-    source: payload.source ? String(payload.source) : undefined,
-    fetchedAt: String(payload.fetchedAt ?? new Date().toISOString())
+    time: normalizedPayload.time.map(point => String(point)),
+    value: normalizedPayload.value.map(point => toNumberOrNull(point) ?? 0),
+    source: normalizedPayload.source ? String(normalizedPayload.source) : undefined,
+    fetchedAt: String(
+      normalizedPayload.fetchedAt ??
+        toIsoTimestamp(unwrapped.cacheMeta?.timestamp) ??
+        new Date().toISOString()
+    )
   };
 }
 
 function normalizeSectorFromResponse(response: { data: unknown; cacheStatus?: string }, options: Omit<NormalizeOptions, "apiCacheStatus">) {
-  return normalizeSectorResponse(response.data, {
+  const unwrapped = unwrapCacheEnvelope(response.data);
+  const normalized = normalizeSectorResponse(unwrapped.data, {
     ...options,
     apiCacheStatus: response.cacheStatus
   });
+
+  if (!unwrapped.cacheMeta) {
+    return normalized;
+  }
+
+  return {
+    ...normalized,
+    stale: typeof unwrapped.cacheMeta.stale === "boolean" ? unwrapped.cacheMeta.stale : normalized.stale,
+    cached: typeof unwrapped.cacheMeta.cached === "boolean" ? unwrapped.cacheMeta.cached : normalized.cached,
+    fetchedAt: toIsoTimestamp(unwrapped.cacheMeta.timestamp) ?? normalized.fetchedAt
+  };
 }
 
 function resolveSectorConfig(sector: SectorId): SectorApiConfig {
