@@ -1,7 +1,7 @@
 import { motion } from "framer-motion";
 
-import { formatClock } from "../../lib/formatters";
 import type { CompanyQuote, MarketStatus } from "../../types/market";
+import LiveISTClock from "../LiveISTClock";
 
 interface HeaderBarProps {
   companies: CompanyQuote[];
@@ -11,7 +11,7 @@ interface HeaderBarProps {
   onToggleSidebar: () => void;
 }
 
-export function HeaderBar({ companies, marketStatus, fetchedAt, isFetching, onToggleSidebar }: HeaderBarProps) {
+export function HeaderBar({ companies, marketStatus, isFetching, onToggleSidebar }: HeaderBarProps) {
   const tickerData = companies.filter(company => Number.isFinite(company.percentChange));
 
   return (
@@ -54,9 +54,7 @@ export function HeaderBar({ companies, marketStatus, fetchedAt, isFetching, onTo
             />
             Market {marketStatus?.label ?? "--"}
           </span>
-          <span className="rounded-full border border-slate-700 bg-slate-950/70 px-3 py-1.5 text-slate-300">
-            Last update: {formatClock(fetchedAt)} IST
-          </span>
+          <LiveISTClock />
           <span className="rounded-full border border-slate-700 bg-slate-950/70 px-3 py-1.5 text-slate-300">
             Feed: {isFetching ? "Refreshing" : "Live"}
           </span>

@@ -2,8 +2,8 @@ import { useMemo } from "react";
 import { motion } from "framer-motion";
 import { Bell, Menu, Search, UserCircle2 } from "lucide-react";
 
-import { formatClock } from "../../lib/formatters";
 import type { CompanyQuote, MarketStatus, SectorDataStatus } from "../../types/market";
+import LiveISTClock from "../LiveISTClock";
 import { Badge } from "../ui/Badge";
 
 interface NavbarProps {
@@ -44,7 +44,6 @@ function getDataStatusBadge(dataStatus: SectorDataStatus | undefined, cacheAgeMs
 export function Navbar({
   companies,
   marketStatus,
-  fetchedAt,
   isFetching,
   dataStatus,
   cacheAgeMs,
@@ -107,7 +106,7 @@ export function Navbar({
 
         {showApiBadge ? <Badge tone="neutral">API {apiCacheStatus}</Badge> : null}
 
-        <Badge tone="neutral">IST {formatClock(fetchedAt)}</Badge>
+        <LiveISTClock />
 
         <button
           type="button"

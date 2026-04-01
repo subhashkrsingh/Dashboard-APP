@@ -1,26 +1,6 @@
-import { useEffect, useState } from "react";
-
-function formatIstClock(date) {
-  return new Intl.DateTimeFormat("en-IN", {
-    hour: "2-digit",
-    minute: "2-digit",
-    second: "2-digit",
-    hour12: false,
-    timeZone: "Asia/Kolkata"
-  }).format(date);
-}
+import LiveISTClock from "./LiveISTClock";
 
 export default function Header({ marketStatus, isFetching, fetchedAt }) {
-  const [clock, setClock] = useState(() => formatIstClock(new Date()));
-
-  useEffect(() => {
-    const id = setInterval(() => {
-      setClock(formatIstClock(new Date()));
-    }, 1000);
-
-    return () => clearInterval(id);
-  }, []);
-
   return (
     <header className="animate-popIn rounded-2xl border border-dashboard-border/80 bg-dashboard-panel/90 p-5 shadow-glow">
       <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
@@ -43,7 +23,7 @@ export default function Header({ marketStatus, isFetching, fetchedAt }) {
             />
             <span className="font-semibold text-white">Market {marketStatus?.label || "--"}</span>
           </div>
-          <div className="text-xs text-slate-400">IST {clock}</div>
+          <LiveISTClock />
           <div className="text-xs text-slate-400">{isFetching ? "Refreshing..." : "Feed steady"}</div>
           <div className="text-xs text-slate-500">Last fetch: {fetchedAt ? new Date(fetchedAt).toLocaleTimeString() : "--"}</div>
         </div>
