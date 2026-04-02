@@ -32,6 +32,7 @@ export function SectorRouteLayout({ config, onOpenSidebar, marketData }: SectorR
         dataStatus={data?.dataStatus}
         cacheAgeMs={data?.cacheAgeMs}
         apiCacheStatus={data?.apiCacheStatus}
+        marketSnapshot={data}
         search={search}
         onSearchChange={setSearch}
         onOpenSidebar={onOpenSidebar}

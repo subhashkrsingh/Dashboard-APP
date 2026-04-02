@@ -1,9 +1,11 @@
 import { useMemo } from "react";
 import { motion } from "framer-motion";
-import { Bell, Menu, Search, UserCircle2 } from "lucide-react";
+import { Menu, Search, UserCircle2 } from "lucide-react";
 
-import type { CompanyQuote, MarketStatus, SectorDataStatus } from "../../types/market";
+import type { CompanyQuote, MarketStatus, SectorDataStatus, SectorSnapshot } from "../../types/market";
+import { useMarketAlerts } from "../../hooks/useMarketAlerts";
 import LiveISTClock from "../LiveISTClock";
+import { AlertDropdown } from "../market/AlertDropdown";
 import { FeedStatusIndicator } from "../market/FeedStatusIndicator";
 import { Badge } from "../ui/Badge";
 
@@ -15,6 +17,7 @@ interface NavbarProps {
   dataStatus?: SectorDataStatus;
   cacheAgeMs?: number;
   apiCacheStatus?: string;
+  marketSnapshot?: SectorSnapshot;
   search: string;
   onSearchChange: (value: string) => void;
   onOpenSidebar: () => void;
@@ -27,10 +30,12 @@ export function Navbar({
   dataStatus,
   cacheAgeMs,
   apiCacheStatus,
+  marketSnapshot,
   search,
   onSearchChange,
   onOpenSidebar
 }: NavbarProps) {
+  const { unreadCount, alerts } = useMarketAlerts(marketSnapshot);
   const showApiBadge = Boolean(apiCacheStatus) && (import.meta.env.DEV || dataStatus !== "live");
   const tickerItems = useMemo(
     () =>
@@ -86,13 +91,7 @@ export function Navbar({
 
         <LiveISTClock />
 
-        <button
-          type="button"
-          className="inline-flex items-center gap-2 rounded-xl border border-slate-300 bg-white px-3 py-2 text-xs text-slate-700 hover:border-blue-300"
-        >
-          <Bell className="h-3.5 w-3.5" />
-          Alerts (3)
-        </button>
+        <AlertDropdown alerts={alerts} unreadCount={unreadCount} />
 
         <button
           type="button"

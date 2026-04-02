@@ -378,6 +378,7 @@ export function DashboardPage() {
             dataStatus={data.dataStatus}
             cacheAgeMs={data.cacheAgeMs}
             apiCacheStatus={data.apiCacheStatus}
+            marketSnapshot={data}
             search={search}
             onSearchChange={setSearch}
             onOpenSidebar={() => setSidebarOpen(true)}
