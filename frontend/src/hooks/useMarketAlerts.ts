@@ -1,137 +1,126 @@
-import { useEffect, useMemo, useRef } from "react";
+import { useMemo } from "react";
 
 import type { CompanyQuote, SectorSnapshot } from "../types/market";
-import { addAlert, pruneAlerts, useAlertStore } from "../stores/alertStore";
 
-const ALERT_DEBOUNCE_MS = 250;
-const PRUNE_INTERVAL_MS = 30_000;
+export type MarketAlertSeverity = "info" | "warning" | "danger";
 
-function getTopLoser(companies: CompanyQuote[], providedLosers: CompanyQuote[]) {
-  if (providedLosers.length > 0) {
-    return providedLosers[0];
+export interface MarketAlert {
+  id: string;
+  message: string;
+  severity: MarketAlertSeverity;
+  timestamp: number;
+  read: boolean;
+}
+
+function toTimestamp(value: string | undefined) {
+  const parsed = value ? Date.parse(value) : NaN;
+  return Number.isNaN(parsed) ? Date.now() : parsed;
+}
+
+function getTopLoser(companies: CompanyQuote[], losers: CompanyQuote[]) {
+  if (losers.length > 0) {
+    return losers[0];
   }
 
   return [...companies].sort((a, b) => (a.percentChange ?? 0) - (b.percentChange ?? 0))[0];
 }
 
-function buildAlertCandidates(snapshot: SectorSnapshot | undefined) {
-  if (!snapshot) {
-    return [];
+function getVolumeSpike(companies: CompanyQuote[]) {
+  const companiesWithVolume = companies.filter(company => Number.isFinite(company.volume));
+  if (companiesWithVolume.length === 0) {
+    return null;
   }
 
-  const candidates: Array<{ id: string; message: string; severity: "info" | "warning" | "danger" }> = [];
-  const sectorPercentChange = snapshot.sectorIndex.percentChange;
-  const sectorName = snapshot.sectorIndex.name || snapshot.requestedIndex || "Sector";
-  const topLoser = getTopLoser(snapshot.companies, snapshot.losers);
   const averageVolume =
-    snapshot.companies.length > 0
-      ? snapshot.companies.reduce((sum, company) => sum + (company.volume ?? 0), 0) / snapshot.companies.length
-      : 0;
-  const volumeSpike =
-    averageVolume > 0
-      ? snapshot.companies
-          .filter(company => Number.isFinite(company.volume) && (company.volume ?? 0) > averageVolume * 2)
-          .sort((a, b) => (b.volume ?? 0) - (a.volume ?? 0))[0]
-      : undefined;
+    companiesWithVolume.reduce((sum, company) => sum + Number(company.volume ?? 0), 0) / companiesWithVolume.length;
 
-  if (snapshot.source === "cache" || snapshot.dataStatus === "cache") {
-    candidates.push({
-      id: "feed-fallback",
-      message: "Using recent snapshot (live feed restricted)",
-      severity: "warning"
-    });
+  if (!Number.isFinite(averageVolume) || averageVolume <= 0) {
+    return null;
   }
 
-  if (Number.isFinite(sectorPercentChange) && Number(sectorPercentChange) < -1.5) {
-    candidates.push({
-      id: `sector-drop:${sectorName}`,
-      message: `${sectorName} down ${Number(sectorPercentChange).toFixed(2)}%`,
-      severity: "danger"
-    });
-  }
-
-  if (topLoser && Number.isFinite(topLoser.percentChange) && Number(topLoser.percentChange) < -3) {
-    candidates.push({
-      id: `top-loser:${topLoser.symbol}`,
-      message: `${topLoser.symbol} heavy selloff ${Number(topLoser.percentChange).toFixed(2)}%`,
-      severity: "danger"
-    });
-  }
-
-  if (volumeSpike) {
-    candidates.push({
-      id: `volume-spike:${volumeSpike.symbol}`,
-      message: `${volumeSpike.symbol} unusual volume spike`,
-      severity: "info"
-    });
-  }
-
-  return candidates;
+  return (
+    [...companiesWithVolume]
+      .sort((a, b) => Number(b.volume ?? 0) - Number(a.volume ?? 0))
+      .find(company => Number(company.volume ?? 0) > averageVolume * 2) || null
+  );
 }
 
 export function useMarketAlerts(snapshot: SectorSnapshot | undefined) {
-  const { alerts } = useAlertStore();
-  const previousSignatureRef = useRef<string>("");
-  const previousMarketOpenRef = useRef<boolean | null>(null);
+  const source = snapshot?.source ?? (snapshot?.dataStatus === "cache" ? "cache" : "live");
+  const sectorChange = Number(snapshot?.sectorIndex.percentChange);
+  const topLoser = useMemo(
+    () => getTopLoser(snapshot?.companies ?? [], snapshot?.losers ?? []),
+    [snapshot?.companies, snapshot?.losers]
+  );
+  const topLoserSymbol = topLoser?.symbol ?? "";
+  const topLoserChange = Number(topLoser?.percentChange);
+  const marketIsOpen = Boolean(snapshot?.marketStatus?.isOpen);
+  const volumeSpike = useMemo(() => getVolumeSpike(snapshot?.companies ?? []), [snapshot?.companies]);
+  const volumeSpikeSymbol = volumeSpike?.symbol ?? "";
+  const baseTimestamp = toTimestamp(snapshot?.fetchedAt);
 
-  const alertCandidates = useMemo(() => buildAlertCandidates(snapshot), [snapshot]);
+  const alerts = useMemo(() => {
+    const list: MarketAlert[] = [];
+    const seen = new Set<string>();
 
-  useEffect(() => {
-    pruneAlerts();
-    const intervalId = window.setInterval(() => {
-      pruneAlerts();
-    }, PRUNE_INTERVAL_MS);
+    const addAlert = (alert: Omit<MarketAlert, "timestamp" | "read">) => {
+      if (seen.has(alert.id)) {
+        return;
+      }
 
-    return () => {
-      window.clearInterval(intervalId);
+      seen.add(alert.id);
+      list.push({
+        ...alert,
+        timestamp: baseTimestamp,
+        read: false
+      });
     };
-  }, []);
 
-  useEffect(() => {
-    if (alertCandidates.length === 0) {
-      previousSignatureRef.current = "";
-      return;
+    if (source === "cache") {
+      addAlert({
+        id: "cache",
+        message: "Using cached snapshot",
+        severity: "warning"
+      });
     }
 
-    const nextSignature = alertCandidates.map(candidate => `${candidate.id}:${candidate.message}`).join("|");
-    if (nextSignature === previousSignatureRef.current) {
-      return;
+    if (Number.isFinite(sectorChange) && sectorChange < -1.5) {
+      addAlert({
+        id: "sector-drop",
+        message: `${snapshot?.sectorIndex.name ?? "Energy"} down ${sectorChange.toFixed(2)}%`,
+        severity: "danger"
+      });
     }
 
-    previousSignatureRef.current = nextSignature;
-    const timeoutId = window.setTimeout(() => {
-      alertCandidates.forEach(candidate => addAlert(candidate));
-    }, ALERT_DEBOUNCE_MS);
-
-    return () => {
-      window.clearTimeout(timeoutId);
-    };
-  }, [alertCandidates]);
-
-  useEffect(() => {
-    const isOpen = Boolean(snapshot?.marketStatus?.isOpen);
-    const previousOpen = previousMarketOpenRef.current;
-    previousMarketOpenRef.current = isOpen;
-
-    if (!isOpen || previousOpen === true) {
-      return;
+    if (topLoserSymbol && Number.isFinite(topLoserChange) && topLoserChange < -3) {
+      addAlert({
+        id: "top-loser",
+        message: `${topLoserSymbol} heavy selloff ${topLoserChange.toFixed(2)}%`,
+        severity: "danger"
+      });
     }
 
-    const timeoutId = window.setTimeout(() => {
+    if (marketIsOpen) {
       addAlert({
         id: "market-open",
         message: "Market is now OPEN",
         severity: "info"
       });
-    }, ALERT_DEBOUNCE_MS);
+    }
 
-    return () => {
-      window.clearTimeout(timeoutId);
-    };
-  }, [snapshot?.marketStatus?.isOpen]);
+    if (volumeSpikeSymbol) {
+      addAlert({
+        id: "volume-spike",
+        message: `${volumeSpikeSymbol} unusual volume spike`,
+        severity: "info"
+      });
+    }
+
+    return list;
+  }, [baseTimestamp, marketIsOpen, sectorChange, snapshot?.sectorIndex.name, source, topLoserChange, topLoserSymbol, volumeSpikeSymbol]);
 
   return {
     alerts,
-    unreadCount: alerts.filter(alert => !alert.read).length
+    alertCount: alerts.length
   };
 }

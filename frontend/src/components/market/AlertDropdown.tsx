@@ -1,75 +1,76 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Bell, Trash2, X } from "lucide-react";
+import { Bell } from "lucide-react";
 
 import { formatClock } from "../../lib/formatters";
-import type { MarketAlert } from "../../stores/alertStore";
-import { clearAlerts, markAsRead, removeAlert } from "../../stores/alertStore";
+import type { MarketAlert } from "../../hooks/useMarketAlerts";
 
 interface AlertDropdownProps {
   alerts: MarketAlert[];
-  unreadCount: number;
+  alertCount: number;
 }
 
-function getCountTone(unreadCount: number) {
-  if (unreadCount >= 3) {
+function getCountTone(alertCount: number) {
+  if (alertCount >= 3) {
     return "border-rose-300 bg-rose-50 text-rose-700";
   }
 
   return "border-amber-300 bg-amber-50 text-amber-700";
 }
 
-function getSeverityIcon(severity: MarketAlert["severity"]) {
+function getAlertIcon(severity: MarketAlert["severity"]) {
   if (severity === "danger") {
-    return <span className="text-rose-600">📉</span>;
+    return "📉";
   }
 
   if (severity === "warning") {
-    return <span className="text-amber-600">⚠</span>;
+    return "⚠";
   }
 
-  return <span className="text-blue-600">🔔</span>;
+  return "🔔";
 }
 
-function getSeverityBadge(severity: MarketAlert["severity"]) {
-  if (severity === "danger") {
-    return "border-rose-200 bg-rose-50 text-rose-700";
-  }
-
-  if (severity === "warning") {
-    return "border-amber-200 bg-amber-50 text-amber-700";
-  }
-
-  return "border-blue-200 bg-blue-50 text-blue-700";
+function AlertItem(alert: MarketAlert) {
+  return (
+    <div key={alert.id} className="border-b border-slate-200 px-4 py-3 last:border-b-0">
+      <div className="flex items-start gap-3">
+        <span className="pt-0.5 text-sm">{getAlertIcon(alert.severity)}</span>
+        <div className="min-w-0 flex-1">
+          <p className="text-sm font-medium leading-5 text-slate-800">{alert.message}</p>
+          <p className="mt-1 text-[11px] text-slate-500">{formatClock(new Date(alert.timestamp).toISOString())}</p>
+        </div>
+      </div>
+    </div>
+  );
 }
 
-export function AlertDropdown({ alerts, unreadCount }: AlertDropdownProps) {
+export function AlertDropdown({ alerts, alertCount }: AlertDropdownProps) {
   const [open, setOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement | null>(null);
-  const orderedAlerts = useMemo(() => [...alerts].sort((a, b) => b.timestamp - a.timestamp), [alerts]);
+  const orderedAlerts = useMemo(() => [...alerts], [alerts]);
 
   useEffect(() => {
     if (!open) {
       return;
     }
 
-    const onPointerDown = (event: MouseEvent) => {
+    const handlePointerDown = (event: MouseEvent) => {
       if (!containerRef.current?.contains(event.target as Node)) {
         setOpen(false);
       }
     };
 
-    const onEscape = (event: KeyboardEvent) => {
+    const handleEscape = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
         setOpen(false);
       }
     };
 
-    window.addEventListener("mousedown", onPointerDown);
-    window.addEventListener("keydown", onEscape);
+    window.addEventListener("mousedown", handlePointerDown);
+    window.addEventListener("keydown", handleEscape);
 
     return () => {
-      window.removeEventListener("mousedown", onPointerDown);
-      window.removeEventListener("keydown", onEscape);
+      window.removeEventListener("mousedown", handlePointerDown);
+      window.removeEventListener("keydown", handleEscape);
     };
   }, [open]);
 
@@ -83,67 +84,28 @@ export function AlertDropdown({ alerts, unreadCount }: AlertDropdownProps) {
         aria-haspopup="dialog"
       >
         <Bell className="h-3.5 w-3.5" />
-        Alerts
-        {unreadCount > 0 ? (
-          <span className={`inline-flex min-w-5 items-center justify-center rounded-full border px-1.5 py-0.5 text-[10px] font-bold ${getCountTone(unreadCount)}`}>
-            {unreadCount}
+        {`Alerts (${alertCount})`}
+        {alertCount > 0 ? (
+          <span
+            className={`inline-flex min-w-5 items-center justify-center rounded-full border px-1.5 py-0.5 text-[10px] font-bold ${getCountTone(alertCount)}`}
+          >
+            {alertCount}
           </span>
         ) : null}
       </button>
 
       {open ? (
         <div className="absolute right-0 top-[calc(100%+0.75rem)] z-40 w-[360px] max-w-[calc(100vw-2rem)] overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-[0_22px_60px_rgba(15,23,42,0.16)]">
-          <div className="flex items-center justify-between border-b border-slate-200 px-4 py-3">
-            <div className="flex items-center gap-2">
-              <Bell className="h-4 w-4 text-slate-600" />
-              <div>
-                <p className="text-sm font-semibold text-slate-900">Alerts</p>
-                <p className="text-[11px] text-slate-500">{unreadCount} unread</p>
-              </div>
-            </div>
-            {orderedAlerts.length > 0 ? (
-              <button
-                type="button"
-                onClick={() => clearAlerts()}
-                className="inline-flex items-center gap-1 rounded-full border border-slate-200 px-2.5 py-1 text-[11px] font-semibold text-slate-600 hover:border-slate-300 hover:text-slate-900"
-              >
-                <Trash2 className="h-3 w-3" />
-                Clear
-              </button>
-            ) : null}
+          <div className="border-b border-slate-200 px-4 py-3">
+            <p className="text-sm font-semibold text-slate-900">🔔 Alerts</p>
           </div>
 
           {orderedAlerts.length === 0 ? (
             <div className="px-4 py-5 text-sm text-slate-500">No active alerts right now.</div>
           ) : (
-            <div className="max-h-[360px] overflow-y-auto px-3 py-3">
+            <div className="max-h-[360px] overflow-y-auto">
               {orderedAlerts.map(alert => (
-                <div
-                  key={alert.id}
-                  className={`mb-2 rounded-2xl border px-3 py-3 last:mb-0 ${getSeverityBadge(alert.severity)} ${alert.read ? "opacity-70" : ""}`}
-                >
-                  <div className="flex items-start gap-3">
-                    <div className="pt-0.5 text-sm">{getSeverityIcon(alert.severity)}</div>
-                    <button
-                      type="button"
-                      onClick={() => markAsRead(alert.id)}
-                      className="min-w-0 flex-1 text-left"
-                    >
-                      <p className="text-sm font-medium leading-5">{alert.message}</p>
-                      <p className="mt-1 text-[11px] leading-4">
-                        {alert.read ? "Read" : "Unread"} at {formatClock(new Date(alert.timestamp).toISOString())}
-                      </p>
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => removeAlert(alert.id)}
-                      className="rounded-full border border-white/70 bg-white/60 p-1 text-slate-500 hover:text-slate-900"
-                      aria-label={`Remove alert ${alert.message}`}
-                    >
-                      <X className="h-3 w-3" />
-                    </button>
-                  </div>
-                </div>
+                <AlertItem key={alert.id} {...alert} />
               ))}
             </div>
           )}

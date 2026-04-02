@@ -35,7 +35,7 @@ export function Navbar({
   onSearchChange,
   onOpenSidebar
 }: NavbarProps) {
-  const { unreadCount, alerts } = useMarketAlerts(marketSnapshot);
+  const { alertCount, alerts } = useMarketAlerts(marketSnapshot);
   const showApiBadge = Boolean(apiCacheStatus) && (import.meta.env.DEV || dataStatus !== "live");
   const tickerItems = useMemo(
     () =>
@@ -91,7 +91,7 @@ export function Navbar({
 
         <LiveISTClock />
 
-        <AlertDropdown alerts={alerts} unreadCount={unreadCount} />
+        <AlertDropdown alerts={alerts} alertCount={alertCount} />
 
         <button
           type="button"
