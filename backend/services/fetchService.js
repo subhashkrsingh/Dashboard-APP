@@ -7,6 +7,10 @@
 
 const {
   getEnergySectorData,
+  getBankingSectorData,
+  getAutoSectorData,
+  getFmcgSectorData,
+  getItSectorData,
   getOilGasSectorData,
   getRealEstateSectorData,
   NseServiceError
@@ -15,6 +19,10 @@ const { retryNseFetch } = require("./nseRetryFetch");
 
 const SNAPSHOT_FETCHERS = {
   energy: getEnergySectorData,
+  banking: getBankingSectorData,
+  auto: getAutoSectorData,
+  fmcg: getFmcgSectorData,
+  it: getItSectorData,
   oilGas: getOilGasSectorData,
   realEstate: getRealEstateSectorData
 };

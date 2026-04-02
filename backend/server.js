@@ -7,6 +7,7 @@ const path = require("path");
 
 const { createSectorRouter, createHealthRouter, createAdminRouter } = require("./routes/routes");
 const cacheService = require("./services/swrCacheService");
+const { SECTOR_REGISTRY, listApiRoutes } = require("./services/sectorRegistry");
 
 const app = express();
 const PORT = Number(process.env.PORT) || 3000;
@@ -123,31 +124,23 @@ app.get("/api", (_req, res) => {
     environment: NODE_ENV,
     routes: [
       "/api/health",
-      "/api/energy-sector",
-      "/api/energy-sector/intraday",
-      "/api/oil-gas-sector",
-      "/api/oil-gas-sector/intraday",
-      "/api/oil-gas",
-      "/api/oil-gas/intraday",
-      "/api/real-estate-sector",
-      "/api/real-estate-sector/intraday",
-      "/api/real-estate",
-      "/api/real-estate/intraday",
+      ...listApiRoutes().map(route => `/api${route}`),
       "/api/admin/cache"
     ],
     cache: {
       snapshotTtlMs: cacheService.SNAPSHOT_TTL_MS,
+      softRefreshMs: cacheService.SOFT_REFRESH_MS,
       intradayTtlMs: cacheService.INTRADAY_TTL_MS
     }
   });
 });
 
 app.use("/api/health", createHealthRouter());
-app.use("/api/energy-sector", createSectorRouter("energy"));
-app.use("/api/oil-gas-sector", createSectorRouter("oilGas"));
-app.use("/api/oil-gas", createSectorRouter("oilGas"));
-app.use("/api/real-estate-sector", createSectorRouter("realEstate"));
-app.use("/api/real-estate", createSectorRouter("realEstate"));
+Object.values(SECTOR_REGISTRY).forEach(config => {
+  config.routeBases.forEach(base => {
+    app.use(`/api${base}`, createSectorRouter(config.key));
+  });
+});
 app.use("/api/admin", createAdminRouter());
 
 if (serveStaticFrontend) {

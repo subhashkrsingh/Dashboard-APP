@@ -25,6 +25,8 @@ interface CacheEnvelope {
     stale?: boolean;
     cached?: boolean;
     timestamp?: unknown;
+    source?: unknown;
+    isStale?: boolean;
   };
 }
 
@@ -79,7 +81,9 @@ function unwrapCacheEnvelope(payload: unknown): CacheEnvelope {
   const cacheMetaFromLegacy = {
     stale: typeof payload.stale === "boolean" ? payload.stale : undefined,
     cached: typeof payload.cached === "boolean" ? payload.cached : undefined,
-    timestamp: payload.timestamp
+    timestamp: payload.timestamp,
+    source: payload.source,
+    isStale: typeof payload.isStale === "boolean" ? payload.isStale : undefined
   };
 
   if (isObject(payload._cache)) {
@@ -88,7 +92,10 @@ function unwrapCacheEnvelope(payload: unknown): CacheEnvelope {
       cacheMeta: {
         stale: typeof payload._cache.stale === "boolean" ? payload._cache.stale : cacheMetaFromLegacy.stale,
         cached: cacheMetaFromLegacy.cached ?? (typeof payload._cache.stale === "boolean" ? true : undefined),
-        timestamp: payload._cache.timestamp ?? cacheMetaFromLegacy.timestamp
+        timestamp: payload._cache.timestamp ?? cacheMetaFromLegacy.timestamp,
+        source: payload._cache.source ?? cacheMetaFromLegacy.source,
+        isStale:
+          typeof payload._cache.isStale === "boolean" ? payload._cache.isStale : cacheMetaFromLegacy.isStale
       }
     };
   }
@@ -97,6 +104,34 @@ function unwrapCacheEnvelope(payload: unknown): CacheEnvelope {
     data: payload.data,
     cacheMeta: cacheMetaFromLegacy
   };
+}
+
+function normalizeSource(value: unknown): SectorSnapshot["source"] | undefined {
+  return value === "live" || value === "cache" ? value : undefined;
+}
+
+function normalizeDataStatus(
+  value: unknown,
+  legacy: {
+    stale?: boolean;
+    snapshot?: boolean;
+    source?: SectorSnapshot["source"];
+    isEmpty?: boolean;
+  } = {}
+): SectorSnapshot["dataStatus"] {
+  if (value === "live" || value === "cache" || value === "offline") {
+    return value;
+  }
+
+  if (legacy.snapshot || legacy.isEmpty) {
+    return "offline";
+  }
+
+  if (legacy.stale || legacy.source === "cache") {
+    return "cache";
+  }
+
+  return "live";
 }
 
 function normalizeReturns(value: unknown): SectorReturns | undefined {
@@ -169,6 +204,15 @@ export function normalizeSectorResponse(payload: unknown, options: NormalizeOpti
   }
 
   if (isObject(payload.sectorIndex) && Array.isArray(payload.companies)) {
+    const source = normalizeSource(payload.source);
+    const isStale = typeof payload.isStale === "boolean" ? payload.isStale : undefined;
+    const dataStatus = normalizeDataStatus(payload.dataStatus, {
+      stale: typeof payload.stale === "boolean" ? payload.stale : isStale,
+      snapshot: Boolean(payload.snapshot),
+      source,
+      isEmpty: Array.isArray(payload.companies) && payload.companies.length === 0 && !payload.sectorIndex?.lastPrice
+    });
+
     return {
       ...payload,
       sectorIndex: normalizeSectorIndex(payload.sectorIndex, options.defaultIndexName),
@@ -177,7 +221,14 @@ export function normalizeSectorResponse(payload: unknown, options: NormalizeOpti
       losers: normalizeCompanies(payload.losers),
       fetchedAt: String(payload.fetchedAt ?? new Date().toISOString()),
       apiCacheStatus: options.apiCacheStatus,
-      lastRefreshError: normalizeLastRefreshError(payload.lastRefreshError)
+      lastRefreshError: normalizeLastRefreshError(payload.lastRefreshError),
+      source,
+      isStale,
+      stale: typeof payload.stale === "boolean" ? payload.stale : isStale,
+      cached: typeof payload.cached === "boolean" ? payload.cached : source === "cache",
+      dataStatus,
+      message: payload.message ? String(payload.message) : undefined,
+      warning: payload.warning ? String(payload.warning) : payload.message ? String(payload.message) : undefined
     } as SectorSnapshot;
   }
 
@@ -245,11 +296,20 @@ export function normalizeSectorResponse(payload: unknown, options: NormalizeOpti
       fetchedAt: String(payload.fetchedAt ?? new Date().toISOString()),
       fallbackIndexUsed: Boolean(payload.fallbackIndexUsed),
       requestedIndex: payload.requestedIndex ? String(payload.requestedIndex) : undefined,
+      source: normalizeSource(payload.source),
+      isStale: typeof payload.isStale === "boolean" ? payload.isStale : Boolean(payload.stale),
       stale: Boolean(payload.stale),
-      warning: payload.warning ? String(payload.warning) : undefined,
+      message: payload.message ? String(payload.message) : undefined,
+      warning: payload.warning ? String(payload.warning) : payload.message ? String(payload.message) : undefined,
       cached: Boolean(payload.cached),
       apiCacheStatus: options.apiCacheStatus,
-      lastRefreshError: normalizeLastRefreshError(payload.lastRefreshError)
+      lastRefreshError: normalizeLastRefreshError(payload.lastRefreshError),
+      dataStatus: normalizeDataStatus(payload.dataStatus, {
+        stale: Boolean(payload.stale),
+        snapshot: Boolean(payload.snapshot),
+        source: normalizeSource(payload.source),
+        isEmpty: Array.isArray(payload.companies) && payload.companies.length === 0 && !sectorLast
+      })
     };
   }
 
@@ -292,6 +352,13 @@ function normalizeSectorFromResponse(response: { data: unknown; cacheStatus?: st
 
   return {
     ...normalized,
+    source: normalizeSource(unwrapped.cacheMeta.source) ?? normalized.source,
+    isStale:
+      typeof unwrapped.cacheMeta.isStale === "boolean"
+        ? unwrapped.cacheMeta.isStale
+        : typeof unwrapped.cacheMeta.stale === "boolean"
+        ? unwrapped.cacheMeta.stale
+        : normalized.isStale,
     stale: typeof unwrapped.cacheMeta.stale === "boolean" ? unwrapped.cacheMeta.stale : normalized.stale,
     cached: typeof unwrapped.cacheMeta.cached === "boolean" ? unwrapped.cacheMeta.cached : normalized.cached,
     fetchedAt: toIsoTimestamp(unwrapped.cacheMeta.timestamp) ?? normalized.fetchedAt

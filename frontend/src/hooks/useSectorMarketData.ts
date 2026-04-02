@@ -108,14 +108,17 @@ export function useSectorMarketData(sector: string | undefined): SectorMarketDat
       return undefined;
     }
 
-    const offlineDataStatus: SectorSnapshot["dataStatus"] = persistedSnapshot.snapshot ? "snapshot" : "stale";
+    const offlineDataStatus: SectorSnapshot["dataStatus"] = "cache";
     return {
       ...persistedSnapshot,
+      source: "cache" as const,
+      isStale: true,
       cached: true,
       stale: true,
       snapshot: persistedSnapshot.snapshot ?? false,
       dataStatus: offlineDataStatus,
-      warning: "Using saved market snapshot while the API is temporarily unavailable.",
+      message: "Showing recent snapshot",
+      warning: "Showing recent snapshot",
       lastRefreshError: persistedSnapshot.lastRefreshError ?? toClientRefreshError(query.error)
     };
   }, [persistedSnapshot, query.data, query.error, query.isError]);

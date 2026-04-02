@@ -1,118 +1,56 @@
 const fs = require("fs");
-const path = require("path");
 const { fetchSectorDataSafe } = require("./fetchService");
 const { fetchIntradaySeriesFromNse } = require("./nseService");
 const { buildIntradaySeries } = require("./intradaySeries");
 const { getMarketStatus } = require("./marketStatus");
+const { ALL_SECTORS, getSectorConfig } = require("./sectorRegistry");
 
-const SECTORS = ["energy", "oilGas", "realEstate"];
-const SNAPSHOT_TTL_MS = 5 * 60 * 1000;
-const INTRADAY_TTL_MS = 60 * 1000;
-const OPEN_MARKET_SNAPSHOT_MAX_AGE_MS = Math.max(
-  Number(process.env.OPEN_MARKET_SNAPSHOT_MAX_AGE_MS) || 15 * 1000,
-  1000
-);
-const LIVE_PRIORITY_WAIT_MS = Math.max(Number(process.env.LIVE_PRIORITY_WAIT_MS) || 500, 100);
-const REFRESH_HARD_TIMEOUT_MS = Math.max(Number(process.env.REFRESH_HARD_TIMEOUT_MS) || 45000, 5000);
-
-const INTRADAY_INDEX_BY_SECTOR = {
-  energy: "NIFTY ENERGY",
-  oilGas: "NIFTY OIL & GAS",
-  realEstate: "NIFTY REALTY"
-};
-
-const INTRADAY_SEED_PRICE_BY_SECTOR = {
-  energy: 24500,
-  oilGas: 11230,
-  realEstate: 3800
-};
-
-const SNAPSHOT_FILES = {
-  energy: path.join(__dirname, "..", "data", "energySectorSnapshot.json"),
-  oilGas: path.join(__dirname, "..", "data", "oilGasSectorSnapshot.json"),
-  realEstate: path.join(__dirname, "..", "data", "realEstateSectorSnapshot.json")
-};
+const SECTORS = ALL_SECTORS;
+const SNAPSHOT_TTL_MS = Math.max(Number(process.env.MARKET_CACHE_TTL_MS) || 30_000, 1_000);
+const SOFT_REFRESH_MS = Math.max(Number(process.env.MARKET_CACHE_SOFT_REFRESH_MS) || 15_000, 1_000);
+const INTRADAY_TTL_MS = Math.max(Number(process.env.INTRADAY_CACHE_TTL_MS) || 30_000, 1_000);
+const INTRADAY_SOFT_REFRESH_MS = Math.max(Number(process.env.INTRADAY_SOFT_REFRESH_MS) || 15_000, 1_000);
+const REFRESH_THROTTLE_MS = Math.max(Number(process.env.MARKET_REFRESH_THROTTLE_MS) || 5_000, 250);
+const LIVE_PRIORITY_WAIT_MS = Math.max(Number(process.env.LIVE_PRIORITY_WAIT_MS) || 120, 25);
+const REFRESH_HARD_TIMEOUT_MS = Math.max(Number(process.env.REFRESH_HARD_TIMEOUT_MS) || 12_000, 1_000);
+const NSE_MIN_REQUEST_GAP_MS = Math.max(Number(process.env.NSE_MIN_REQUEST_GAP_MS) || 250, 50);
+const NSE_RATE_LIMIT_COOLDOWN_MS = Math.max(Number(process.env.NSE_RATE_LIMIT_COOLDOWN_MS) || 15_000, 1_000);
 
 function createEntry(ttl) {
   return {
     data: null,
     timestamp: 0,
+    source: "cache",
+    isStale: true,
     ttl,
-    refreshing: false
+    refreshing: false,
+    lastAttemptAt: 0,
+    lastSuccessAt: 0
   };
 }
 
 function createCache(ttl) {
-  return {
-    energy: createEntry(ttl),
-    oilGas: createEntry(ttl),
-    realEstate: createEntry(ttl)
-  };
+  return Object.fromEntries(SECTORS.map(sector => [sector, createEntry(ttl)]));
 }
 
 const snapshotCache = createCache(SNAPSHOT_TTL_MS);
 const intradayCache = createCache(INTRADAY_TTL_MS);
+const bundledSnapshots = Object.fromEntries(SECTORS.map(sector => [sector, loadBundledSnapshot(sector)]));
 
 const refreshPromises = {
-  snapshot: {
-    energy: null,
-    oilGas: null,
-    realEstate: null
-  },
-  intraday: {
-    energy: null,
-    oilGas: null,
-    realEstate: null
-  }
+  snapshot: Object.fromEntries(SECTORS.map(sector => [sector, null])),
+  intraday: Object.fromEntries(SECTORS.map(sector => [sector, null]))
 };
 
 const lastRefreshError = {
-  snapshot: {
-    energy: null,
-    oilGas: null,
-    realEstate: null
-  },
-  intraday: {
-    energy: null,
-    oilGas: null,
-    realEstate: null
-  }
+  snapshot: Object.fromEntries(SECTORS.map(sector => [sector, null])),
+  intraday: Object.fromEntries(SECTORS.map(sector => [sector, null]))
 };
 
-function isValidSector(sector) {
-  return SECTORS.includes(sector);
-}
-
-function toErrorPayload(error, source) {
-  if (!error) {
-    return null;
-  }
-
-  return {
-    code: error.code || error.statusCode || "REFRESH_FAILED",
-    message: error.message || String(error),
-    source,
-    at: new Date().toISOString()
-  };
-}
-
-function hasData(entry) {
-  return entry.timestamp > 0 && entry.data !== null;
-}
-
-function isStale(entry, now = Date.now(), ttlOverrideMs = null) {
-  if (!hasData(entry)) {
-    return true;
-  }
-
-  const ttlMs = Number.isFinite(ttlOverrideMs) && ttlOverrideMs !== null ? ttlOverrideMs : entry.ttl;
-  return now - entry.timestamp > ttlMs;
-}
-
-function updateEntry(entry, data) {
-  entry.data = data;
-  entry.timestamp = Date.now();
-}
+const globalNseWindow = {
+  nextAllowedAt: 0,
+  cooldownUntil: 0
+};
 
 function delay(ms) {
   return new Promise(resolve => setTimeout(resolve, ms));
@@ -132,8 +70,57 @@ function withTimeout(promise, timeoutMs, timeoutMessage) {
   });
 }
 
+function isValidSector(sector) {
+  return SECTORS.includes(sector);
+}
+
+function hasData(entry) {
+  return Boolean(entry?.data);
+}
+
+function getAgeMs(entry, now = Date.now()) {
+  if (!entry?.timestamp) {
+    return null;
+  }
+
+  return Math.max(0, now - entry.timestamp);
+}
+
+function isExpired(entry, now = Date.now()) {
+  const ageMs = getAgeMs(entry, now);
+  if (ageMs === null) {
+    return true;
+  }
+
+  return ageMs > entry.ttl;
+}
+
+function isSoftExpired(entry, softWindowMs, now = Date.now()) {
+  const ageMs = getAgeMs(entry, now);
+  if (ageMs === null) {
+    return true;
+  }
+
+  return ageMs >= softWindowMs;
+}
+
+function toErrorPayload(error, source) {
+  if (!error) {
+    return null;
+  }
+
+  return {
+    code: error.code || error.statusCode || "REFRESH_FAILED",
+    message: error.message || String(error),
+    source,
+    recordedAt: new Date().toISOString()
+  };
+}
+
 function loadBundledSnapshot(sector) {
-  const snapshotPath = SNAPSHOT_FILES[sector];
+  const config = getSectorConfig(sector);
+  const snapshotPath = config?.snapshotPath;
+
   if (!snapshotPath) {
     return null;
   }
@@ -145,287 +132,427 @@ function loadBundledSnapshot(sector) {
   }
 }
 
-function buildSyntheticIntradayForSector(sector) {
-  const seedPrice = INTRADAY_SEED_PRICE_BY_SECTOR[sector];
-  const seedSnapshot = snapshotCache[sector].data;
+function buildEmptySectorIndex(sector) {
+  const config = getSectorConfig(sector);
+
   return {
-    ...buildIntradaySeries(seedSnapshot, { seedPrice }),
+    name: config?.indexName || String(sector || "").toUpperCase(),
+    lastPrice: null,
+    change: null,
+    percentChange: null,
+    indicativeClose: null,
+    previousClose: null,
+    open: null,
+    dayHigh: null,
+    dayLow: null,
+    yearHigh: null,
+    yearLow: null,
+    tradedVolume: null,
+    tradedValue: null,
+    ffmCap: null,
+    pe: null,
+    pb: null
+  };
+}
+
+function normalizeSnapshotPayload(sector, snapshot) {
+  return {
+    sectorIndex: snapshot?.sectorIndex || buildEmptySectorIndex(sector),
+    companies: Array.isArray(snapshot?.companies) ? snapshot.companies : [],
+    gainers: Array.isArray(snapshot?.gainers) ? snapshot.gainers : [],
+    losers: Array.isArray(snapshot?.losers) ? snapshot.losers : [],
+    advanceDecline:
+      snapshot?.advanceDecline || {
+        advances: 0,
+        declines: 0,
+        unchanged: 0
+      },
+    marketStatus: snapshot?.marketStatus || getMarketStatus(),
+    sourceTimestamp: snapshot?.sourceTimestamp,
+    fetchedAt: snapshot?.fetchedAt || new Date().toISOString(),
+    fallbackIndexUsed: Boolean(snapshot?.fallbackIndexUsed),
+    requestedIndex: snapshot?.requestedIndex || getSectorConfig(sector)?.indexName
+  };
+}
+
+function buildSnapshotResponse(sector, snapshot, options = {}) {
+  const {
+    source = "cache",
+    isStale = false,
+    cacheAgeMs,
+    message,
+    lastError = null,
+    cacheHeader = source === "live" ? "LIVE" : isStale ? "STALE" : "HIT",
+    timestamp = Date.now()
+  } = options;
+
+  const normalized = normalizeSnapshotPayload(sector, snapshot);
+  const dataStatus = message === "Live data temporarily unavailable" ? "offline" : source === "live" ? "live" : "cache";
+
+  return {
+    data: {
+      ...normalized,
+      source,
+      isStale,
+      stale: isStale,
+      cached: source !== "live",
+      dataStatus,
+      cacheAgeMs,
+      message,
+      warning: message,
+      lastRefreshError: lastError || undefined
+    },
+    cached: source !== "live",
+    stale: isStale,
+    timestamp,
+    cache: {
+      data: normalized.companies,
+      timestamp,
+      source,
+      isStale
+    },
+    cacheHeader
+  };
+}
+
+function buildOfflineSnapshotResponse(sector) {
+  const message = "Live data temporarily unavailable";
+
+  return buildSnapshotResponse(
+    sector,
+    {
+      sectorIndex: buildEmptySectorIndex(sector),
+      companies: [],
+      gainers: [],
+      losers: [],
+      advanceDecline: {
+        advances: 0,
+        declines: 0,
+        unchanged: 0
+      },
+      marketStatus: getMarketStatus(),
+      fetchedAt: new Date().toISOString(),
+      requestedIndex: getSectorConfig(sector)?.indexName
+    },
+    {
+      source: "cache",
+      isStale: true,
+      cacheAgeMs: undefined,
+      message,
+      lastError: lastRefreshError.snapshot[sector],
+      cacheHeader: "OFFLINE",
+      timestamp: Date.now()
+    }
+  );
+}
+
+function buildSyntheticIntradayForSector(sector) {
+  const config = getSectorConfig(sector);
+  const seedSnapshot = snapshotCache[sector]?.data || bundledSnapshots[sector] || null;
+
+  return {
+    ...buildIntradaySeries(seedSnapshot, { seedPrice: config?.seedPrice }),
     source: "synthetic",
     fetchedAt: new Date().toISOString()
   };
 }
 
-async function fetchSnapshotForSector(sector) {
+function buildIntradayResponse(data, options = {}) {
+  const {
+    source = "cache",
+    isStale = false,
+    timestamp = Date.now(),
+    cacheHeader = source === "live" ? "LIVE" : isStale ? "STALE" : "HIT"
+  } = options;
+
+  return {
+    data,
+    cached: source !== "live",
+    stale: isStale,
+    timestamp,
+    cache: {
+      data: [],
+      timestamp,
+      source,
+      isStale
+    },
+    cacheHeader
+  };
+}
+
+async function waitForGlobalNseWindow() {
+  const now = Date.now();
+  const waitUntil = Math.max(globalNseWindow.nextAllowedAt, globalNseWindow.cooldownUntil);
+
+  if (waitUntil > now) {
+    await delay(waitUntil - now);
+  }
+
+  globalNseWindow.nextAllowedAt = Date.now() + NSE_MIN_REQUEST_GAP_MS;
+}
+
+function registerNseFailure(error) {
+  const statusCode = Number(error?.statusCode || 0);
+  const errorCode = String(error?.code || "");
+
+  if (statusCode === 429 || errorCode === "NSE_RATE_LIMIT") {
+    globalNseWindow.cooldownUntil = Date.now() + NSE_RATE_LIMIT_COOLDOWN_MS;
+  }
+}
+
+async function executeSnapshotRefresh(sector) {
+  await waitForGlobalNseWindow();
   const result = await fetchSectorDataSafe(sector);
+
   if (result.ok && result.data) {
     return result.data;
   }
 
-  throw result.error || new Error(`Unable to fetch ${sector} snapshot`);
+  throw result.error || new Error(`Unable to fetch ${sector} sector snapshot`);
 }
 
-async function fetchIntradayForSector(sector) {
-  const indexName = INTRADAY_INDEX_BY_SECTOR[sector];
+async function executeIntradayRefresh(sector) {
+  await waitForGlobalNseWindow();
+  const config = getSectorConfig(sector);
 
   try {
-    const nseSeries = await fetchIntradaySeriesFromNse(indexName);
-    if (nseSeries) {
+    const liveSeries = await fetchIntradaySeriesFromNse(config?.intradayIndexName || config?.indexName);
+    if (liveSeries) {
       return {
-        ...nseSeries,
+        ...liveSeries,
         source: "nse-live",
         fetchedAt: new Date().toISOString()
       };
     }
   } catch (error) {
-    // Silent fallback to synthetic intraday curve.
+    registerNseFailure(error);
   }
 
   return buildSyntheticIntradayForSector(sector);
 }
 
+function updateEntry(entry, payload, source = "live") {
+  entry.data = payload;
+  entry.timestamp = Date.now();
+  entry.source = source;
+  entry.isStale = false;
+  entry.lastSuccessAt = entry.timestamp;
+}
+
+function shouldThrottle(entry, force) {
+  if (force) {
+    return false;
+  }
+
+  if (!entry.lastAttemptAt) {
+    return false;
+  }
+
+  return Date.now() - entry.lastAttemptAt < REFRESH_THROTTLE_MS;
+}
+
 function resolveCache(type) {
-  if (type === "snapshot") {
-    return snapshotCache;
-  }
-
-  if (type === "intraday") {
-    return intradayCache;
-  }
-
-  throw new Error(`Unknown cache type: ${type}`);
-}
-
-function getEffectiveTtlMs(type, entry, { marketOpen = false } = {}) {
-  if (type === "snapshot" && marketOpen) {
-    return Math.min(entry.ttl, OPEN_MARKET_SNAPSHOT_MAX_AGE_MS);
-  }
-
-  return entry.ttl;
-}
-
-async function tryLivePriorityRefresh(type, sector, entry, reason, waitMs = LIVE_PRIORITY_WAIT_MS) {
-  const previousTimestamp = entry.timestamp;
-  const refreshPromise = scheduleRefresh(type, sector, reason)
-    .then(() => "updated")
-    .catch(() => "failed");
-
-  const outcome = await Promise.race([refreshPromise, delay(waitMs).then(() => "timeout")]);
-  const refreshed = outcome === "updated" && entry.timestamp > previousTimestamp;
-  return refreshed;
+  return type === "intraday" ? intradayCache : snapshotCache;
 }
 
 async function executeRefresh(type, sector) {
-  if (type === "snapshot") {
-    return fetchSnapshotForSector(sector);
-  }
-
   if (type === "intraday") {
-    return fetchIntradayForSector(sector);
+    return executeIntradayRefresh(sector);
   }
 
-  throw new Error(`Unknown refresh type: ${type}`);
+  return executeSnapshotRefresh(sector);
 }
 
-function scheduleRefresh(type, sector, reason) {
+function scheduleRefresh(type, sector, reason, options = {}) {
+  if (!isValidSector(sector)) {
+    return Promise.resolve(null);
+  }
+
+  const { force = false } = options;
   const cache = resolveCache(type);
   const entry = cache[sector];
   const currentPromise = refreshPromises[type][sector];
 
-  if (entry.refreshing || currentPromise) {
-    console.warn(`[REFRESH SKIPPED] ${type}:${sector} (${reason})`);
-    return currentPromise || Promise.resolve(entry.data);
+  if (currentPromise) {
+    return currentPromise;
+  }
+
+  if (hasData(entry) && shouldThrottle(entry, force)) {
+    return Promise.resolve(entry.data);
   }
 
   entry.refreshing = true;
-  console.log(`[REFRESH START] ${type}:${sector} (${reason})`);
+  entry.lastAttemptAt = Date.now();
 
-  const promise = (async () => {
-    try {
-      const payload = await withTimeout(
-        executeRefresh(type, sector),
-        REFRESH_HARD_TIMEOUT_MS,
-        `Refresh timeout after ${REFRESH_HARD_TIMEOUT_MS}ms`
-      );
-      updateEntry(entry, payload);
+  const promise = withTimeout(
+    executeRefresh(type, sector),
+    REFRESH_HARD_TIMEOUT_MS,
+    `${type}:${sector} refresh timed out after ${REFRESH_HARD_TIMEOUT_MS}ms`
+  )
+    .then(payload => {
+      updateEntry(entry, payload, "live");
       lastRefreshError[type][sector] = null;
-      console.log(`[REFRESH SUCCESS] ${type}:${sector}`);
       return payload;
-    } catch (error) {
+    })
+    .catch(error => {
+      registerNseFailure(error);
+      entry.isStale = true;
       lastRefreshError[type][sector] = toErrorPayload(error, `${type}:${reason}`);
-      console.error(`[REFRESH FAILED] ${type}:${sector}`, error?.message || error);
       throw error;
-    } finally {
+    })
+    .finally(() => {
       entry.refreshing = false;
       refreshPromises[type][sector] = null;
-    }
-  })();
+    });
 
   refreshPromises[type][sector] = promise;
   return promise;
 }
 
-async function getOrRefresh(type, sector, options = {}) {
-  const { preferLive = false } = options;
+async function waitBrieflyForRefresh(promise) {
+  if (!promise) {
+    return null;
+  }
+
+  const outcome = await Promise.race([
+    promise.then(data => ({ kind: "resolved", data })).catch(() => ({ kind: "failed", data: null })),
+    delay(LIVE_PRIORITY_WAIT_MS).then(() => ({ kind: "timeout", data: null }))
+  ]);
+
+  return outcome.kind === "resolved" ? outcome.data : null;
+}
+
+async function getSnapshotWithOptions(sector, options = {}) {
   if (!isValidSector(sector)) {
-    throw new Error(`Invalid sector: ${sector}`);
+    return buildOfflineSnapshotResponse(sector);
   }
 
-  const cache = resolveCache(type);
-  const entry = cache[sector];
+  const { preferLive = false } = options;
+  const entry = snapshotCache[sector];
   const now = Date.now();
-  const marketOpen = type === "snapshot" ? getMarketStatus().isOpen : false;
-  const livePriority = type === "snapshot" && (preferLive || marketOpen);
-  const effectiveTtlMs = getEffectiveTtlMs(type, entry, { marketOpen });
-  const available = hasData(entry);
-  const stale = isStale(entry, now, effectiveTtlMs);
+  const ageMs = getAgeMs(entry, now);
+  const hasLiveCache = hasData(entry);
+  const bundledSnapshot = bundledSnapshots[sector];
 
-  // Strict live-priority mode: when the market is open, always attempt a live
-  // snapshot refresh for sector endpoints, then fall back to cache quickly.
-  if (type === "snapshot" && marketOpen && available) {
-    const refreshedInTime = await tryLivePriorityRefresh(type, sector, entry, "open-market-force-live");
-    if (refreshedInTime) {
-      return {
-        data: entry.data,
-        cached: false,
-        stale: false,
-        timestamp: new Date(entry.timestamp).toISOString()
-      };
-    }
+  if (hasLiveCache) {
+    const softExpired = isSoftExpired(entry, SOFT_REFRESH_MS, now);
+    const expired = isExpired(entry, now);
 
-    return {
-      data: entry.data,
-      cached: true,
-      stale: isStale(entry, Date.now(), effectiveTtlMs),
-      timestamp: new Date(entry.timestamp).toISOString()
-    };
-  }
-
-  if (available && !stale) {
-    console.log(`[CACHE HIT] ${type}:${sector}`);
-    return {
-      data: entry.data,
-      cached: true,
-      stale: false,
-      timestamp: new Date(entry.timestamp).toISOString()
-    };
-  }
-
-  if (available && stale) {
-    console.warn(`[CACHE STALE] ${type}:${sector}`);
-    if (livePriority) {
-      const refreshedInTime = await tryLivePriorityRefresh(type, sector, entry, "stale-live-priority");
-      if (refreshedInTime) {
-        return {
-          data: entry.data,
-          cached: false,
-          stale: false,
-          timestamp: new Date(entry.timestamp).toISOString()
-        };
-      }
-    }
-
-    scheduleRefresh(type, sector, "stale-read").catch(() => {
-      // Intentionally silent: stale cache is still served.
-    });
-
-    return {
-      data: entry.data,
-      cached: true,
-      stale: true,
-      timestamp: new Date(entry.timestamp).toISOString()
-    };
-  }
-
-  if (type === "intraday" && !available) {
-    const immediateSynthetic = buildSyntheticIntradayForSector(sector);
-    updateEntry(entry, immediateSynthetic);
-    scheduleRefresh(type, sector, "cache-miss").catch(() => {
-      // Keep serving the synthetic fallback until a live refresh succeeds.
-    });
-    return {
-      data: entry.data,
-      cached: false,
-      stale: false,
-      timestamp: new Date(entry.timestamp).toISOString()
-    };
-  }
-
-  if (type === "snapshot" && !available) {
-    const bundledSnapshot = loadBundledSnapshot(sector);
-    if (bundledSnapshot) {
-      console.warn(`[CACHE STALE] snapshot:${sector} (bundled-fallback)`);
-      updateEntry(entry, bundledSnapshot);
-      scheduleRefresh(type, sector, "cache-miss").catch(() => {
-        // Keep serving bundled snapshot until live fetch succeeds.
+    if (preferLive || softExpired) {
+      scheduleRefresh("snapshot", sector, softExpired ? "soft-refresh" : "prefer-live").catch(() => {
+        // Keep serving cached data while background refresh runs.
       });
-      return {
-        data: entry.data,
-        cached: true,
-        stale: true,
-        timestamp: new Date(entry.timestamp).toISOString()
-      };
-    }
-  }
-
-  try {
-    const hadDataBeforeRefresh = available;
-    await scheduleRefresh(type, sector, "cache-miss");
-    return {
-      data: entry.data,
-      cached: hadDataBeforeRefresh,
-      stale: false,
-      timestamp: new Date(entry.timestamp).toISOString()
-    };
-  } catch (error) {
-    if (hasData(entry)) {
-      return {
-        data: entry.data,
-        cached: true,
-        stale: true,
-        timestamp: new Date(entry.timestamp).toISOString()
-      };
     }
 
-    throw error;
+    return buildSnapshotResponse(sector, entry.data, {
+      source: "cache",
+      isStale: expired,
+      cacheAgeMs: ageMs ?? undefined,
+      message: expired ? "Showing recent snapshot" : "Updated just now",
+      lastError: lastRefreshError.snapshot[sector],
+      cacheHeader: expired ? "STALE" : "HIT",
+      timestamp: entry.timestamp
+    });
   }
+
+  const refreshPromise = scheduleRefresh("snapshot", sector, "cold-start", { force: true });
+  const immediateLivePayload = await waitBrieflyForRefresh(refreshPromise);
+
+  if (immediateLivePayload) {
+    return buildSnapshotResponse(sector, immediateLivePayload, {
+      source: "live",
+      isStale: false,
+      cacheAgeMs: 0,
+      message: "Live market data",
+      cacheHeader: "LIVE",
+      timestamp: snapshotCache[sector].timestamp || Date.now()
+    });
+  }
+
+  if (bundledSnapshot) {
+    return buildSnapshotResponse(sector, bundledSnapshot, {
+      source: "cache",
+      isStale: true,
+      cacheAgeMs: undefined,
+      message: "Showing recent snapshot",
+      lastError: lastRefreshError.snapshot[sector],
+      cacheHeader: "SNAPSHOT",
+      timestamp: Date.now()
+    });
+  }
+
+  return buildOfflineSnapshotResponse(sector);
 }
 
-function getSnapshot(sector) {
-  return getOrRefresh("snapshot", sector);
+async function getSnapshot(sector) {
+  return getSnapshotWithOptions(sector);
 }
 
-function getSnapshotWithOptions(sector, options = {}) {
-  return getOrRefresh("snapshot", sector, options);
-}
+async function getIntraday(sector, options = {}) {
+  if (!isValidSector(sector)) {
+    return buildIntradayResponse(buildSyntheticIntradayForSector(sector), {
+      source: "cache",
+      isStale: true,
+      cacheHeader: "OFFLINE"
+    });
+  }
 
-function getIntraday(sector, options = {}) {
-  return getOrRefresh("intraday", sector, options);
+  const { preferLive = false } = options;
+  const entry = intradayCache[sector];
+  const now = Date.now();
+
+  if (hasData(entry)) {
+    const softExpired = isSoftExpired(entry, INTRADAY_SOFT_REFRESH_MS, now);
+    const expired = isExpired(entry, now);
+
+    if (preferLive || softExpired) {
+      scheduleRefresh("intraday", sector, softExpired ? "soft-refresh" : "prefer-live").catch(() => {
+        // Background refresh only.
+      });
+    }
+
+    return buildIntradayResponse(entry.data, {
+      source: "cache",
+      isStale: expired,
+      timestamp: entry.timestamp,
+      cacheHeader: expired ? "STALE" : "HIT"
+    });
+  }
+
+  const refreshPromise = scheduleRefresh("intraday", sector, "cold-start", { force: true });
+  const immediateLivePayload = await waitBrieflyForRefresh(refreshPromise);
+
+  if (immediateLivePayload) {
+    return buildIntradayResponse(immediateLivePayload, {
+      source: "live",
+      isStale: false,
+      timestamp: intradayCache[sector].timestamp || Date.now(),
+      cacheHeader: "LIVE"
+    });
+  }
+
+  return buildIntradayResponse(buildSyntheticIntradayForSector(sector), {
+    source: "cache",
+    isStale: true,
+    timestamp: Date.now(),
+    cacheHeader: "SNAPSHOT"
+  });
 }
 
 function refreshSectorInBackground(sector, options = {}) {
-  const { type = "snapshot", reason = "manual" } = options;
-  if (!isValidSector(sector)) {
-    return Promise.resolve(false);
-  }
+  const { type = "snapshot", reason = "manual", force = false } = options;
 
-  return scheduleRefresh(type, sector, reason)
+  return scheduleRefresh(type, sector, reason, { force })
     .then(() => true)
     .catch(() => false);
 }
 
 async function preloadCache() {
-  const preloadTasks = SECTORS.map(async sector => {
-    try {
-      await scheduleRefresh("snapshot", sector, "startup");
-    } catch (error) {
-      const fallbackSnapshot = loadBundledSnapshot(sector);
-      if (fallbackSnapshot) {
-        console.warn(`[CACHE STALE] snapshot:${sector} (startup-bundled-fallback)`);
-        updateEntry(snapshotCache[sector], fallbackSnapshot);
-      }
-    }
-  });
-  await Promise.all(preloadTasks);
+  await Promise.all(
+    SECTORS.map(sector =>
+      scheduleRefresh("snapshot", sector, "startup", { force: true }).catch(() => false)
+    )
+  );
 }
 
 function getCacheStats() {
@@ -435,29 +562,28 @@ function getCacheStats() {
   for (const sector of SECTORS) {
     const snapshotEntry = snapshotCache[sector];
     const intradayEntry = intradayCache[sector];
-    const snapshotAgeMs = snapshotEntry.timestamp ? Math.max(0, now - snapshotEntry.timestamp) : null;
-    const intradayAgeMs = intradayEntry.timestamp ? Math.max(0, now - intradayEntry.timestamp) : null;
 
     stats[sector] = {
       snapshot: {
         hasData: hasData(snapshotEntry),
-        stale: isStale(
-          snapshotEntry,
-          now,
-          getEffectiveTtlMs("snapshot", snapshotEntry, { marketOpen: getMarketStatus().isOpen })
-        ),
-        timestamp: snapshotEntry.timestamp ? new Date(snapshotEntry.timestamp).toISOString() : null,
-        ageMs: snapshotAgeMs,
+        source: hasData(snapshotEntry) ? snapshotEntry.source : null,
+        isStale: isExpired(snapshotEntry, now),
+        timestamp: snapshotEntry.timestamp || null,
+        ageMs: getAgeMs(snapshotEntry, now),
         ttlMs: snapshotEntry.ttl,
+        softRefreshMs: SOFT_REFRESH_MS,
         refreshing: snapshotEntry.refreshing,
+        bundledAvailable: Boolean(bundledSnapshots[sector]),
         lastError: lastRefreshError.snapshot[sector]
       },
       intraday: {
         hasData: hasData(intradayEntry),
-        stale: isStale(intradayEntry, now),
-        timestamp: intradayEntry.timestamp ? new Date(intradayEntry.timestamp).toISOString() : null,
-        ageMs: intradayAgeMs,
+        source: hasData(intradayEntry) ? intradayEntry.source : null,
+        isStale: isExpired(intradayEntry, now),
+        timestamp: intradayEntry.timestamp || null,
+        ageMs: getAgeMs(intradayEntry, now),
         ttlMs: intradayEntry.ttl,
+        softRefreshMs: INTRADAY_SOFT_REFRESH_MS,
         refreshing: intradayEntry.refreshing,
         lastError: lastRefreshError.intraday[sector]
       }
@@ -493,6 +619,7 @@ module.exports = {
   intradayCache,
   SECTORS,
   SNAPSHOT_TTL_MS,
+  SOFT_REFRESH_MS,
   INTRADAY_TTL_MS,
   getSnapshot,
   getSnapshotWithOptions,

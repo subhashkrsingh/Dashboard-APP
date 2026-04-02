@@ -1,6 +1,6 @@
 const NSE_TIMEOUT_MS = Math.max(Number(process.env.NSE_FETCH_TIMEOUT_MS) || 30000, 1000);
-const NSE_RETRY_DELAYS_MS = [500, 1500, 3000];
-const NSE_MAX_ATTEMPTS = NSE_RETRY_DELAYS_MS.length + 1;
+const NSE_BASE_RETRY_DELAY_MS = Math.max(Number(process.env.NSE_RETRY_BASE_DELAY_MS) || 400, 100);
+const NSE_MAX_ATTEMPTS = Math.max(Number(process.env.NSE_MAX_ATTEMPTS) || 4, 1);
 
 function delay(ms) {
   return new Promise(resolve => setTimeout(resolve, ms));
@@ -18,6 +18,12 @@ function withTimeout(promise, timeoutMs, timeoutMessage) {
       clearTimeout(timeoutHandle);
     }
   });
+}
+
+function getBackoffDelay(attempt) {
+  const exponentialDelay = NSE_BASE_RETRY_DELAY_MS * 2 ** Math.max(attempt - 1, 0);
+  const jitter = Math.round(Math.random() * 150);
+  return exponentialDelay + jitter;
 }
 
 async function retryNseFetch({ sector, execute, label = "snapshot" }) {
@@ -41,7 +47,7 @@ async function retryNseFetch({ sector, execute, label = "snapshot" }) {
       lastError = error;
 
       if (attempt < NSE_MAX_ATTEMPTS) {
-        const waitMs = NSE_RETRY_DELAYS_MS[attempt - 1] ?? NSE_RETRY_DELAYS_MS[NSE_RETRY_DELAYS_MS.length - 1];
+        const waitMs = getBackoffDelay(attempt);
         console.warn(`[NSE RETRY] attempt ${attempt}/${NSE_MAX_ATTEMPTS} ${sector} wait=${waitMs}ms`);
         await delay(waitMs);
       }

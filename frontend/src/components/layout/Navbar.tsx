@@ -4,6 +4,7 @@ import { Bell, Menu, Search, UserCircle2 } from "lucide-react";
 
 import type { CompanyQuote, MarketStatus, SectorDataStatus } from "../../types/market";
 import LiveISTClock from "../LiveISTClock";
+import { FeedStatusIndicator } from "../market/FeedStatusIndicator";
 import { Badge } from "../ui/Badge";
 
 interface NavbarProps {
@@ -19,28 +20,6 @@ interface NavbarProps {
   onOpenSidebar: () => void;
 }
 
-function getDataStatusBadge(dataStatus: SectorDataStatus | undefined, cacheAgeMs: number | undefined) {
-  if (dataStatus === "snapshot") {
-    return {
-      tone: "negative" as const,
-      label: "Snapshot Mode"
-    };
-  }
-
-  if (dataStatus === "stale") {
-    const ageSeconds = Number.isFinite(cacheAgeMs) ? Math.max(1, Math.round(Number(cacheAgeMs) / 1000)) : null;
-    return {
-      tone: "warning" as const,
-      label: ageSeconds ? `Stale Data ${ageSeconds}s` : "Stale Data"
-    };
-  }
-
-  return {
-    tone: "positive" as const,
-    label: "Live Data"
-  };
-}
-
 export function Navbar({
   companies,
   marketStatus,
@@ -52,7 +31,6 @@ export function Navbar({
   onSearchChange,
   onOpenSidebar
 }: NavbarProps) {
-  const feedBadge = getDataStatusBadge(dataStatus, cacheAgeMs);
   const showApiBadge = Boolean(apiCacheStatus) && (import.meta.env.DEV || dataStatus !== "live");
   const tickerItems = useMemo(
     () =>
@@ -102,7 +80,7 @@ export function Navbar({
 
         <Badge tone={isFetching ? "accent" : "neutral"}>{isFetching ? "Refreshing" : "Feed Ready"}</Badge>
 
-        <Badge tone={feedBadge.tone}>{feedBadge.label}</Badge>
+        <FeedStatusIndicator dataStatus={dataStatus} cacheAgeMs={cacheAgeMs} isFetching={isFetching} />
 
         {showApiBadge ? <Badge tone="neutral">API {apiCacheStatus}</Badge> : null}
 

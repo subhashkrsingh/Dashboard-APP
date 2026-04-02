@@ -12,7 +12,7 @@ function createSectorRouter(sector) {
   router.get("/intrada", intradayHandler);
 
   router.post("/refresh", (req, res) => {
-    cacheService.refreshSectorInBackground(sector, { type: "snapshot", reason: "manual-refresh" }).catch(() => {
+    cacheService.refreshSectorInBackground(sector, { type: "snapshot", reason: "manual-refresh", force: true }).catch(() => {
       // Error is reflected in cache metadata.
     });
 

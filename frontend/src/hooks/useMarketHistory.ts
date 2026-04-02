@@ -27,7 +27,7 @@ export function useMarketHistory(snapshot: SectorSnapshot | undefined) {
   const [signals, setSignals] = useState<SignalMap>({});
   const previousPricesRef = useRef<Record<string, number | null>>({});
   const clearSignalsTimeoutRef = useRef<number | null>(null);
-  const isFallbackMode = snapshot?.dataStatus === "stale" || snapshot?.dataStatus === "snapshot";
+  const isFallbackMode = snapshot?.dataStatus === "cache" || snapshot?.dataStatus === "offline";
   const observationKey = snapshot
     ? isFallbackMode
       ? `${snapshot.fetchedAt}:${snapshot.cacheAgeMs ?? snapshot.lastRefreshError?.recordedAt ?? "fallback"}`

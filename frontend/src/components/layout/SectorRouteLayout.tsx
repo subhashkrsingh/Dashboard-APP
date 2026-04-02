@@ -31,6 +31,7 @@ export function SectorRouteLayout({ config, onOpenSidebar, marketData }: SectorR
         isFetching={isFetching}
         dataStatus={data?.dataStatus}
         cacheAgeMs={data?.cacheAgeMs}
+        apiCacheStatus={data?.apiCacheStatus}
         search={search}
         onSearchChange={setSearch}
         onOpenSidebar={onOpenSidebar}
@@ -57,15 +58,15 @@ export function SectorRouteLayout({ config, onOpenSidebar, marketData }: SectorR
 
         {!isLoading && data && analytics ? (
           <>
-            {data.dataStatus === "snapshot" ? (
+            {data.dataStatus === "offline" ? (
               <section className="glass-card rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
-                {data.warning ?? "Showing bundled or saved snapshot while live market feeds are unavailable."}
+                {data.message ?? data.warning ?? "Market data temporarily unavailable"}
               </section>
             ) : null}
 
-            {data.stale && data.dataStatus !== "snapshot" ? (
+            {data.dataStatus === "cache" ? (
               <section className="glass-card rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-700">
-                {data.warning ?? "Using cached snapshot while the live feed is temporarily restricted."}
+                {data.message ?? data.warning ?? "Showing recent snapshot"}
               </section>
             ) : null}
 
