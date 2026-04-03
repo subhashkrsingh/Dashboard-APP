@@ -12,6 +12,7 @@ import { PerformanceChart } from "../components/charts/PerformanceChart";
 import { SectorIntradayChart } from "../components/charts/SectorIntradayChart";
 import { DashboardSkeleton } from "../components/dashboard/DashboardSkeleton";
 import { FooterBar } from "../components/dashboard/FooterBar";
+import { RefreshButton } from "../components/market/RefreshButton";
 import { Navbar } from "../components/Navbar";
 import { StockTable } from "../components/tables/StockTable";
 import type { CompanyHistoryPoint } from "../hooks/useMarketHistory";
@@ -120,7 +121,8 @@ export function SectorDashboard({
   const [search, setSearch] = useState("");
   const location = useLocation();
   const navigate = useNavigate();
-  const { data, error, isLoading, isFetching, refetch, sectorHistory, companyHistory, signals } = marketData;
+  const { data, error, isLoading, isFetching, refetch, refreshMarketData, sectorHistory, companyHistory, signals } =
+    marketData;
   const blockingError = !data && error;
   const scrollableModules = useMemo(() => modules.filter(module => module.id !== "overview"), [modules]);
 
@@ -219,7 +221,10 @@ export function SectorDashboard({
               </article>
               <article className="rounded-2xl border border-slate-200 bg-white px-4 py-3">
                 <p className="text-[11px] uppercase tracking-[0.18em] text-slate-500">Updated</p>
-                <p className="mt-2 text-lg font-semibold text-slate-900">{formatClock(data?.fetchedAt)}</p>
+                <div className="mt-2 flex items-center justify-between gap-3">
+                  <p className="text-lg font-semibold text-slate-900">{formatClock(data?.fetchedAt)}</p>
+                  <RefreshButton onRefresh={refreshMarketData} disabled={isLoading} />
+                </div>
               </article>
             </div>
           </div>

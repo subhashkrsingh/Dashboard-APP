@@ -488,6 +488,52 @@ async function getSnapshot(sector) {
   return getSnapshotWithOptions(sector);
 }
 
+async function forceRefreshSnapshot(sector) {
+  if (!isValidSector(sector)) {
+    return buildOfflineSnapshotResponse(sector);
+  }
+
+  try {
+    const payload = await scheduleRefresh("snapshot", sector, "manual-force-refresh", { force: true });
+    return buildSnapshotResponse(sector, payload, {
+      source: "live",
+      isStale: false,
+      cacheAgeMs: 0,
+      message: "Live market data",
+      cacheHeader: "LIVE",
+      timestamp: snapshotCache[sector].timestamp || Date.now()
+    });
+  } catch (error) {
+    const entry = snapshotCache[sector];
+    if (hasData(entry)) {
+      return buildSnapshotResponse(sector, entry.data, {
+        source: "cache",
+        isStale: true,
+        cacheAgeMs: getAgeMs(entry, Date.now()) ?? undefined,
+        message: "Showing recent snapshot",
+        lastError: lastRefreshError.snapshot[sector],
+        cacheHeader: "STALE",
+        timestamp: entry.timestamp
+      });
+    }
+
+    const bundledSnapshot = bundledSnapshots[sector];
+    if (bundledSnapshot) {
+      return buildSnapshotResponse(sector, bundledSnapshot, {
+        source: "cache",
+        isStale: true,
+        cacheAgeMs: undefined,
+        message: "Showing recent snapshot",
+        lastError: lastRefreshError.snapshot[sector],
+        cacheHeader: "SNAPSHOT",
+        timestamp: Date.now()
+      });
+    }
+
+    return buildOfflineSnapshotResponse(sector);
+  }
+}
+
 async function getIntraday(sector, options = {}) {
   if (!isValidSector(sector)) {
     return buildIntradayResponse(buildSyntheticIntradayForSector(sector), {
@@ -623,6 +669,7 @@ module.exports = {
   INTRADAY_TTL_MS,
   getSnapshot,
   getSnapshotWithOptions,
+  forceRefreshSnapshot,
   getIntraday,
   refreshSectorInBackground,
   preloadCache,

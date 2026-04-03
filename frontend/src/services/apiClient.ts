@@ -121,3 +121,27 @@ export async function getApiResource<T>(path: string, resourceLabel: string) {
     throw toApiRequestError(error, resolvedPath, resourceLabel);
   }
 }
+
+export async function postApiResource<T>(path: string, resourceLabel: string, body?: unknown) {
+  const resolvedPath = normalizeApiPath(path);
+
+  try {
+    const response = await apiClient.post<T>(resolvedPath, body ?? {});
+    return {
+      data: response.data,
+      cacheStatus: String(response.headers?.["x-cache"] ?? "").trim() || undefined
+    };
+  } catch (error) {
+    if (import.meta.env.DEV) {
+      const statusCode = axios.isAxiosError(error) ? error.response?.status : undefined;
+      console.error("[api-client] request failed", {
+        path: resolvedPath,
+        resourceLabel,
+        statusCode: statusCode ?? null,
+        message: toApiErrorMessage(error, resourceLabel)
+      });
+    }
+
+    throw toApiRequestError(error, resolvedPath, resourceLabel);
+  }
+}

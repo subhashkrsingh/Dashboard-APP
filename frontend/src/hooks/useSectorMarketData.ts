@@ -1,9 +1,9 @@
-import { useEffect, useMemo, useState } from "react";
-import { useQuery, type UseQueryResult } from "@tanstack/react-query";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { useQuery, useQueryClient, type UseQueryResult } from "@tanstack/react-query";
 
 import type { PriceDirection, SectorSnapshot, TimePoint } from "../types/market";
 import { useMarketHistory, type CompanyHistoryPoint } from "./useMarketHistory";
-import { fetchSectorSnapshotById } from "../services/sectorApi";
+import { fetchSectorSnapshotById, forceRefreshSectorSnapshotById } from "../services/sectorApi";
 import { getSectorApiConfig } from "../services/sectorApiMap";
 
 const INVALID_SECTOR_QUERY_KEY = ["sector-market", "invalid-sector"] as const;
@@ -13,6 +13,7 @@ export interface SectorMarketDataResult
   sectorHistory: TimePoint[];
   companyHistory: Record<string, CompanyHistoryPoint[]>;
   signals: Record<string, PriceDirection>;
+  refreshMarketData: () => Promise<SectorSnapshot | undefined>;
 }
 
 function readPersistedSnapshot(storageKey: string | undefined): SectorSnapshot | undefined {
@@ -58,6 +59,7 @@ function toClientRefreshError(error: unknown): SectorSnapshot["lastRefreshError"
 
 export function useSectorMarketData(sector: string | undefined): SectorMarketDataResult {
   const sectorConfig = getSectorApiConfig(sector);
+  const queryClient = useQueryClient();
   const resolvedStorageKey = sectorConfig?.storageKey;
   const [persistedSnapshot, setPersistedSnapshot] = useState<SectorSnapshot | undefined>(() =>
     readPersistedSnapshot(resolvedStorageKey)
@@ -149,6 +151,18 @@ export function useSectorMarketData(sector: string | undefined): SectorMarketDat
 
   const { sectorHistory, companyHistory, signals } = useMarketHistory(data);
 
+  const refreshMarketData = useCallback(async () => {
+    if (!sectorConfig) {
+      return undefined;
+    }
+
+    const nextSnapshot = await forceRefreshSectorSnapshotById(sectorConfig.id);
+    queryClient.setQueryData(sectorConfig.queryKey, nextSnapshot);
+    persistSnapshot(resolvedStorageKey, nextSnapshot);
+    setPersistedSnapshot(nextSnapshot);
+    return nextSnapshot;
+  }, [queryClient, resolvedStorageKey, sectorConfig]);
+
   return {
     ...query,
     data,
@@ -157,6 +171,7 @@ export function useSectorMarketData(sector: string | undefined): SectorMarketDat
     isFetching: sectorConfig ? query.isFetching : false,
     sectorHistory,
     companyHistory,
-    signals
+    signals,
+    refreshMarketData
   };
 }

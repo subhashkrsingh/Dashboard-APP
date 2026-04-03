@@ -6,7 +6,7 @@ import type {
   SectorSnapshot
 } from "../types/market";
 
-import { getApiResource } from "./apiClient";
+import { getApiResource, postApiResource } from "./apiClient";
 import { SECTOR_API_MAP, type SectorApiConfig, type SectorId } from "./sectorApiMap";
 
 export interface NormalizeOptions {
@@ -372,6 +372,15 @@ function resolveSectorConfig(sector: SectorId): SectorApiConfig {
 export async function fetchSectorSnapshotById(sector: SectorId): Promise<SectorSnapshot> {
   const config = resolveSectorConfig(sector);
   const response = await getApiResource<unknown>(config.snapshotPath, `${config.sourceLabel} snapshot`);
+  return normalizeSectorFromResponse(response, config);
+}
+
+export async function forceRefreshSectorSnapshotById(sector: SectorId): Promise<SectorSnapshot> {
+  const config = resolveSectorConfig(sector);
+  const response = await postApiResource<unknown>(`${config.snapshotPath}/refresh`, `${config.sourceLabel} refresh`, {
+    force: true,
+    bypassCache: true
+  });
   return normalizeSectorFromResponse(response, config);
 }
 

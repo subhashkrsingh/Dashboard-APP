@@ -11,15 +11,24 @@ function createSectorRouter(sector) {
   router.get("/intraday", intradayHandler);
   router.get("/intrada", intradayHandler);
 
-  router.post("/refresh", (req, res) => {
-    cacheService.refreshSectorInBackground(sector, { type: "snapshot", reason: "manual-refresh", force: true }).catch(() => {
-      // Error is reflected in cache metadata.
-    });
+  router.post("/refresh", async (_req, res) => {
+    try {
+      const result = await cacheService.forceRefreshSnapshot(sector);
+      res.set("X-Cache", result.cacheHeader);
 
-    return res.status(202).json({
-      message: `Refresh triggered for ${sector}`,
-      sector
-    });
+      return res.status(200).json({
+        data: result.data,
+        cached: result.cached,
+        stale: result.stale,
+        timestamp: result.timestamp,
+        _cache: result.cache
+      });
+    } catch (error) {
+      return res.status(503).json({
+        error: "REFRESH_FAILED",
+        message: "Unable to refresh market data right now."
+      });
+    }
   });
 
   // Never allow sector-router 404s; always return valid JSON.

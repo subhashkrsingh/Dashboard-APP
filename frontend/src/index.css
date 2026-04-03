@@ -81,3 +81,45 @@
 .ticker-track {
   will-change: transform;
 }
+
+.refresh-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 2rem;
+  width: 2rem;
+  border-radius: 9999px;
+  border: 1px solid #cbd5e1;
+  background: #ffffff;
+  color: #1e293b;
+  cursor: pointer;
+  transition:
+    transform 0.2s ease,
+    border-color 0.2s ease,
+    background-color 0.2s ease,
+    color 0.2s ease;
+}
+
+.refresh-btn:hover:not(:disabled) {
+  border-color: #60a5fa;
+  background-color: #eff6ff;
+  color: #2563eb;
+}
+
+.refresh-btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.75;
+}
+
+.refresh-btn.spinning {
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
