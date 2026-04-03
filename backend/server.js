@@ -110,6 +110,15 @@ function buildHealthPayload() {
   };
 }
 
+app.get("/", (_req, res) => {
+  res.status(200).json({
+    status: "ok",
+    service: "power-sector-dashboard-api",
+    uptime: process.uptime(),
+    timestamp: new Date().toISOString()
+  });
+});
+
 app.get("/health", (_req, res) => {
   res.json(buildHealthPayload());
 });
