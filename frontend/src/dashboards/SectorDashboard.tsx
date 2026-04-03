@@ -221,10 +221,10 @@ export function SectorDashboard({
               </article>
               <article className="rounded-2xl border border-slate-200 bg-white px-4 py-3">
                 <p className="text-[11px] uppercase tracking-[0.18em] text-slate-500">Updated</p>
-                <div className="mt-2 flex items-center justify-between gap-3 rounded-2xl border border-slate-200 bg-slate-50/80 px-3 py-2">
+                <div className="mt-2 flex items-center justify-between gap-3 rounded-2xl border border-slate-200/80 bg-[linear-gradient(180deg,rgba(248,250,252,0.82),rgba(255,255,255,0.98))] px-3 py-2.5">
                   <div className="min-w-0">
-                    <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-400">Updated</p>
-                    <p className="text-base font-semibold text-slate-900 md:text-lg">{formatClock(data?.fetchedAt)}</p>
+                    <p className="text-[10px] font-medium uppercase tracking-[0.18em] text-slate-400">Last Sync</p>
+                    <p className="text-base font-semibold tracking-[0.01em] text-slate-900 md:text-lg">{formatClock(data?.fetchedAt)}</p>
                   </div>
                   <RefreshButton onRefresh={refreshMarketData} disabled={isLoading} />
                 </div>

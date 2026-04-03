@@ -58,7 +58,6 @@ export function RefreshButton({ onRefresh, disabled = false }: RefreshButtonProp
       aria-label="Refresh market data"
       title="Refresh market data"
     >
-      <span className="refresh-btn__label">Refresh</span>
       {refreshState === "success" ? (
         <Check className="h-4 w-4 shrink-0" />
       ) : refreshState === "error" ? (
