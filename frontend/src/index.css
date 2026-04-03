@@ -86,33 +86,71 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  height: 2rem;
-  width: 2rem;
+  gap: 0.45rem;
+  min-width: 2.75rem;
+  height: 2.25rem;
+  padding: 0 0.8rem;
   border-radius: 9999px;
-  border: 1px solid #cbd5e1;
-  background: #ffffff;
-  color: #1e293b;
+  border: 1px solid #d6deeb;
+  background: linear-gradient(180deg, #ffffff 0%, #f8fbff 100%);
+  color: #0f172a;
+  box-shadow:
+    0 8px 20px rgba(15, 23, 42, 0.06),
+    inset 0 1px 0 rgba(255, 255, 255, 0.9);
   cursor: pointer;
   transition:
     transform 0.2s ease,
     border-color 0.2s ease,
     background-color 0.2s ease,
-    color 0.2s ease;
+    color 0.2s ease,
+    box-shadow 0.2s ease;
+  transform-origin: center;
+}
+
+.refresh-btn__label {
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #475569;
 }
 
 .refresh-btn:hover:not(:disabled) {
-  border-color: #60a5fa;
-  background-color: #eff6ff;
+  border-color: #7fb1ff;
+  background: linear-gradient(180deg, #ffffff 0%, #eef5ff 100%);
   color: #2563eb;
+  box-shadow:
+    0 12px 24px rgba(37, 99, 235, 0.12),
+    inset 0 1px 0 rgba(255, 255, 255, 0.9);
 }
 
 .refresh-btn:disabled {
   cursor: not-allowed;
-  opacity: 0.75;
+  opacity: 0.8;
 }
 
 .refresh-btn.spinning {
   animation: spin 1s linear infinite;
+}
+
+.refresh-btn.success {
+  border-color: rgba(22, 163, 74, 0.35);
+  background: linear-gradient(180deg, #f6fff8 0%, #ecfdf3 100%);
+  color: #15803d;
+}
+
+.refresh-btn.success .refresh-btn__label {
+  color: #15803d;
+}
+
+.refresh-btn.error {
+  border-color: rgba(220, 38, 38, 0.35);
+  background: linear-gradient(180deg, #fff8f8 0%, #fef2f2 100%);
+  color: #dc2626;
+}
+
+.refresh-btn.error .refresh-btn__label {
+  color: #b91c1c;
 }
 
 @keyframes spin {

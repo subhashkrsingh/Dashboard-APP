@@ -46,22 +46,25 @@ export function RefreshButton({ onRefresh, disabled = false }: RefreshButtonProp
   };
 
   const isLoading = refreshState === "loading";
+  const isSuccess = refreshState === "success";
+  const isError = refreshState === "error";
 
   return (
     <button
       type="button"
       onClick={handleRefresh}
       disabled={disabled || isLoading}
-      className={`refresh-btn ${isLoading ? "spinning" : ""}`}
+      className={`refresh-btn ${isLoading ? "spinning" : ""} ${isSuccess ? "success" : ""} ${isError ? "error" : ""}`}
       aria-label="Refresh market data"
       title="Refresh market data"
     >
+      <span className="refresh-btn__label">Refresh</span>
       {refreshState === "success" ? (
-        <Check className="h-4 w-4" />
+        <Check className="h-4 w-4 shrink-0" />
       ) : refreshState === "error" ? (
-        <AlertTriangle className="h-4 w-4" />
+        <AlertTriangle className="h-4 w-4 shrink-0" />
       ) : (
-        <RefreshCw className="h-4 w-4" />
+        <RefreshCw className="h-4 w-4 shrink-0" />
       )}
     </button>
   );
