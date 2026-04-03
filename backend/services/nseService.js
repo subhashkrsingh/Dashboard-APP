@@ -1,14 +1,9 @@
-const axios = require("axios");
-const dns = require("dns");
-const httpModule = require("http");
-const https = require("https");
 const { getMarketStatus } = require("./marketStatus");
 const { getSectorConfig } = require("./sectorRegistry");
+const { nseGet, NseClientError } = require("./nseClient");
 
-const NSE_BASE_URL = "https://www.nseindia.com";
 const NSE_SECTOR_ENDPOINT = "/api/sectoralIndex";
 const NSE_ALL_INDICES_ENDPOINT = "/api/allIndices";
-const NSE_REQUEST_TIMEOUT_MS = Math.max(Number(process.env.NSE_REQUEST_TIMEOUT_MS) || 30000, 1000);
 const NSE_INTRADAY_TIMEOUT_MS = Math.max(Number(process.env.NSE_INTRADAY_TIMEOUT_MS) || 8000, 1000);
 const NSE_REQUESTED_INDEX_NAME = "NIFTY ENERGY";
 const NSE_FALLBACK_INDEX_NAME = "NIFTY ENERGY";
@@ -43,36 +38,6 @@ const NSE_FMCG_INDEX_NAME = "NIFTY FMCG";
 const NSE_IT_INDEX_NAME = "NIFTY IT";
 
 const NSE_INTRADAY_ENDPOINT = "/api/chart-databyindex";
-
-const NSE_HEADERS = {
-  "User-Agent": "Mozilla/5.0",
-  Accept: "application/json",
-  "Accept-Language": "en-US,en;q=0.9",
-  Connection: "keep-alive",
-  Referer: "https://www.nseindia.com/",
-  Origin: "https://www.nseindia.com",
-  "Cache-Control": "no-cache",
-  Pragma: "no-cache",
-  "Sec-Fetch-Dest": "empty",
-  "Sec-Fetch-Mode": "cors",
-  "Sec-Fetch-Site": "same-origin",
-  "X-Requested-With": "XMLHttpRequest"
-};
-
-const NSE_COOKIE_TTL_MS = 50 * 60 * 1000;
-try {
-  dns.setDefaultResultOrder("ipv4first");
-} catch (error) {
-  // No-op for Node runtimes that do not support result-order override.
-}
-
-const HTTP_AGENT = new httpModule.Agent({
-  keepAlive: true
-});
-
-const HTTPS_AGENT = new https.Agent({
-  keepAlive: true
-});
 
 const MAJOR_ENERGY_COMPANIES = [
   { symbol: "NTPC", name: "NTPC", aliases: ["NTPC"] },
@@ -141,19 +106,6 @@ class NseServiceError extends Error {
   }
 }
 
-const http = axios.create({
-  headers: {
-    ...NSE_HEADERS
-  },
-  timeout: NSE_REQUEST_TIMEOUT_MS,
-  httpAgent: HTTP_AGENT,
-  httpsAgent: HTTPS_AGENT,
-  validateStatus: () => true
-});
-
-let sessionCookie = "";
-let sessionExpiresAt = 0;
-
 function toNumber(value) {
   if (typeof value === "number") return Number.isFinite(value) ? value : null;
   if (typeof value !== "string") return null;
@@ -177,25 +129,6 @@ function normalizeText(value) {
     .replace(/[^A-Z0-9]/g, "");
 }
 
-function toCookieHeader(setCookieHeader) {
-  if (!Array.isArray(setCookieHeader)) return "";
-  return setCookieHeader
-    .map(cookie => String(cookie).split(";")[0].trim())
-    .filter(Boolean)
-    .join("; ");
-}
-
-function getNseApiHeaders(cookie) {
-  return cookie
-    ? {
-        ...NSE_HEADERS,
-        Cookie: cookie
-      }
-    : {
-        ...NSE_HEADERS
-      };
-}
-
 function extractList(payload) {
   if (Array.isArray(payload)) return payload;
   if (Array.isArray(payload?.data)) return payload.data;
@@ -205,78 +138,32 @@ function extractList(payload) {
   return [];
 }
 
-function parseStatusError(response, path) {
-  const status = Number(response?.status || 0);
-  const messageFromBody =
-    response?.data?.message || response?.data?.msg || response?.statusText || "";
-  const message = String(messageFromBody || "Failed to fetch NSE data");
+function toNseServiceError(error, path) {
+  if (error instanceof NseServiceError) {
+    return error;
+  }
 
-  if (status === 429) {
-    return new NseServiceError("NSE rate limit reached. Please retry shortly.", 429, "NSE_RATE_LIMIT");
+  if (error instanceof NseClientError) {
+    return new NseServiceError(
+      error.message || `Failed to fetch NSE data for ${path}`,
+      Number(error.statusCode) || 503,
+      error.code || "NSE_CLIENT_ERROR"
+    );
   }
-  if (status === 401 || status === 403) {
-    return new NseServiceError("NSE rejected the request session.", 503, "NSE_SESSION_REJECTED");
-  }
-  if (status >= 500) {
-    return new NseServiceError("NSE service is temporarily unavailable.", 503, "NSE_UPSTREAM_ERROR");
-  }
-  if (status === 404) {
-    return new NseServiceError(`NSE endpoint not found: ${path}`, 404, "NSE_ENDPOINT_NOT_FOUND");
-  }
-  return new NseServiceError(message, 503, "NSE_RESPONSE_ERROR");
+
+  return new NseServiceError(
+    error?.message || `Failed to fetch NSE data for ${path}`,
+    503,
+    "NSE_REQUEST_FAILED"
+  );
 }
 
-async function establishNseSession() {
-  // NSE expects a browser-like session; requesting the live-equity-market page tends to
-  // return cookies needed for all subsequent API calls (including chart-databyindex).
-  const landingUrl = `${NSE_BASE_URL}/market-data/live-equity-market`;
-  const response = await http.get(landingUrl, {
-    headers: { ...NSE_HEADERS }
-  });
-
-  if (response.status < 200 || response.status >= 400) {
-    throw parseStatusError(response, NSE_BASE_URL);
+async function fetchNseJson(path, options = {}) {
+  try {
+    return await nseGet(path, options);
+  } catch (error) {
+    throw toNseServiceError(error, path);
   }
-
-  const cookie = toCookieHeader(response.headers?.["set-cookie"]);
-  if (!cookie) {
-    throw new NseServiceError("Unable to establish NSE session cookies.", 503, "NSE_COOKIE_MISSING");
-  }
-
-  sessionCookie = cookie;
-  sessionExpiresAt = Date.now() + NSE_COOKIE_TTL_MS;
-}
-
-async function ensureNseSession(forceRefresh = false) {
-  if (forceRefresh || !sessionCookie || Date.now() >= sessionExpiresAt) {
-    await establishNseSession();
-  }
-}
-
-async function nseGet(path, { refreshSession = true } = {}) {
-  await ensureNseSession(false);
-
-  let response = await http.get(`${NSE_BASE_URL}${path}`, {
-    headers: getNseApiHeaders(sessionCookie)
-  });
-
-  if (response.status >= 200 && response.status < 300) {
-    return response.data;
-  }
-
-  if (refreshSession && (response.status === 401 || response.status === 403 || response.status === 429)) {
-    await ensureNseSession(true);
-
-    response = await http.get(`${NSE_BASE_URL}${path}`, {
-      headers: getNseApiHeaders(sessionCookie)
-    });
-
-    if (response.status >= 200 && response.status < 300) {
-      return response.data;
-    }
-  }
-
-  throw parseStatusError(response, path);
 }
 
 function findSectorIndex(indexPayload, acceptedIndexNames) {
@@ -320,7 +207,7 @@ async function fetchEnergyIndexPayload() {
 
   for (const endpoint of candidateEndpoints) {
     try {
-      const payload = await nseGet(endpoint);
+      const payload = await fetchNseJson(endpoint);
       if (findEnergyIndex(payload)) return payload;
     } catch (error) {
       if (error instanceof NseServiceError && error.code === "NSE_ENDPOINT_NOT_FOUND") {
@@ -340,7 +227,7 @@ async function fetchRealEstateIndexPayload() {
 
   for (const endpoint of candidateEndpoints) {
     try {
-      const payload = await nseGet(endpoint);
+      const payload = await fetchNseJson(endpoint);
       if (findRealEstateIndex(payload)) return payload;
     } catch (error) {
       if (error instanceof NseServiceError && error.code === "NSE_ENDPOINT_NOT_FOUND") {
@@ -364,7 +251,7 @@ async function fetchOilGasIndexPayload() {
 
   for (const endpoint of candidateEndpoints) {
     try {
-      const payload = await nseGet(endpoint);
+      const payload = await fetchNseJson(endpoint);
       if (findOilGasIndex(payload)) return payload;
     } catch (error) {
       if (error instanceof NseServiceError && error.code === "NSE_ENDPOINT_NOT_FOUND") {
@@ -383,7 +270,7 @@ async function fetchEnergyStocksPayload() {
 
   for (const candidate of NSE_ENERGY_STOCK_ENDPOINTS) {
     try {
-      const payload = await nseGet(candidate.path);
+      const payload = await fetchNseJson(candidate.path);
       const rows = extractList(payload);
       if (rows.length > 0) {
         return {
@@ -409,7 +296,7 @@ async function fetchOilGasStocksPayload() {
 
   for (const candidate of NSE_OIL_GAS_STOCK_ENDPOINTS) {
     try {
-      const payload = await nseGet(candidate.path);
+      const payload = await fetchNseJson(candidate.path);
       const rows = extractList(payload);
       if (rows.length > 0) {
         return {
@@ -435,7 +322,7 @@ async function fetchRealEstateStocksPayload() {
 
   for (const candidate of NSE_REAL_ESTATE_STOCK_ENDPOINTS) {
     try {
-      const payload = await nseGet(candidate.path);
+      const payload = await fetchNseJson(candidate.path);
       const rows = extractList(payload);
       if (rows.length > 0) {
         return {
@@ -476,7 +363,7 @@ async function fetchConfiguredSectorIndexPayload(config) {
 
   for (const endpoint of candidateEndpoints) {
     try {
-      const payload = await nseGet(endpoint);
+      const payload = await fetchNseJson(endpoint);
       if (buildConfiguredSectorIndex(config, payload)) {
         return payload;
       }
@@ -501,7 +388,7 @@ async function fetchConfiguredStocksPayload(config) {
 
   for (const candidate of candidateEndpoints) {
     try {
-      const payload = await nseGet(candidate.path);
+      const payload = await fetchNseJson(candidate.path);
       const rows = extractList(payload);
       if (rows.length > 0) {
         return {
@@ -641,7 +528,7 @@ async function fetchIntradaySeriesFromNse(indexName, duration = "1d") {
     (async () => {
       const query = `?index=${encodeURIComponent(indexName)}&duration=${encodeURIComponent(duration)}`;
       try {
-        const payload = await nseGet(`${NSE_INTRADAY_ENDPOINT}${query}`);
+        const payload = await fetchNseJson(`${NSE_INTRADAY_ENDPOINT}${query}`);
         const series = parseIntradaySeriesPayload(payload);
 
         if (!series) {

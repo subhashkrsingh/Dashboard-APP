@@ -1,6 +1,6 @@
-const NSE_TIMEOUT_MS = Math.max(Number(process.env.NSE_FETCH_TIMEOUT_MS) || 30000, 1000);
+const NSE_TIMEOUT_MS = Math.max(Number(process.env.NSE_FETCH_TIMEOUT_MS) || 8000, 1000);
 const NSE_BASE_RETRY_DELAY_MS = Math.max(Number(process.env.NSE_RETRY_BASE_DELAY_MS) || 400, 100);
-const NSE_MAX_ATTEMPTS = Math.max(Number(process.env.NSE_MAX_ATTEMPTS) || 4, 1);
+const NSE_MAX_ATTEMPTS = Math.max(Number(process.env.NSE_MAX_ATTEMPTS) || 3, 1);
 
 function delay(ms) {
   return new Promise(resolve => setTimeout(resolve, ms));
