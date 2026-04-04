@@ -12,6 +12,7 @@ import { FooterBar } from "../components/dashboard/FooterBar";
 import { Navbar } from "../components/layout/Navbar";
 import { Sidebar, type SidebarPage } from "../components/layout/Sidebar";
 import { StockTable } from "../components/tables/StockTable";
+import { shouldShowInlineCacheBanner } from "../lib/cacheStatus";
 import { formatPercent, formatPrice, formatVolume } from "../lib/formatters";
 import { useMarketData } from "../hooks/useMarketData";
 import type { CompanyQuote } from "../types/market";
@@ -134,6 +135,7 @@ export function DashboardPage() {
   const declines =
     data.advanceDecline?.declines ??
     data.companies.filter(company => (company.percentChange ?? 0) < 0).length;
+  const showInlineCacheBanner = shouldShowInlineCacheBanner(data);
 
   const pageTitle = getPageTitle(activePage);
 
@@ -399,7 +401,7 @@ export function DashboardPage() {
               </section>
             ) : null}
 
-            {data.dataStatus === "cache" ? (
+            {showInlineCacheBanner ? (
               <section className="glass-card rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-700">
                 {data.message ?? data.warning ?? "Showing recent snapshot"}
               </section>

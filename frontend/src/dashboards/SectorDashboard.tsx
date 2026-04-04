@@ -17,6 +17,7 @@ import { Navbar } from "../components/Navbar";
 import { StockTable } from "../components/tables/StockTable";
 import type { CompanyHistoryPoint } from "../hooks/useMarketHistory";
 import type { SectorMarketDataResult } from "../hooks/useSectorMarketData";
+import { shouldShowInlineCacheBanner } from "../lib/cacheStatus";
 import { formatClock, formatPercent, formatPrice, formatVolume } from "../lib/formatters";
 import type { SectorModuleConfig } from "../lib/sectorConfig";
 import type { CompanyQuote, PriceDirection, SectorSnapshot, TimePoint } from "../types/market";
@@ -125,6 +126,7 @@ export function SectorDashboard({
     marketData;
   const blockingError = !data && error;
   const scrollableModules = useMemo(() => modules.filter(module => module.id !== "overview"), [modules]);
+  const showInlineCacheBanner = shouldShowInlineCacheBanner(data);
 
   useEffect(() => {
     if (isLoading || typeof window === "undefined") {
@@ -264,7 +266,7 @@ export function SectorDashboard({
               </section>
             ) : null}
 
-            {data.dataStatus === "cache" ? (
+            {showInlineCacheBanner ? (
               <section className="glass-card rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-700">
                 {data.message ?? data.warning ?? "Showing recent snapshot"}
                 <RefreshDiagnostics

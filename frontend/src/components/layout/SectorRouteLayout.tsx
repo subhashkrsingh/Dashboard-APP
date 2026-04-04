@@ -6,6 +6,7 @@ import { Navbar } from "./Navbar";
 import { DashboardSkeleton } from "../dashboard/DashboardSkeleton";
 import { FooterBar } from "../dashboard/FooterBar";
 import type { SectorMarketDataResult } from "../../hooks/useSectorMarketData";
+import { shouldShowInlineCacheBanner } from "../../lib/cacheStatus";
 import { deriveSectorAnalytics } from "../../lib/sectorAnalytics";
 import type { SectorConfig } from "../../lib/sectorConfig";
 
@@ -21,6 +22,7 @@ export function SectorRouteLayout({ config, onOpenSidebar, marketData }: SectorR
   const { data, error, isLoading, isFetching, refetch, sectorHistory, companyHistory, signals } = marketData;
   const blockingError = !data && error;
   const analytics = data ? deriveSectorAnalytics(data) : null;
+  const showInlineCacheBanner = shouldShowInlineCacheBanner(data);
 
   return (
     <div className="flex min-w-0 flex-1 flex-col">
@@ -65,7 +67,7 @@ export function SectorRouteLayout({ config, onOpenSidebar, marketData }: SectorR
               </section>
             ) : null}
 
-            {data.dataStatus === "cache" ? (
+            {showInlineCacheBanner ? (
               <section className="glass-card rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-700">
                 {data.message ?? data.warning ?? "Showing recent snapshot"}
               </section>

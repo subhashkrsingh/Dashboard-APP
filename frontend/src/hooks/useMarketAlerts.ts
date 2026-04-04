@@ -1,5 +1,6 @@
 import { useMemo } from "react";
 
+import { getCacheAlertMessage, isRefreshFailureSnapshot } from "../lib/cacheStatus";
 import type { CompanyQuote, SectorSnapshot } from "../types/market";
 
 export type MarketAlertSeverity = "info" | "warning" | "danger";
@@ -78,8 +79,8 @@ export function useMarketAlerts(snapshot: SectorSnapshot | undefined) {
 
     if (source === "cache") {
       addAlert({
-        id: "cache",
-        message: "Using cached snapshot",
+        id: isRefreshFailureSnapshot(snapshot) ? "refresh-failed" : "cache",
+        message: getCacheAlertMessage(snapshot),
         severity: "warning"
       });
     }
