@@ -149,35 +149,48 @@ export function Sidebar({ collapsed = false, onToggleCollapse, onClose }: Sideba
 
   return (
     <aside className="h-screen w-full overflow-y-auto border-r border-[#E6EAF2] bg-white/95 px-3 py-4 backdrop-blur-lg">
-      <div className={`rounded-2xl border border-blue-200 bg-blue-50 p-3 ${collapsed ? "text-center" : ""}`}>
-        <div className={`flex items-center ${collapsed ? "justify-center" : "justify-between"} gap-2`}>
-          {!collapsed ? (
-            <AppLogo subtitle="Unified Market Terminal" />
-          ) : (
+      <div className={`rounded-2xl border border-blue-200 bg-blue-50 p-3 ${collapsed ? "space-y-2 text-center" : ""}`}>
+        {collapsed ? (
+          <>
             <AppLogo compact className="mx-auto" />
-          )}
 
-          {!onClose && onToggleCollapse ? (
-            <button
-              type="button"
-              onClick={onToggleCollapse}
-              className="hidden rounded-lg border border-slate-300 bg-white p-1.5 text-slate-700 transition hover:border-blue-300 xl:inline-flex"
-              aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
-            >
-              {collapsed ? <ChevronRight className="h-4 w-4" /> : <ChevronLeft className="h-4 w-4" />}
-            </button>
-          ) : null}
+            {!onClose && onToggleCollapse ? (
+              <button
+                type="button"
+                onClick={onToggleCollapse}
+                className="hidden rounded-lg border border-slate-300 bg-white p-1.5 text-slate-700 transition hover:border-blue-300 xl:inline-flex"
+                aria-label="Expand sidebar"
+              >
+                <ChevronRight className="h-4 w-4" />
+              </button>
+            ) : null}
+          </>
+        ) : (
+          <div className="flex items-center justify-between gap-2">
+            <AppLogo subtitle="Unified Market Terminal" />
 
-          {onClose ? (
-            <button
-              type="button"
-              onClick={onClose}
-              className="rounded-lg border border-slate-300 bg-white px-2 py-1 text-xs text-slate-700 xl:hidden"
-            >
-              Close
-            </button>
-          ) : null}
-        </div>
+            {!onClose && onToggleCollapse ? (
+              <button
+                type="button"
+                onClick={onToggleCollapse}
+                className="hidden rounded-lg border border-slate-300 bg-white p-1.5 text-slate-700 transition hover:border-blue-300 xl:inline-flex"
+                aria-label="Collapse sidebar"
+              >
+                <ChevronLeft className="h-4 w-4" />
+              </button>
+            ) : null}
+
+            {onClose ? (
+              <button
+                type="button"
+                onClick={onClose}
+                className="rounded-lg border border-slate-300 bg-white px-2 py-1 text-xs text-slate-700 xl:hidden"
+              >
+                Close
+              </button>
+            ) : null}
+          </div>
+        )}
       </div>
 
       <div className="mt-4 space-y-3">
