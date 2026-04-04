@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
-import { AnimatePresence, motion } from "framer-motion";
 import { Activity, BarChart3, TrendingDown, TrendingUp } from "lucide-react";
 
+import { useAppLayoutContext } from "../components/AppLayout";
 import { InsightsPanel } from "../components/cards/InsightsPanel";
 import { MarketCard } from "../components/cards/MarketCard";
 import { SectorCard } from "../components/cards/SectorCard";
@@ -10,22 +10,23 @@ import { SectorIntradayChart } from "../components/charts/SectorIntradayChart";
 import { DashboardSkeleton } from "../components/dashboard/DashboardSkeleton";
 import { FooterBar } from "../components/dashboard/FooterBar";
 import { Navbar } from "../components/layout/Navbar";
-import { Sidebar, type SidebarPage } from "../components/layout/Sidebar";
 import { StockTable } from "../components/tables/StockTable";
 import { shouldShowInlineCacheBanner } from "../lib/cacheStatus";
 import { formatPercent, formatPrice, formatVolume } from "../lib/formatters";
 import { useMarketData } from "../hooks/useMarketData";
 import type { CompanyQuote } from "../types/market";
 
-const DEFAULT_PAGE: SidebarPage = "dashboard";
-const PAGE_HASH: Record<SidebarPage, string> = {
+const DEFAULT_PAGE = "dashboard";
+const PAGE_HASH = {
   dashboard: "#/dashboard",
   companies: "#/companies",
   analytics: "#/analytics",
   alerts: "#/alerts",
   watchlist: "#/watchlist",
   settings: "#/settings"
-};
+} as const;
+
+type SidebarPage = keyof typeof PAGE_HASH;
 
 function getPageFromHash(hash: string): SidebarPage {
   const entry = (Object.entries(PAGE_HASH) as Array<[SidebarPage, string]>).find(([, value]) => value === hash);
@@ -61,24 +62,13 @@ function getPageTitle(page: SidebarPage): string {
 }
 
 export function DashboardPage() {
+  const { onOpenSidebar } = useAppLayoutContext();
   const [search, setSearch] = useState("");
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [activePage, setActivePage] = useState<SidebarPage>(() => {
     if (typeof window === "undefined") return DEFAULT_PAGE;
     return getPageFromHash(window.location.hash);
   });
-  const {
-    data,
-    error,
-    isLoading,
-    isFetching,
-    refetch,
-    sidebarOpen,
-    setSidebarOpen,
-    sectorHistory,
-    companyHistory,
-    signals
-  } = useMarketData();
+  const { data, error, isLoading, isFetching, refetch, sectorHistory, companyHistory, signals } = useMarketData();
 
   useEffect(() => {
     const onHashChange = () => setActivePage(getPageFromHash(window.location.hash));
@@ -141,7 +131,6 @@ export function DashboardPage() {
 
   const navigatePage = (page: SidebarPage) => {
     setActivePage(page);
-    setSidebarOpen(false);
     if (window.location.hash !== PAGE_HASH[page]) {
       window.location.hash = PAGE_HASH[page];
     }
@@ -324,102 +313,53 @@ export function DashboardPage() {
   };
 
   return (
-    <main className="relative min-h-screen bg-[#F5F7FB] text-slate-800">
-      <div className="pointer-events-none fixed inset-0 bg-[radial-gradient(circle_at_8%_8%,rgba(37,99,235,0.08),transparent_35%),radial-gradient(circle_at_90%_10%,rgba(59,130,246,0.1),transparent_33%),radial-gradient(circle_at_50%_100%,rgba(22,163,74,0.06),transparent_38%),linear-gradient(180deg,#F8FAFF_0%,#F5F7FB_40%,#EEF3FB_100%)]" />
+    <div className="flex min-w-0 flex-1 flex-col">
+      <Navbar
+        companies={data.companies}
+        marketStatus={data.marketStatus}
+        fetchedAt={data.fetchedAt}
+        isFetching={isFetching}
+        dataStatus={data.dataStatus}
+        cacheAgeMs={data.cacheAgeMs}
+        apiCacheStatus={data.apiCacheStatus}
+        marketSnapshot={data}
+        search={search}
+        onSearchChange={setSearch}
+        onOpenSidebar={onOpenSidebar}
+      />
 
-      <div className="relative z-10 flex min-h-screen">
-        <div
-          className={`hidden shrink-0 transition-[width] duration-300 xl:block ${
-            sidebarCollapsed ? "w-[96px]" : "w-[280px]"
-          }`}
-        >
-          <Sidebar
-            companies={data.companies}
-            activePage={activePage}
-            onNavigate={navigatePage}
-            collapsed={sidebarCollapsed}
-            onToggleCollapse={() => setSidebarCollapsed(current => !current)}
-          />
-        </div>
-
-        <AnimatePresence>
-          {sidebarOpen ? (
-            <>
-              <motion.div
-                className="fixed inset-0 z-30 bg-black/50 backdrop-blur-[2px] xl:hidden"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                onClick={() => setSidebarOpen(false)}
-              />
-              <motion.div
-                className="fixed inset-y-0 left-0 z-40 w-[280px] xl:hidden"
-                initial={{ x: "-100%" }}
-                animate={{ x: 0 }}
-                exit={{ x: "-100%" }}
-                transition={{ duration: 0.2 }}
-              >
-                <Sidebar
-                  companies={data.companies}
-                  activePage={activePage}
-                  onNavigate={navigatePage}
-                  collapsed={false}
-                  onClose={() => setSidebarOpen(false)}
-                />
-              </motion.div>
-            </>
-          ) : null}
-        </AnimatePresence>
-
-        <div className="flex min-w-0 flex-1 flex-col">
-          <Navbar
-            companies={data.companies}
-            marketStatus={data.marketStatus}
-            fetchedAt={data.fetchedAt}
-            isFetching={isFetching}
-            dataStatus={data.dataStatus}
-            cacheAgeMs={data.cacheAgeMs}
-            apiCacheStatus={data.apiCacheStatus}
-            marketSnapshot={data}
-            search={search}
-            onSearchChange={setSearch}
-            onOpenSidebar={() => setSidebarOpen(true)}
-          />
-
-          <div className="space-y-4 px-4 py-4 md:px-6">
-            <section className="glass-card rounded-2xl border border-[#E6EAF2] p-4">
-              <p className="text-xs uppercase tracking-[0.2em] text-blue-600">Energy Sector Dashboard</p>
-              <div className="mt-2 flex items-center gap-3">
-                <Activity className="h-5 w-5 text-blue-600" />
-                <h1 className="font-display text-2xl font-semibold text-slate-900">{pageTitle}</h1>
-              </div>
-            </section>
-
-            {data.dataStatus === "offline" ? (
-              <section className="glass-card rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
-                {data.message ?? data.warning ?? "Market data temporarily unavailable"}
-              </section>
-            ) : null}
-
-            {showInlineCacheBanner ? (
-              <section className="glass-card rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-700">
-                {data.message ?? data.warning ?? "Showing recent snapshot"}
-              </section>
-            ) : null}
-
-            {data.fallbackIndexUsed ? (
-              <section className="glass-card rounded-xl border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-700">
-                Requested index {data.requestedIndex ?? "NIFTY ENERGY"} was unavailable. Showing closest live benchmark
-                from feed.
-              </section>
-            ) : null}
-
-            {renderPage()}
-
-            <FooterBar />
+      <div className="space-y-4 px-4 py-4 md:px-6">
+        <section className="glass-card rounded-2xl border border-[#E6EAF2] p-4">
+          <p className="text-xs uppercase tracking-[0.2em] text-blue-600">Energy Sector Dashboard</p>
+          <div className="mt-2 flex items-center gap-3">
+            <Activity className="h-5 w-5 text-blue-600" />
+            <h1 className="font-display text-2xl font-semibold text-slate-900">{pageTitle}</h1>
           </div>
-        </div>
+        </section>
+
+        {data.dataStatus === "offline" ? (
+          <section className="glass-card rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
+            {data.message ?? data.warning ?? "Market data temporarily unavailable"}
+          </section>
+        ) : null}
+
+        {showInlineCacheBanner ? (
+          <section className="glass-card rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-700">
+            {data.message ?? data.warning ?? "Showing recent snapshot"}
+          </section>
+        ) : null}
+
+        {data.fallbackIndexUsed ? (
+          <section className="glass-card rounded-xl border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-700">
+            Requested index {data.requestedIndex ?? "NIFTY ENERGY"} was unavailable. Showing closest live benchmark
+            from feed.
+          </section>
+        ) : null}
+
+        {renderPage()}
+
+        <FooterBar />
       </div>
-    </main>
+    </div>
   );
 }

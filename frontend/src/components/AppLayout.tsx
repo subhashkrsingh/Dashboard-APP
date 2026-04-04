@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { Outlet, useLocation, useOutletContext } from "react-router-dom";
 
-import { Sidebar } from "./Sidebar";
+import { Sidebar } from "./layout/Sidebar";
 
 interface AppLayoutContextValue {
   onOpenSidebar: () => void;
