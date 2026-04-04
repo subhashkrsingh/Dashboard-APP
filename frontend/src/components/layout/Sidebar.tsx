@@ -7,11 +7,11 @@ import {
   PanelLeftClose,
   PanelLeftOpen,
   Settings,
-  Star,
-  Zap
+  Star
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 
+import { AppLogo } from "../branding/AppLogo";
 import type { CompanyQuote } from "../../types/market";
 
 export type SidebarPage = "dashboard" | "companies" | "analytics" | "alerts" | "watchlist" | "settings";
@@ -56,14 +56,9 @@ export function Sidebar({
       <div className={`rounded-2xl border border-blue-200 bg-blue-50 p-3 ${collapsed ? "text-center" : ""}`}>
         <div className={`flex items-center ${collapsed ? "justify-center" : "justify-between"} gap-2`}>
           {!collapsed ? (
-            <div>
-              <p className="text-[11px] uppercase tracking-[0.2em] text-blue-700">NSE Energy Sector</p>
-              <h2 className="mt-1 font-display text-base font-semibold text-slate-900">Trading Terminal</h2>
-            </div>
+            <AppLogo subtitle="Live Sector Terminal" />
           ) : (
-            <div className="rounded-lg border border-blue-200 bg-white p-2">
-              <Zap className="h-5 w-5 text-blue-700" />
-            </div>
+            <AppLogo compact className="mx-auto" />
           )}
 
           {!onClose && onToggleCollapse ? (

@@ -2,6 +2,7 @@ import { useMemo } from "react";
 import { motion } from "framer-motion";
 import { Menu, Search, UserCircle2 } from "lucide-react";
 
+import { AppLogo } from "../branding/AppLogo";
 import type { CompanyQuote, MarketStatus, SectorDataStatus, SectorSnapshot } from "../../types/market";
 import { useMarketAlerts } from "../../hooks/useMarketAlerts";
 import LiveISTClock from "../LiveISTClock";
@@ -58,6 +59,8 @@ export function Navbar({
           <Menu className="h-4 w-4" />
           Menu
         </button>
+
+        <AppLogo compact className="xl:hidden" />
 
         <div className="relative min-w-[220px] flex-1">
           <label htmlFor="stock-search" className="sr-only">

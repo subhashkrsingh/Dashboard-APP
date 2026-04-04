@@ -1,4 +1,4 @@
-
+import { AppLogo } from "../branding/AppLogo";
 import { formatClock } from "../../lib/formatters";
 import type { CompanyQuote, MarketStatus } from "../../types/market";
 
@@ -14,11 +14,7 @@ export function SidebarPanel({ companies, marketStatus, fetchedAt, onClose }: Si
     <aside className="h-full overflow-y-auto border-r border-slate-800/85 bg-slate-950/95 p-4 lg:p-5">
       <div className="rounded-2xl border border-slate-700/80 bg-slate-900/85 p-4">
         <div className="flex items-start justify-between gap-2">
-          <div>
-            <p className="text-xs uppercase tracking-[0.24em] text-cyan-300/85">Energy Terminal</p>
-            <h2 className="mt-2 font-display text-xl font-semibold text-slate-100">Market Desk</h2>
-            <p className="mt-1 text-xs text-slate-400">NSE Energy Sector Monitor</p>
-          </div>
+          <AppLogo subtitle="After-Hours Market Desk" theme="dark" />
           {onClose && (
             <button
               type="button"
