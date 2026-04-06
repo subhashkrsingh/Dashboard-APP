@@ -32,6 +32,9 @@ export interface CompanyQuote {
   change: number | null;
   percentChange: number | null;
   volume: number | null;
+  sectorName?: string | null;
+  sectorTag?: string | null;
+  tags?: string[];
 }
 
 export interface MarketStatus {

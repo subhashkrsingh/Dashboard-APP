@@ -2,6 +2,7 @@ import { useMemo, useState } from "react";
 import { motion } from "framer-motion";
 
 import type { CompanyHistoryPoint } from "../../hooks/useMarketHistory";
+import { filterCompaniesBySearch } from "../../lib/companySearch";
 import { formatPercent, formatPrice, formatSignedPrice, formatVolume } from "../../lib/formatters";
 import type { CompanyQuote, PriceDirection } from "../../types/market";
 import { Sparkline } from "../ui/Sparkline";
@@ -57,14 +58,7 @@ export function StockTable({
   const [sortDirection, setSortDirection] = useState<SortDirection>("desc");
 
   const filteredRows = useMemo(() => {
-    const normalizedQuery = query.trim().toLowerCase();
-    const filtered = companies.filter(item => {
-      if (!normalizedQuery) return true;
-      return (
-        item.symbol.toLowerCase().includes(normalizedQuery) ||
-        item.name.toLowerCase().includes(normalizedQuery)
-      );
-    });
+    const filtered = filterCompaniesBySearch(companies, query);
 
     return [...filtered].sort((a, b) => {
       switch (sortKey) {
@@ -174,7 +168,7 @@ export function StockTable({
             {filteredRows.length === 0 ? (
               <tr>
                 <td colSpan={5} className="px-4 py-6 text-center text-sm text-slate-500">
-                  No symbols matched your search.
+                  No results found
                 </td>
               </tr>
             ) : null}

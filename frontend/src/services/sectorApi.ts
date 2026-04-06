@@ -31,13 +31,39 @@ interface CacheEnvelope {
 }
 
 function normalizeCompany(row: Record<string, unknown>): CompanyQuote {
+  const rawTags =
+    Array.isArray(row.tags) || typeof row.tags === "string"
+      ? row.tags
+      : Array.isArray(row.sectorTags) || typeof row.sectorTags === "string"
+      ? row.sectorTags
+      : null;
+
   return {
     symbol: String(row.symbol ?? ""),
     name: String(row.name ?? row.company ?? row.symbol ?? ""),
     price: Number.isFinite(Number(row.price)) ? Number(row.price) : null,
     change: Number.isFinite(Number(row.change)) ? Number(row.change) : null,
     percentChange: Number.isFinite(Number(row.percentChange)) ? Number(row.percentChange) : null,
-    volume: Number.isFinite(Number(row.volume)) ? Number(row.volume) : null
+    volume: Number.isFinite(Number(row.volume)) ? Number(row.volume) : null,
+    sectorName:
+      typeof row.sectorName === "string"
+        ? row.sectorName
+        : typeof row.sector === "string"
+        ? row.sector
+        : null,
+    sectorTag:
+      typeof row.sectorTag === "string"
+        ? row.sectorTag
+        : typeof row.tag === "string"
+        ? row.tag
+        : typeof row.category === "string"
+        ? row.category
+        : null,
+    tags: Array.isArray(rawTags)
+      ? rawTags.map(tag => String(tag).trim()).filter(Boolean)
+      : typeof rawTags === "string"
+      ? [rawTags.trim()].filter(Boolean)
+      : undefined
   };
 }
 

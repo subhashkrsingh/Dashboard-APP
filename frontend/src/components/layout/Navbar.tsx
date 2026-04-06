@@ -64,7 +64,7 @@ export function Navbar({
 
         <div className="relative min-w-[220px] flex-1">
           <label htmlFor="stock-search" className="sr-only">
-            Search stocks
+            Search symbols
           </label>
           <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
           <input
@@ -75,7 +75,7 @@ export function Navbar({
             type="search"
             autoComplete="off"
             enterKeyHint="search"
-            placeholder="Search stocks..."
+            placeholder="Search symbols..."
             className="w-full rounded-xl border border-slate-300 bg-white py-2 pl-9 pr-4 text-sm text-slate-800 placeholder:text-slate-400 focus:border-blue-500 focus:outline-none"
           />
         </div>
@@ -107,7 +107,9 @@ export function Navbar({
 
       <div className="mt-3 overflow-hidden rounded-2xl border border-slate-200 bg-white py-2">
         {tickerItems.length === 0 ? (
-          <p className="px-3 text-xs text-slate-500">Waiting for ticker data...</p>
+          <p className="px-3 text-xs text-slate-500">
+            {search.trim() ? "No results found" : "Waiting for ticker data..."}
+          </p>
         ) : (
           <motion.div
             className="flex w-max items-center gap-6 px-4"

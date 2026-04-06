@@ -18,6 +18,7 @@ import { StockTable } from "../components/tables/StockTable";
 import type { CompanyHistoryPoint } from "../hooks/useMarketHistory";
 import type { SectorMarketDataResult } from "../hooks/useSectorMarketData";
 import { shouldShowInlineCacheBanner } from "../lib/cacheStatus";
+import { filterCompaniesBySearch } from "../lib/companySearch";
 import { formatClock, formatPercent, formatPrice, formatVolume } from "../lib/formatters";
 import type { SectorModuleConfig } from "../lib/sectorConfig";
 import type { CompanyQuote, PriceDirection, SectorSnapshot, TimePoint } from "../types/market";
@@ -127,6 +128,19 @@ export function SectorDashboard({
   const blockingError = !data && error;
   const scrollableModules = useMemo(() => modules.filter(module => module.id !== "overview"), [modules]);
   const showInlineCacheBanner = shouldShowInlineCacheBanner(data);
+  const filteredLists = useMemo(() => {
+    if (!data) {
+      return null;
+    }
+
+    const fallbackTerms = [sectorName];
+
+    return {
+      companies: filterCompaniesBySearch(data.companies, search, fallbackTerms),
+      gainers: filterCompaniesBySearch(data.gainers, search, fallbackTerms),
+      losers: filterCompaniesBySearch(data.losers, search, fallbackTerms)
+    };
+  }, [data, search, sectorName]);
 
   useEffect(() => {
     if (isLoading || typeof window === "undefined") {
@@ -178,7 +192,7 @@ export function SectorDashboard({
     };
   }, [isLoading, location.pathname, location.search, navigate, scrollableModules]);
 
-  const fallbackCompanies = data?.companies ?? [];
+  const fallbackCompanies = filteredLists?.companies ?? data?.companies ?? [];
 
   return (
     <div className="flex min-w-0 flex-1 flex-col">
@@ -287,6 +301,9 @@ export function SectorDashboard({
 
             <DashboardContent
               data={data}
+              filteredCompanies={filteredLists?.companies ?? data.companies}
+              filteredGainers={filteredLists?.gainers ?? data.gainers}
+              filteredLosers={filteredLists?.losers ?? data.losers}
               search={search}
               sectorName={sectorName}
               sectorId={sectorId}
@@ -313,6 +330,9 @@ export function SectorDashboard({
 
 interface DashboardContentProps {
   data: SectorSnapshot;
+  filteredCompanies: CompanyQuote[];
+  filteredGainers: CompanyQuote[];
+  filteredLosers: CompanyQuote[];
   search: string;
   sectorName: string;
   sectorId: string;
@@ -331,6 +351,9 @@ interface DashboardContentProps {
 
 function DashboardContent({
   data,
+  filteredCompanies,
+  filteredGainers,
+  filteredLosers,
   search,
   sectorName,
   sectorId,
@@ -346,19 +369,25 @@ function DashboardContent({
   newsItems,
   modules
 }: DashboardContentProps) {
-  const fallbackTopGainer = getTopByPercent(data.companies, "max");
-  const fallbackTopLoser = getTopByPercent(data.companies, "min");
-  const topGainer = data.gainers[0] ?? fallbackTopGainer;
-  const topLoser = data.losers[0] ?? fallbackTopLoser;
-  const volumeLeader = [...data.companies].sort((a, b) => (b.volume ?? 0) - (a.volume ?? 0))[0];
-  const totalVolume = data.companies.reduce((sum, company) => sum + (company.volume ?? 0), 0);
-  const averageChange = data.companies.length
-    ? data.companies.reduce((sum, company) => sum + (company.percentChange ?? 0), 0) / data.companies.length
+  const searchActive = search.trim().length > 0;
+  const displayedCompanies = filteredCompanies;
+  const fallbackTopGainer = getTopByPercent(displayedCompanies, "max");
+  const fallbackTopLoser = getTopByPercent(displayedCompanies, "min");
+  const topGainer = filteredGainers[0] ?? fallbackTopGainer;
+  const topLoser = filteredLosers[0] ?? fallbackTopLoser;
+  const volumeLeader = [...displayedCompanies].sort((a, b) => (b.volume ?? 0) - (a.volume ?? 0))[0];
+  const totalVolume = displayedCompanies.reduce((sum, company) => sum + (company.volume ?? 0), 0);
+  const averageChange = displayedCompanies.length
+    ? displayedCompanies.reduce((sum, company) => sum + (company.percentChange ?? 0), 0) / displayedCompanies.length
     : 0;
   const advances =
-    data.advanceDecline?.advances ?? data.companies.filter(company => (company.percentChange ?? 0) > 0).length;
+    searchActive
+      ? displayedCompanies.filter(company => (company.percentChange ?? 0) > 0).length
+      : data.advanceDecline?.advances ?? data.companies.filter(company => (company.percentChange ?? 0) > 0).length;
   const declines =
-    data.advanceDecline?.declines ?? data.companies.filter(company => (company.percentChange ?? 0) < 0).length;
+    searchActive
+      ? displayedCompanies.filter(company => (company.percentChange ?? 0) < 0).length
+      : data.advanceDecline?.declines ?? data.companies.filter(company => (company.percentChange ?? 0) < 0).length;
 
   const intradaySectionId = modules.find(module => module.id === "intraday")?.sectionId ?? "intraday-trend";
   const performanceSectionId = modules.find(module => module.id === "performance")?.sectionId ?? "performance";
@@ -403,6 +432,13 @@ function DashboardContent({
         />
       </section>
 
+      {searchActive && displayedCompanies.length === 0 ? (
+        <section className="glass-card rounded-2xl border border-slate-200 bg-white px-4 py-6 text-center">
+          <h3 className="font-display text-lg font-semibold text-slate-900">No results found</h3>
+          <p className="mt-2 text-sm text-slate-500">Try a ticker, company name, or sector tag.</p>
+        </section>
+      ) : null}
+
       <section id={intradaySectionId} className={SECTION_WRAPPER_CLASS}>
         <SectorIntradayChart
           sectorId={sectorId}
@@ -417,11 +453,15 @@ function DashboardContent({
       <section id={performanceSectionId} className={SECTION_WRAPPER_CLASS}>
         <section className="grid gap-4 xl:grid-cols-[minmax(0,1.45fr)_minmax(340px,1fr)]">
           <PerformanceChart
-            companies={data.companies}
+            companies={displayedCompanies}
             title={`${sectorName} Performance`}
             description={heatmapDescription}
           />
-          <MarketCapOverview companies={data.companies} marketCapBySymbol={marketCapBySymbol} sectorName={sectorName} />
+          <MarketCapOverview
+            companies={displayedCompanies}
+            marketCapBySymbol={marketCapBySymbol}
+            sectorName={sectorName}
+          />
         </section>
       </section>
 
@@ -440,7 +480,7 @@ function DashboardContent({
       </section>
 
       <section id={moversSectionId} className={SECTION_WRAPPER_CLASS}>
-        <TopMoversPanel gainers={data.gainers} losers={data.losers} />
+        <TopMoversPanel gainers={filteredGainers} losers={filteredLosers} />
       </section>
 
       <section id={newsSectionId} className={SECTION_WRAPPER_CLASS}>
@@ -449,7 +489,7 @@ function DashboardContent({
 
       <section id={stocksSectionId} className={SECTION_WRAPPER_CLASS}>
         <StockTable
-          companies={data.companies}
+          companies={displayedCompanies}
           historyBySymbol={companyHistory}
           signals={signals}
           query={search}

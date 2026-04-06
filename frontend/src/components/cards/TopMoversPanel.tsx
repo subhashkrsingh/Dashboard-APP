@@ -23,15 +23,19 @@ export function TopMoversPanel({ gainers, losers }: TopMoversPanelProps) {
             Gainers
           </div>
           <ul className="space-y-1.5">
-            {gainers.slice(0, 5).map(item => (
-              <li key={`g-${item.symbol}`} className="flex items-center justify-between rounded-lg bg-white px-2 py-1.5 text-xs">
-                <div>
-                  <p className="font-semibold text-slate-900">{item.symbol}</p>
-                  <p className="text-slate-500">{formatPrice(item.price)}</p>
-                </div>
-                <p className="font-semibold text-emerald-700">{formatPercent(item.percentChange)}</p>
-              </li>
-            ))}
+            {gainers.length === 0 ? (
+              <li className="rounded-lg bg-white px-2 py-3 text-xs text-slate-500">No results found</li>
+            ) : (
+              gainers.slice(0, 5).map(item => (
+                <li key={`g-${item.symbol}`} className="flex items-center justify-between rounded-lg bg-white px-2 py-1.5 text-xs">
+                  <div>
+                    <p className="font-semibold text-slate-900">{item.symbol}</p>
+                    <p className="text-slate-500">{formatPrice(item.price)}</p>
+                  </div>
+                  <p className="font-semibold text-emerald-700">{formatPercent(item.percentChange)}</p>
+                </li>
+              ))
+            )}
           </ul>
         </article>
 
@@ -41,15 +45,19 @@ export function TopMoversPanel({ gainers, losers }: TopMoversPanelProps) {
             Losers
           </div>
           <ul className="space-y-1.5">
-            {losers.slice(0, 5).map(item => (
-              <li key={`l-${item.symbol}`} className="flex items-center justify-between rounded-lg bg-white px-2 py-1.5 text-xs">
-                <div>
-                  <p className="font-semibold text-slate-900">{item.symbol}</p>
-                  <p className="text-slate-500">{formatPrice(item.price)}</p>
-                </div>
-                <p className="font-semibold text-rose-700">{formatPercent(item.percentChange)}</p>
-              </li>
-            ))}
+            {losers.length === 0 ? (
+              <li className="rounded-lg bg-white px-2 py-3 text-xs text-slate-500">No results found</li>
+            ) : (
+              losers.slice(0, 5).map(item => (
+                <li key={`l-${item.symbol}`} className="flex items-center justify-between rounded-lg bg-white px-2 py-1.5 text-xs">
+                  <div>
+                    <p className="font-semibold text-slate-900">{item.symbol}</p>
+                    <p className="text-slate-500">{formatPrice(item.price)}</p>
+                  </div>
+                  <p className="font-semibold text-rose-700">{formatPercent(item.percentChange)}</p>
+                </li>
+              ))
+            )}
           </ul>
         </article>
       </div>
