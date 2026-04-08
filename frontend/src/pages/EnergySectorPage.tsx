@@ -14,6 +14,7 @@ export function EnergySectorPage() {
       pageTitle="Energy Sector Analytics"
       sectorName={energySectorConfig.sectorName}
       sectorId={energySectorConfig.id}
+      basePath={energySectorConfig.basePath}
       chartTitle={energySectorConfig.chartTitle}
       heatmapDescription={energySectorConfig.heatmapDescription}
       tableTitle={energySectorConfig.tableTitle}

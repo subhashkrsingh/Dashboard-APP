@@ -35,6 +35,7 @@ interface SectorDashboardProps {
   pageTitle: string;
   sectorName: string;
   sectorId: string;
+  basePath: string;
   chartTitle: string;
   heatmapDescription: string;
   tableTitle: string;
@@ -109,6 +110,7 @@ export function SectorDashboard({
   pageTitle,
   sectorName,
   sectorId,
+  basePath,
   chartTitle,
   heatmapDescription,
   tableTitle,
@@ -207,6 +209,7 @@ export function SectorDashboard({
         marketSnapshot={data}
         search={search}
         onSearchChange={setSearch}
+        searchResultHref={symbol => `${basePath}/${encodeURIComponent(symbol)}`}
         onOpenSidebar={onOpenSidebar}
       />
 

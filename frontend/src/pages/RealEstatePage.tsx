@@ -14,6 +14,7 @@ export function RealEstatePage() {
       pageTitle="Real Estate Sector Analytics"
       sectorName={realEstateSectorConfig.sectorName}
       sectorId={realEstateSectorConfig.id}
+      basePath={realEstateSectorConfig.basePath}
       chartTitle={realEstateSectorConfig.chartTitle}
       heatmapDescription={realEstateSectorConfig.heatmapDescription}
       tableTitle={realEstateSectorConfig.tableTitle}

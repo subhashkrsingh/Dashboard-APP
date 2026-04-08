@@ -1,8 +1,10 @@
-import { useMemo } from "react";
+import { useMemo, type KeyboardEvent } from "react";
 import { motion } from "framer-motion";
 import { Menu, Search, UserCircle2 } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 
 import { AppLogo } from "../branding/AppLogo";
+import { filterCompaniesBySearch } from "../../lib/companySearch";
 import type { CompanyQuote, MarketStatus, SectorDataStatus, SectorSnapshot } from "../../types/market";
 import { useMarketAlerts } from "../../hooks/useMarketAlerts";
 import LiveISTClock from "../LiveISTClock";
@@ -21,6 +23,7 @@ interface NavbarProps {
   marketSnapshot?: SectorSnapshot;
   search: string;
   onSearchChange: (value: string) => void;
+  searchResultHref?: (symbol: string) => string;
   onOpenSidebar: () => void;
 }
 
@@ -34,8 +37,10 @@ export function Navbar({
   marketSnapshot,
   search,
   onSearchChange,
+  searchResultHref,
   onOpenSidebar
 }: NavbarProps) {
+  const navigate = useNavigate();
   const { alertCount, alerts } = useMarketAlerts(marketSnapshot);
   const showApiBadge = Boolean(apiCacheStatus) && (import.meta.env.DEV || dataStatus !== "live");
   const tickerItems = useMemo(
@@ -46,6 +51,26 @@ export function Navbar({
         .slice(0, 10),
     [companies]
   );
+  const searchResults = useMemo(() => {
+    if (!search.trim()) {
+      return [];
+    }
+
+    return filterCompaniesBySearch(companies, search).slice(0, 8);
+  }, [companies, search]);
+
+  const handleSelectSearchResult = (symbol: string) => {
+    const target = searchResultHref?.(symbol) ?? `/energy-sector/${encodeURIComponent(symbol)}`;
+    onSearchChange("");
+    navigate(target);
+  };
+
+  const handleSearchKeyDown = (event: KeyboardEvent<HTMLInputElement>) => {
+    if (event.key === "Enter" && searchResults.length > 0) {
+      event.preventDefault();
+      handleSelectSearchResult(searchResults[0].symbol);
+    }
+  };
 
   return (
     <header className="glass-card sticky top-0 z-20 border-b border-[#E6EAF2] px-4 py-3 md:px-6">
@@ -76,8 +101,30 @@ export function Navbar({
             autoComplete="off"
             enterKeyHint="search"
             placeholder="Search symbols..."
+            onKeyDown={handleSearchKeyDown}
             className="w-full rounded-xl border border-slate-300 bg-white py-2 pl-9 pr-4 text-sm text-slate-800 placeholder:text-slate-400 focus:border-blue-500 focus:outline-none"
           />
+          {search.trim() ? (
+            <div className="absolute left-0 right-0 top-[calc(100%+0.5rem)] z-30 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-[0_18px_40px_rgba(15,23,42,0.14)]">
+              {searchResults.length > 0 ? (
+                <div className="py-1.5">
+                  {searchResults.map(item => (
+                    <button
+                      key={item.symbol}
+                      type="button"
+                      onClick={() => handleSelectSearchResult(item.symbol)}
+                      className="flex w-full items-center justify-between gap-3 px-3 py-2 text-left text-sm transition hover:bg-blue-50"
+                    >
+                      <span className="font-semibold text-slate-900">{item.symbol}</span>
+                      <span className="truncate text-xs text-slate-500">{item.name}</span>
+                    </button>
+                  ))}
+                </div>
+              ) : (
+                <p className="px-3 py-3 text-sm text-slate-500">No results found</p>
+              )}
+            </div>
+          ) : null}
         </div>
 
         <Badge tone="neutral">{tickerItems.length} Active Symbols</Badge>

@@ -6,10 +6,20 @@ import { AppLayout } from "./components/AppLayout";
 const EnergySectorPage = lazy(() =>
   import("./pages/EnergySectorPage").then(module => ({ default: module.EnergySectorPage }))
 );
+const EnergyCompanyPage = lazy(() =>
+  import("./pages/EnergyCompanyPage").then(module => ({ default: module.EnergyCompanyPage }))
+);
 const OilGasPage = lazy(() => import("./pages/OilGasPage").then(module => ({ default: module.OilGasPage })));
+const OilGasCompanyPage = lazy(() =>
+  import("./pages/OilGasCompanyPage").then(module => ({ default: module.OilGasCompanyPage }))
+);
 const RealEstatePage = lazy(() =>
   import("./pages/RealEstatePage").then(module => ({ default: module.RealEstatePage }))
 );
+const RealEstateCompanyPage = lazy(() =>
+  import("./pages/RealEstateCompanyPage").then(module => ({ default: module.RealEstateCompanyPage }))
+);
+const ResidexPage = lazy(() => import("./pages/residex").then(module => ({ default: module.ResidexPage })));
 
 function RouteLoader() {
   return (
@@ -32,9 +42,13 @@ export default function App() {
         <Route element={<AppLayout />}>
           <Route path="/" element={<Navigate to="/energy-sector" replace />} />
 
+          <Route path="/energy-sector/:symbol" element={<EnergyCompanyPage />} />
           <Route path="/energy-sector/*" element={<EnergySectorPage />} />
+          <Route path="/oil-gas/:symbol" element={<OilGasCompanyPage />} />
           <Route path="/oil-gas/*" element={<OilGasPage />} />
+          <Route path="/real-estate/:symbol" element={<RealEstateCompanyPage />} />
           <Route path="/real-estate/*" element={<RealEstatePage />} />
+          <Route path="/residex/*" element={<ResidexPage />} />
 
           <Route path="*" element={<Navigate to="/energy-sector" replace />} />
         </Route>

@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { motion } from "framer-motion";
 import {
   Bell,
+  Building2,
   ChevronLeft,
   ChevronRight,
   Factory,
@@ -85,6 +86,7 @@ function GlobalSidebar({ collapsed = false, onToggleCollapse, onClose }: GlobalS
   });
   const [activeSectionId, setActiveSectionId] = useState<string | null>(null);
   const activeGroupId = getActiveGroup(location.pathname);
+  const residexActive = location.pathname.startsWith("/residex");
   const activeSector = useMemo(
     () => sectorSidebarConfig.find(sector => sector.id === activeGroupId) ?? sectorSidebarConfig[0],
     [activeGroupId]
@@ -265,6 +267,36 @@ function GlobalSidebar({ collapsed = false, onToggleCollapse, onClose }: GlobalS
             onClose={onClose}
           />
         ))}
+
+        <section className="rounded-2xl border border-slate-200 bg-white/90 p-2 shadow-[0_10px_20px_rgba(15,23,42,0.04)]">
+          <button
+            type="button"
+            onClick={() => {
+              if (residexActive) {
+                window.scrollTo({ top: 0, behavior: "smooth" });
+                onClose?.();
+                return;
+              }
+
+              navigate("/residex");
+              onClose?.();
+            }}
+            className={`group flex w-full items-center rounded-xl px-3 py-2 text-left transition ${
+              residexActive
+                ? "bg-blue-50 text-blue-700 shadow-[0_0_0_1px_rgba(37,99,235,0.15)]"
+                : "text-slate-700 hover:bg-slate-50"
+            } ${collapsed ? "justify-center" : "gap-2.5"}`}
+            title={collapsed ? "RESIDEX Index" : undefined}
+          >
+            <Building2 className="h-[18px] w-[18px] shrink-0" />
+            {!collapsed ? (
+              <div className="min-w-0">
+                <p className="truncate text-sm font-semibold">RESIDEX Index</p>
+                <p className="truncate text-[11px] uppercase tracking-[0.18em] text-slate-400">Residential Index</p>
+              </div>
+            ) : null}
+          </button>
+        </section>
       </div>
     </aside>
   );

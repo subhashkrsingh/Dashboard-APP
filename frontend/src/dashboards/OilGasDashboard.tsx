@@ -14,6 +14,7 @@ export function OilGasDashboard() {
       pageTitle="Oil & Gas Sector Analytics"
       sectorName={oilGasSectorConfig.sectorName}
       sectorId={oilGasSectorConfig.id}
+      basePath={oilGasSectorConfig.basePath}
       chartTitle={oilGasSectorConfig.chartTitle}
       heatmapDescription={oilGasSectorConfig.heatmapDescription}
       tableTitle={oilGasSectorConfig.tableTitle}
