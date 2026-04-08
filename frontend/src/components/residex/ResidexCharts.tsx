@@ -35,7 +35,7 @@ function ChartShell({
       <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
         <div>
           <h3 className="font-display text-xl font-semibold text-slate-900 dark:text-slate-100">{title}</h3>
-          <p className="mt-1 text-sm text-slate-600 dark:text-slate-300">{description}</p>
+          <p className="mt-1 text-sm text-slate-700 dark:text-slate-300">{description}</p>
         </div>
         {action}
       </div>
@@ -96,7 +96,7 @@ export function ResidexCharts() {
                   className={`rounded-full border px-3 py-2 text-sm font-semibold transition ${
                     active
                       ? "border-blue-300 bg-blue-50 text-blue-700"
-                      : "border-slate-300 bg-white text-slate-600 hover:border-blue-200 hover:text-blue-700"
+                      : "border-slate-300 bg-white text-slate-700 hover:border-blue-200 hover:text-blue-700"
                   }`}
                 >
                   {option.label}
@@ -157,7 +157,7 @@ export function ResidexCharts() {
                     className={`rounded-full border px-3 py-2 text-sm font-semibold transition ${
                       active
                         ? "border-blue-300 bg-blue-50 text-blue-700"
-                        : "border-slate-300 bg-white text-slate-600 hover:border-blue-200 hover:text-blue-700"
+                        : "border-slate-300 bg-white text-slate-700 hover:border-blue-200 hover:text-blue-700"
                     }`}
                   >
                     {option.label}
@@ -207,9 +207,9 @@ export function ResidexCharts() {
               className="grid min-w-[720px] gap-2 p-3"
               style={{ gridTemplateColumns: `160px repeat(${Math.max(heatmapColumns.length, 1)}, minmax(80px, 1fr))` }}
             >
-              <div className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">City</div>
+              <div className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-700 dark:text-slate-300">City</div>
               {heatmapColumns.map(column => (
-                <div key={column} className="text-center text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
+                <div key={column} className="text-center text-xs font-semibold uppercase tracking-[0.18em] text-slate-700 dark:text-slate-300">
                   {formatResidexShortPeriod(column)}
                 </div>
               ))}
@@ -279,9 +279,9 @@ export function ResidexCharts() {
 
           return (
             <div key={card.title} className={`glass-card rounded-2xl border p-4 dark:border-slate-800 dark:bg-slate-950/80 ${toneClasses}`}>
-              <p className="text-[11px] uppercase tracking-[0.18em] text-slate-500 dark:text-slate-400">{card.title}</p>
+              <p className="text-[11px] uppercase tracking-[0.18em] text-slate-700 dark:text-slate-300">{card.title}</p>
               <p className="mt-3 font-display text-2xl font-semibold text-slate-900 dark:text-slate-100">{card.value}</p>
-              <p className="mt-2 text-sm text-slate-600 dark:text-slate-300">{card.detail}</p>
+              <p className="mt-2 text-sm text-slate-700 dark:text-slate-300">{card.detail}</p>
             </div>
           );
         })}

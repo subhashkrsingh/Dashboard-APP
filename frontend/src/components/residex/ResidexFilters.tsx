@@ -31,7 +31,7 @@ export function ResidexFilters() {
         <div>
           <p className="text-xs uppercase tracking-[0.24em] text-blue-600">Global Filters</p>
           <h2 className="mt-2 font-display text-xl font-semibold text-slate-900">RESIDEX filter console</h2>
-          <p className="mt-1 text-sm text-slate-600 dark:text-slate-300">
+          <p className="mt-1 text-sm text-slate-700 dark:text-slate-300">
             Search a city, refine the quarter window, and switch the housing lens without leaving the dashboard.
           </p>
         </div>
@@ -51,7 +51,7 @@ export function ResidexFilters() {
 
       <div className="mt-4 grid gap-4 xl:grid-cols-[1.5fr_repeat(3,minmax(0,1fr))]">
         <label className="block">
-          <span className="mb-2 block text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
+          <span className="mb-2 block text-xs font-semibold uppercase tracking-[0.18em] text-slate-700 dark:text-slate-300">
             Search city
           </span>
           <div className="relative">
@@ -67,7 +67,7 @@ export function ResidexFilters() {
         </label>
 
         <label className="block">
-          <span className="mb-2 block text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
+          <span className="mb-2 block text-xs font-semibold uppercase tracking-[0.18em] text-slate-700 dark:text-slate-300">
             City
           </span>
           <select
@@ -85,7 +85,7 @@ export function ResidexFilters() {
         </label>
 
         <label className="block">
-          <span className="mb-2 block text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
+          <span className="mb-2 block text-xs font-semibold uppercase tracking-[0.18em] text-slate-700 dark:text-slate-300">
             Quarter
           </span>
           <select
@@ -102,7 +102,7 @@ export function ResidexFilters() {
         </label>
 
         <label className="block">
-          <span className="mb-2 block text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
+          <span className="mb-2 block text-xs font-semibold uppercase tracking-[0.18em] text-slate-700 dark:text-slate-300">
             Year
           </span>
           <select
@@ -123,7 +123,7 @@ export function ResidexFilters() {
       </div>
 
       <div className="mt-4 flex flex-wrap items-center gap-2">
-        <span className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Housing Type</span>
+        <span className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-700 dark:text-slate-300">Housing Type</span>
         {HOUSING_TYPES.map(type => {
           const active = filters.housingType === type.value;
           return (
@@ -134,7 +134,7 @@ export function ResidexFilters() {
               className={`rounded-full border px-4 py-2 text-sm font-semibold transition ${
                 active
                   ? "border-blue-300 bg-blue-50 text-blue-700 shadow-[0_0_0_1px_rgba(37,99,235,0.12)]"
-                  : "border-slate-300 bg-white text-slate-600 hover:border-blue-200 hover:text-blue-700 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300"
+                  : "border-slate-300 bg-white text-slate-700 hover:border-blue-200 hover:text-blue-700 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300"
               }`}
             >
               {type.label}

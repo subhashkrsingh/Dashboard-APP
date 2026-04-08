@@ -102,7 +102,7 @@ function ResidexDashboardView({ onOpenSidebar }: { onOpenSidebar: () => void }) 
                   className={`rounded-full border px-4 py-2 text-sm font-semibold transition ${
                     active
                       ? "border-blue-300 bg-blue-50 text-blue-700"
-                      : "border-slate-300 bg-white text-slate-600 hover:border-blue-200 hover:text-blue-700 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300"
+                      : "border-slate-300 bg-white text-slate-700 hover:border-blue-200 hover:text-blue-700 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300"
                   }`}
                 >
                   {tab.label}

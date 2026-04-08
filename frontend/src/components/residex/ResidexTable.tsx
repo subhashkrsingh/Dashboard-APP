@@ -94,13 +94,13 @@ export function ResidexTable() {
       <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
         <div>
           <h3 className="font-display text-xl font-semibold text-slate-900 dark:text-slate-100">RESIDEX Data Table</h3>
-          <p className="mt-1 text-sm text-slate-600 dark:text-slate-300">
+          <p className="mt-1 text-sm text-slate-700 dark:text-slate-300">
             Sort, filter, paginate, and export the current RESIDEX slice. Default focus is {selectedPeriodLabel}.
           </p>
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
-          <span className="rounded-full border border-slate-300 bg-white px-3 py-1 text-xs font-semibold text-slate-600 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300">
+          <span className="rounded-full border border-slate-300 bg-white px-3 py-1 text-xs font-semibold text-slate-700 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300">
             {sortedRows.length} rows
           </span>
           <button
@@ -115,7 +115,7 @@ export function ResidexTable() {
 
       <div className="overflow-auto rounded-2xl border border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900/80">
         <table className="min-w-full border-collapse text-sm dark:text-slate-200">
-          <thead className="sticky top-0 z-10 bg-slate-50 text-xs uppercase tracking-[0.18em] text-slate-500 dark:bg-slate-900 dark:text-slate-400">
+          <thead className="sticky top-0 z-10 bg-slate-50 text-xs uppercase tracking-[0.18em] text-slate-700 dark:bg-slate-900 dark:text-slate-300">
             <tr>
               {([
                 ["city", "City"],
@@ -139,7 +139,7 @@ export function ResidexTable() {
             {currentRows.map(row => (
               <tr key={`${row.city}-${row.quarter}`} className="border-t border-slate-200 hover:bg-blue-50/40 dark:border-slate-800 dark:hover:bg-slate-800/60">
                 <td className="px-4 py-3 font-semibold text-slate-900 dark:text-slate-100">{row.city}</td>
-                <td className="px-4 py-3 text-slate-600 dark:text-slate-300">{row.quarter}</td>
+                <td className="px-4 py-3 text-slate-700 dark:text-slate-300">{row.quarter}</td>
                 <td className="px-4 py-3 text-slate-700 dark:text-slate-200">{formatResidexValue(row.national)}</td>
                 <td className="px-4 py-3 text-slate-700 dark:text-slate-200">{formatResidexValue(row.residex)}</td>
                 <td className="px-4 py-3 text-slate-700 dark:text-slate-200">{formatResidexValue(row.affordable)}</td>
@@ -155,7 +155,7 @@ export function ResidexTable() {
 
             {currentRows.length === 0 ? (
               <tr>
-                <td colSpan={8} className="px-4 py-8 text-center text-sm text-slate-500 dark:text-slate-400">
+                <td colSpan={8} className="px-4 py-8 text-center text-sm text-slate-700 dark:text-slate-400">
                   No rows match the current filters.
                 </td>
               </tr>
@@ -165,7 +165,7 @@ export function ResidexTable() {
       </div>
 
       <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
-        <p className="text-sm text-slate-500 dark:text-slate-400">
+        <p className="text-sm text-slate-700 dark:text-slate-400">
           Showing {(page - 1) * pageSize + (currentRows.length ? 1 : 0)}-
           {(page - 1) * pageSize + currentRows.length} of {sortedRows.length}
         </p>

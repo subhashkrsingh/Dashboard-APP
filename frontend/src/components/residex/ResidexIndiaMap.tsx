@@ -149,7 +149,7 @@ function ResidexIndiaMapComponent() {
           <h3 className="mt-2 font-display text-xl font-semibold text-slate-900 dark:text-slate-100">
             India RESIDEX Map
           </h3>
-          <p className="mt-1 text-sm text-slate-600 dark:text-slate-300">
+          <p className="mt-1 text-sm text-slate-700 dark:text-slate-300">
             Click any state to jump to the nearest tracked RESIDEX city, or click a city marker to update the dashboard instantly.
           </p>
         </div>
@@ -166,9 +166,9 @@ function ResidexIndiaMapComponent() {
         className="relative overflow-hidden rounded-[28px] border border-slate-200 bg-[radial-gradient(circle_at_20%_20%,rgba(37,99,235,0.08),transparent_28%),radial-gradient(circle_at_80%_10%,rgba(16,185,129,0.07),transparent_24%),linear-gradient(180deg,#f8fbff_0%,#eef5ff_100%)] p-3 dark:border-slate-800 dark:bg-[radial-gradient(circle_at_20%_20%,rgba(37,99,235,0.18),transparent_28%),radial-gradient(circle_at_80%_10%,rgba(16,185,129,0.12),transparent_24%),linear-gradient(180deg,#0f172a_0%,#020617_100%)]"
       >
         <div className="absolute right-4 top-4 z-10 rounded-2xl border border-white/80 bg-white/85 px-4 py-3 text-sm shadow-[0_12px_28px_rgba(15,23,42,0.12)] backdrop-blur dark:border-slate-700 dark:bg-slate-900/90 dark:text-slate-100">
-          <p className="text-[11px] uppercase tracking-[0.2em] text-slate-500 dark:text-slate-400">Selected Focus</p>
+          <p className="text-[11px] uppercase tracking-[0.2em] text-slate-700 dark:text-slate-300">Selected Focus</p>
           <p className="mt-1 font-semibold">{activeCity ?? "All Cities"}</p>
-          <p className="text-xs text-slate-500 dark:text-slate-400">
+          <p className="text-xs text-slate-600 dark:text-slate-400">
             {activeStateName ? `Hovering ${activeStateName}` : "Hover a marker for index stats"}
           </p>
         </div>
@@ -182,7 +182,7 @@ function ResidexIndiaMapComponent() {
             }}
           >
             <p className="font-semibold text-slate-900 dark:text-slate-100">{tooltip.city}</p>
-            <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
+            <p className="mt-1 text-xs text-slate-600 dark:text-slate-400">
               RESIDEX {formatResidexValue(tooltip.residex)}
             </p>
             <div className="mt-2 flex gap-3 text-xs">
@@ -274,7 +274,7 @@ function ResidexIndiaMapComponent() {
           </ComposableMap>
         </div>
 
-        <div className="mt-4 flex flex-wrap items-center gap-3 rounded-2xl border border-white/70 bg-white/80 px-4 py-3 text-sm text-slate-600 backdrop-blur dark:border-slate-700 dark:bg-slate-900/80 dark:text-slate-300">
+        <div className="mt-4 flex flex-wrap items-center gap-3 rounded-2xl border border-white/70 bg-white/80 px-4 py-3 text-sm text-slate-700 backdrop-blur dark:border-slate-700 dark:bg-slate-900/80 dark:text-slate-300">
           <span className="font-semibold text-slate-800 dark:text-slate-100">Marker Gradient</span>
           <div className="h-3 w-32 rounded-full bg-[linear-gradient(90deg,#dc2626_0%,#facc15_50%,#16a34a_100%)]" />
           <span>Low</span>
