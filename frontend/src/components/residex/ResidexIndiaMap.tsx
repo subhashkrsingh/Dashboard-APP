@@ -6,10 +6,10 @@ import { formatPercent } from "../../lib/formatters";
 import { Badge } from "../ui/Badge";
 import { formatResidexValue, useResidexContext } from "./ResidexContext";
 
-const INDIA_MAP_URL = "/maps/india-states.geojson";
+const INDIA_MAP_URL = "/maps/india-full.geojson";
 
 const RESIDEX_CITY_COORDINATES = [
-  { city: "Delhi", lat: 28.6139, lng: 77.209 },
+  { city: "Delhi", lat: 28.7041, lng: 77.1025 },
   { city: "Mumbai", lat: 19.076, lng: 72.8777 },
   { city: "Kolkata", lat: 22.5726, lng: 88.3639 },
   { city: "Chennai", lat: 13.0827, lng: 80.2707 },
@@ -145,11 +145,11 @@ function ResidexIndiaMapComponent() {
     <section className="glass-card rounded-2xl border border-[#E6EAF2] p-4 dark:border-slate-800 dark:bg-slate-950/80">
       <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
         <div>
-          <p className="text-xs uppercase tracking-[0.24em] text-blue-600">Interactive Geography</p>
-          <h3 className="mt-2 font-display text-xl font-semibold text-slate-900 dark:text-slate-100">
+          <p className="card-title text-xs text-blue-700">Interactive Geography</p>
+          <h3 className="section-title mt-2 font-display text-xl">
             India RESIDEX Map
           </h3>
-          <p className="mt-1 text-sm text-slate-700 dark:text-slate-300">
+          <p className="subtle-text mt-1">
             Click any state to jump to the nearest tracked RESIDEX city, or click a city marker to update the dashboard instantly.
           </p>
         </div>
@@ -166,9 +166,9 @@ function ResidexIndiaMapComponent() {
         className="relative overflow-hidden rounded-[28px] border border-slate-200 bg-[radial-gradient(circle_at_20%_20%,rgba(37,99,235,0.08),transparent_28%),radial-gradient(circle_at_80%_10%,rgba(16,185,129,0.07),transparent_24%),linear-gradient(180deg,#f8fbff_0%,#eef5ff_100%)] p-3 dark:border-slate-800 dark:bg-[radial-gradient(circle_at_20%_20%,rgba(37,99,235,0.18),transparent_28%),radial-gradient(circle_at_80%_10%,rgba(16,185,129,0.12),transparent_24%),linear-gradient(180deg,#0f172a_0%,#020617_100%)]"
       >
         <div className="absolute right-4 top-4 z-10 rounded-2xl border border-white/80 bg-white/85 px-4 py-3 text-sm shadow-[0_12px_28px_rgba(15,23,42,0.12)] backdrop-blur dark:border-slate-700 dark:bg-slate-900/90 dark:text-slate-100">
-          <p className="text-[11px] uppercase tracking-[0.2em] text-slate-700 dark:text-slate-300">Selected Focus</p>
+          <p className="card-title text-[11px] tracking-[0.2em]">Selected Focus</p>
           <p className="mt-1 font-semibold">{activeCity ?? "All Cities"}</p>
-          <p className="text-xs text-slate-600 dark:text-slate-400">
+          <p className="subtle-text text-xs">
             {activeStateName ? `Hovering ${activeStateName}` : "Hover a marker for index stats"}
           </p>
         </div>
@@ -181,8 +181,8 @@ function ResidexIndiaMapComponent() {
               top: Math.max(tooltip.y - 18, 18)
             }}
           >
-            <p className="font-semibold text-slate-900 dark:text-slate-100">{tooltip.city}</p>
-            <p className="mt-1 text-xs text-slate-600 dark:text-slate-400">
+            <p className="font-semibold text-slate-900">{tooltip.city}</p>
+            <p className="subtle-text mt-1 text-xs">
               RESIDEX {formatResidexValue(tooltip.residex)}
             </p>
             <div className="mt-2 flex gap-3 text-xs">
@@ -194,6 +194,8 @@ function ResidexIndiaMapComponent() {
 
         <div className="h-[560px] w-full">
           <ComposableMap
+            width={900}
+            height={700}
             projection="geoMercator"
             projectionConfig={{ scale: 1000, center: [82, 23] }}
             style={{ width: "100%", height: "100%" }}

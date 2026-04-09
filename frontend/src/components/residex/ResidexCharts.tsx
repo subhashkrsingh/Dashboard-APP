@@ -34,8 +34,8 @@ function ChartShell({
     <section id={id} className="glass-card rounded-2xl border border-[#E6EAF2] p-4 dark:border-slate-800 dark:bg-slate-950/80">
       <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h3 className="font-display text-xl font-semibold text-slate-900 dark:text-slate-100">{title}</h3>
-          <p className="mt-1 text-sm text-slate-700 dark:text-slate-300">{description}</p>
+          <h3 className="section-title font-display text-xl">{title}</h3>
+          <p className="subtle-text mt-1">{description}</p>
         </div>
         {action}
       </div>
@@ -207,9 +207,9 @@ export function ResidexCharts() {
               className="grid min-w-[720px] gap-2 p-3"
               style={{ gridTemplateColumns: `160px repeat(${Math.max(heatmapColumns.length, 1)}, minmax(80px, 1fr))` }}
             >
-              <div className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-700 dark:text-slate-300">City</div>
+              <div className="card-title text-xs">City</div>
               {heatmapColumns.map(column => (
-                <div key={column} className="text-center text-xs font-semibold uppercase tracking-[0.18em] text-slate-700 dark:text-slate-300">
+                <div key={column} className="card-title text-center text-xs">
                   {formatResidexShortPeriod(column)}
                 </div>
               ))}
@@ -279,9 +279,9 @@ export function ResidexCharts() {
 
           return (
             <div key={card.title} className={`glass-card rounded-2xl border p-4 dark:border-slate-800 dark:bg-slate-950/80 ${toneClasses}`}>
-              <p className="text-[11px] uppercase tracking-[0.18em] text-slate-700 dark:text-slate-300">{card.title}</p>
-              <p className="mt-3 font-display text-2xl font-semibold text-slate-900 dark:text-slate-100">{card.value}</p>
-              <p className="mt-2 text-sm text-slate-700 dark:text-slate-300">{card.detail}</p>
+              <p className="card-title text-[11px]">{card.title}</p>
+              <p className="mt-3 font-display text-2xl font-semibold text-slate-900">{card.value}</p>
+              <p className="subtle-text mt-2">{card.detail}</p>
             </div>
           );
         })}

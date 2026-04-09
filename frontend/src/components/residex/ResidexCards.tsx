@@ -65,8 +65,8 @@ export function ResidexCards() {
           >
             <div className="flex items-start justify-between gap-3">
               <div>
-                <p className="text-[11px] uppercase tracking-[0.22em] text-slate-700 dark:text-slate-300">{card.title}</p>
-                <p className="mt-1 text-xs text-slate-600 dark:text-slate-400">{card.subtitle}</p>
+                <p className="card-title text-[11px] tracking-[0.22em]">{card.title}</p>
+                <p className="subtle-text mt-1 text-xs">{card.subtitle}</p>
               </div>
               <span className="rounded-xl border border-white/70 bg-white/80 p-2 text-slate-700 shadow-sm dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100">
                 <Icon className="h-4 w-4" />
@@ -78,7 +78,7 @@ export function ResidexCards() {
                 <AnimatedNumber
                   value={card.value}
                   format={value => formatResidexValue(value)}
-                  className="block font-display text-3xl font-semibold text-slate-900 dark:text-slate-100"
+                  className="block font-display text-3xl font-semibold text-slate-900"
                 />
                 <div className={`mt-2 inline-flex items-center gap-1 text-sm font-semibold ${positive ? "text-emerald-600" : "text-rose-600"}`}>
                   {positive ? <ArrowUpRight className="h-4 w-4" /> : <ArrowDownRight className="h-4 w-4" />}
@@ -93,13 +93,13 @@ export function ResidexCards() {
 
             <div className="mt-4 grid grid-cols-2 gap-3 rounded-2xl border border-white/80 bg-white/75 px-3 py-2 text-xs text-slate-700 dark:border-slate-700 dark:bg-slate-900/80 dark:text-slate-300">
               <div>
-                <p className="uppercase tracking-[0.18em] text-slate-600 dark:text-slate-400">QoQ</p>
+                <p className="card-title text-xs">QoQ</p>
                 <p className={`mt-1 font-semibold ${positive ? "text-emerald-600" : "text-rose-600"}`}>
                   {formatPercent(card.qoq)}
                 </p>
               </div>
               <div>
-                <p className="uppercase tracking-[0.18em] text-slate-600 dark:text-slate-400">YoY</p>
+                <p className="card-title text-xs">YoY</p>
                 <p className={`mt-1 font-semibold ${card.yoy >= 0 ? "text-emerald-600" : "text-rose-600"}`}>
                   {formatPercent(card.yoy)}
                 </p>

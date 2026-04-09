@@ -29,9 +29,9 @@ export function ResidexFilters() {
     <section className="glass-card rounded-2xl border border-[#E6EAF2] p-4 dark:border-slate-800 dark:bg-slate-950/80">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <p className="text-xs uppercase tracking-[0.24em] text-blue-600">Global Filters</p>
-          <h2 className="mt-2 font-display text-xl font-semibold text-slate-900">RESIDEX filter console</h2>
-          <p className="mt-1 text-sm text-slate-700 dark:text-slate-300">
+          <p className="card-title text-blue-700">GLOBAL FILTERS</p>
+          <h2 className="section-title mt-2 font-display text-xl">RESIDEX filter console</h2>
+          <p className="subtle-text mt-1">
             Search a city, refine the quarter window, and switch the housing lens without leaving the dashboard.
           </p>
         </div>
@@ -51,7 +51,7 @@ export function ResidexFilters() {
 
       <div className="mt-4 grid gap-4 xl:grid-cols-[1.5fr_repeat(3,minmax(0,1fr))]">
         <label className="block">
-          <span className="mb-2 block text-xs font-semibold uppercase tracking-[0.18em] text-slate-700 dark:text-slate-300">
+          <span className="card-title mb-2 block text-xs">
             Search city
           </span>
           <div className="relative">
@@ -67,7 +67,7 @@ export function ResidexFilters() {
         </label>
 
         <label className="block">
-          <span className="mb-2 block text-xs font-semibold uppercase tracking-[0.18em] text-slate-700 dark:text-slate-300">
+          <span className="card-title mb-2 block text-xs">
             City
           </span>
           <select
@@ -85,7 +85,7 @@ export function ResidexFilters() {
         </label>
 
         <label className="block">
-          <span className="mb-2 block text-xs font-semibold uppercase tracking-[0.18em] text-slate-700 dark:text-slate-300">
+          <span className="card-title mb-2 block text-xs">
             Quarter
           </span>
           <select
@@ -102,7 +102,7 @@ export function ResidexFilters() {
         </label>
 
         <label className="block">
-          <span className="mb-2 block text-xs font-semibold uppercase tracking-[0.18em] text-slate-700 dark:text-slate-300">
+          <span className="card-title mb-2 block text-xs">
             Year
           </span>
           <select
@@ -123,7 +123,7 @@ export function ResidexFilters() {
       </div>
 
       <div className="mt-4 flex flex-wrap items-center gap-2">
-        <span className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-700 dark:text-slate-300">Housing Type</span>
+        <span className="card-title text-xs">Housing Type</span>
         {HOUSING_TYPES.map(type => {
           const active = filters.housingType === type.value;
           return (

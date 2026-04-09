@@ -60,7 +60,7 @@ function ResidexDashboardView({ onOpenSidebar }: { onOpenSidebar: () => void }) 
 
           <div className="min-w-[220px] flex-1">
             <p className="text-xs uppercase tracking-[0.24em] text-blue-600">EnergyXchange Module</p>
-            <h1 className="mt-1 font-display text-2xl font-semibold text-slate-900 dark:text-slate-100">RESIDEX Index</h1>
+            <h1 className="mt-1 font-display text-2xl font-semibold text-slate-900">RESIDEX Index</h1>
           </div>
 
           <Badge tone="accent">{selectedPeriodLabel}</Badge>
@@ -83,7 +83,7 @@ function ResidexDashboardView({ onOpenSidebar }: { onOpenSidebar: () => void }) 
 
       <div className="space-y-4 px-4 py-4 md:px-6">
         <PageHeader
-          eyebrow="Residential Market Intelligence"
+          eyebrow="RESIDENTIAL MARKET INTELLIGENCE"
           title="RESIDEX Real Estate Dashboard"
           description="Track the national residential index, metro-level movement, affordable and premium housing momentum, and exportable quarterly views from one integrated dashboard."
         />
@@ -102,7 +102,7 @@ function ResidexDashboardView({ onOpenSidebar }: { onOpenSidebar: () => void }) 
                   className={`rounded-full border px-4 py-2 text-sm font-semibold transition ${
                     active
                       ? "border-blue-300 bg-blue-50 text-blue-700"
-                      : "border-slate-300 bg-white text-slate-700 hover:border-blue-200 hover:text-blue-700 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300"
+                      : "border-slate-300 bg-white text-slate-800 hover:border-blue-200 hover:text-blue-700 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100"
                   }`}
                 >
                   {tab.label}

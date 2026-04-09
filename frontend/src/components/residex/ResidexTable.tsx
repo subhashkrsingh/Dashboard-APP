@@ -93,8 +93,8 @@ export function ResidexTable() {
     <section className="glass-card rounded-2xl border border-[#E6EAF2] p-4 dark:border-slate-800 dark:bg-slate-950/80">
       <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h3 className="font-display text-xl font-semibold text-slate-900 dark:text-slate-100">RESIDEX Data Table</h3>
-          <p className="mt-1 text-sm text-slate-700 dark:text-slate-300">
+          <h3 className="section-title font-display text-xl">RESIDEX Data Table</h3>
+          <p className="subtle-text mt-1">
             Sort, filter, paginate, and export the current RESIDEX slice. Default focus is {selectedPeriodLabel}.
           </p>
         </div>
