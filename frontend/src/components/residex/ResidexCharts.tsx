@@ -31,7 +31,7 @@ function ChartShell({
   children: ReactNode;
 }) {
   return (
-    <section id={id} className="glass-card rounded-2xl border border-[#E6EAF2] p-4 dark:border-slate-800 dark:bg-slate-950/80">
+    <section id={id} className="glass-card w-full rounded-2xl border border-[#E6EAF2] p-4 dark:border-slate-800 dark:bg-slate-950/80">
       <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
         <div>
           <h3 className="section-title font-display text-xl">{title}</h3>
@@ -137,7 +137,7 @@ export function ResidexCharts() {
         </div>
       </ChartShell>
 
-      <section id="cities" className="grid gap-4 2xl:grid-cols-[1.3fr_1fr]">
+      <section id="cities" className="flex w-full flex-col gap-6">
         <ChartShell
           title="City-wise Comparison"
           description={`Top 10 cities for ${selectedPeriodLabel}, sorted by ${comparisonSortLabel.toLowerCase()}.`}
@@ -167,7 +167,7 @@ export function ResidexCharts() {
             </div>
           }
         >
-          <div className="h-[320px] rounded-2xl border border-slate-200 bg-white p-3 dark:border-slate-800 dark:bg-slate-900/80">
+          <div className="h-[320px] w-full rounded-2xl border border-slate-200 bg-white p-3 dark:border-slate-800 dark:bg-slate-900/80">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={comparisonRows} margin={{ top: 10, right: 10, left: 0, bottom: 8 }}>
                 <CartesianGrid stroke="#e2e8f0" strokeDasharray="4 4" />
@@ -202,7 +202,7 @@ export function ResidexCharts() {
           description="City vs quarter color map for growth momentum. Green tiles indicate acceleration and rose tiles flag cooling quarters."
           action={<Badge tone="warning">QoQ scale</Badge>}
         >
-          <div className="overflow-auto rounded-2xl border border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900/80">
+          <div className="w-full overflow-x-auto rounded-2xl border border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900/80">
             <div
               className="grid min-w-[720px] gap-2 p-3"
               style={{ gridTemplateColumns: `160px repeat(${Math.max(heatmapColumns.length, 1)}, minmax(80px, 1fr))` }}
