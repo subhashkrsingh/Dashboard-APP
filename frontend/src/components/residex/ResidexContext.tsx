@@ -462,7 +462,7 @@ export function ResidexProvider({ children }: { children: ReactNode }) {
   );
 
   const comparisonMetric = filters.housingType === "all" ? trendMode : metricFromHousingType(filters.housingType);
-  const comparisonRows = useMemo(() => {
+  const sortedComparisonRows = useMemo(() => {
     const cityRows = currentPeriodRows.map(record => {
       const series = citySeriesMap.get(record.city) ?? [];
       const metricChange = getSeriesMetricChange(series, comparisonMetric, selectedPeriodLabel);
@@ -476,16 +476,18 @@ export function ResidexProvider({ children }: { children: ReactNode }) {
       };
     });
 
-    const sorted = [...cityRows].sort((left, right) => {
+    return [...cityRows].sort((left, right) => {
       if (comparisonSort === "qoq") return right.qoq - left.qoq;
       if (comparisonSort === "yoy") return right.yoy - left.yoy;
       return right.value - left.value;
     });
+  }, [citySeriesMap, comparisonMetric, comparisonSort, currentPeriodRows, filters.city, selectedPeriodLabel]);
 
-    const topRows = sorted.slice(0, 10);
+  const comparisonRows = useMemo(() => {
+    const topRows = sortedComparisonRows.slice(0, 10);
 
     if (filters.city !== "All" && !topRows.some(row => row.city === filters.city)) {
-      const selectedRow = sorted.find(row => row.city === filters.city);
+      const selectedRow = sortedComparisonRows.find(row => row.city === filters.city);
       if (selectedRow) {
         topRows[topRows.length - 1] = selectedRow;
         topRows.sort((left, right) => {
@@ -497,7 +499,7 @@ export function ResidexProvider({ children }: { children: ReactNode }) {
     }
 
     return topRows;
-  }, [citySeriesMap, comparisonMetric, comparisonSort, currentPeriodRows, filters.city, selectedPeriodLabel]);
+  }, [filters.city, sortedComparisonRows]);
 
   const selectedCityTrend = useMemo(
     () =>
@@ -527,8 +529,8 @@ export function ResidexProvider({ children }: { children: ReactNode }) {
   const heatmapRows = useMemo(() => {
     const focusCities =
       filters.city === "All"
-        ? comparisonRows.map(row => row.city)
-        : [filters.city, ...comparisonRows.filter(row => row.city !== filters.city).map(row => row.city)].slice(0, 10);
+        ? sortedComparisonRows.map(row => row.city)
+        : [filters.city];
 
     return focusCities
       .map(city => {
@@ -551,7 +553,7 @@ export function ResidexProvider({ children }: { children: ReactNode }) {
         } satisfies ResidexHeatmapRow;
       })
       .filter(row => row.values.length > 0);
-  }, [citySeriesMap, comparisonMetric, comparisonRows, filters.city, heatmapPeriods]);
+  }, [citySeriesMap, comparisonMetric, filters.city, heatmapPeriods, sortedComparisonRows]);
 
   const premiumHighlights = useMemo(() => {
     const currentRows = [...currentPeriodRows];

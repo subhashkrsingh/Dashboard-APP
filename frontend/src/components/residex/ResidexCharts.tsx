@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import { useEffect, useMemo, useState, type ReactNode, type UIEvent } from "react";
 import {
   Bar,
   BarChart,
@@ -50,8 +50,114 @@ function HeatCell({ value }: { value: number }) {
   const background = `rgba(${hue},${0.16 + intensity * 0.42})`;
 
   return (
-    <div className="rounded-xl px-2 py-3 text-center text-xs font-semibold text-slate-700" style={{ backgroundColor: background }}>
+    <div
+      className="flex h-10 items-center justify-center rounded-xl px-2 text-center text-xs font-semibold text-slate-700 whitespace-nowrap"
+      style={{ backgroundColor: background }}
+    >
       {formatPercent(value)}
+    </div>
+  );
+}
+
+const HEATMAP_ROW_HEIGHT = 40;
+const HEATMAP_MAX_BODY_HEIGHT = 480;
+const HEATMAP_OVERSCAN = 6;
+
+function QuarterlyGrowthHeatmapTable({
+  heatmapColumns,
+  heatmapRows,
+  selectedCityLabel
+}: {
+  heatmapColumns: string[];
+  heatmapRows: Array<{ city: string; values: Array<{ quarter: string; value: number }> }>;
+  selectedCityLabel: string;
+}) {
+  const [scrollTop, setScrollTop] = useState(0);
+  const useVirtualRows = heatmapRows.length > 40;
+  const gridTemplateColumns = useMemo(
+    () => `220px repeat(${Math.max(heatmapColumns.length, 1)}, minmax(120px, 1fr))`,
+    [heatmapColumns.length]
+  );
+  const viewportHeight = Math.min(heatmapRows.length * HEATMAP_ROW_HEIGHT, HEATMAP_MAX_BODY_HEIGHT);
+  const totalHeight = heatmapRows.length * HEATMAP_ROW_HEIGHT;
+  const startIndex = useVirtualRows ? Math.max(0, Math.floor(scrollTop / HEATMAP_ROW_HEIGHT) - HEATMAP_OVERSCAN) : 0;
+  const visibleCount = useVirtualRows
+    ? Math.ceil(viewportHeight / HEATMAP_ROW_HEIGHT) + HEATMAP_OVERSCAN * 2
+    : heatmapRows.length;
+  const endIndex = Math.min(heatmapRows.length, startIndex + visibleCount);
+  const visibleRows = heatmapRows.slice(startIndex, endIndex);
+
+  useEffect(() => {
+    setScrollTop(0);
+  }, [heatmapRows.length, selectedCityLabel, heatmapColumns.length]);
+
+  function handleScroll(event: UIEvent<HTMLDivElement>) {
+    if (!useVirtualRows) return;
+    setScrollTop(event.currentTarget.scrollTop);
+  }
+
+  return (
+    <div className="w-full overflow-x-auto">
+      <div className="min-w-[1200px] w-full rounded-2xl border border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900/80">
+        <div
+          className="sticky top-0 z-10 grid gap-2 border-b border-slate-100 bg-white p-3 dark:border-slate-800 dark:bg-slate-900/95"
+          style={{ gridTemplateColumns }}
+        >
+          <div className="card-title h-10 whitespace-nowrap text-xs">City</div>
+          {heatmapColumns.map(column => (
+            <div key={column} className="card-title h-10 whitespace-nowrap text-center text-xs">
+              {formatResidexShortPeriod(column)}
+            </div>
+          ))}
+        </div>
+
+        <div className="w-full overflow-y-auto" style={{ maxHeight: viewportHeight || HEATMAP_ROW_HEIGHT }} onScroll={handleScroll}>
+          {useVirtualRows ? (
+            <div className="relative" style={{ height: totalHeight }}>
+              <div
+                className="absolute left-0 right-0 top-0"
+                style={{ transform: `translateY(${startIndex * HEATMAP_ROW_HEIGHT}px)` }}
+              >
+                {visibleRows.map(row => (
+                  <div key={row.city} className="grid h-10 gap-2 px-3" style={{ gridTemplateColumns }}>
+                    <div
+                      className={`flex h-10 items-center whitespace-nowrap rounded-xl border px-3 text-sm font-semibold ${
+                        row.city === selectedCityLabel
+                          ? "border-blue-200 bg-blue-50 text-blue-700"
+                          : "border-slate-200 bg-slate-50 text-slate-700"
+                      }`}
+                    >
+                      {row.city}
+                    </div>
+                    {row.values.map(cell => (
+                      <HeatCell key={`${row.city}-${cell.quarter}`} value={cell.value} />
+                    ))}
+                  </div>
+                ))}
+              </div>
+            </div>
+          ) : (
+            <div className="space-y-1 p-3">
+              {heatmapRows.map(row => (
+                <div key={row.city} className="grid h-10 gap-2" style={{ gridTemplateColumns }}>
+                  <div
+                    className={`flex h-10 items-center whitespace-nowrap rounded-xl border px-3 text-sm font-semibold ${
+                      row.city === selectedCityLabel
+                        ? "border-blue-200 bg-blue-50 text-blue-700"
+                        : "border-slate-200 bg-slate-50 text-slate-700"
+                    }`}
+                  >
+                    {row.city}
+                  </div>
+                  {row.values.map(cell => (
+                    <HeatCell key={`${row.city}-${cell.quarter}`} value={cell.value} />
+                  ))}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
     </div>
   );
 }
@@ -202,37 +308,11 @@ export function ResidexCharts() {
           description="City vs quarter color map for growth momentum. Green tiles indicate acceleration and rose tiles flag cooling quarters."
           action={<Badge tone="warning">QoQ scale</Badge>}
         >
-          <div className="w-full overflow-x-auto rounded-2xl border border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900/80">
-            <div
-              className="grid min-w-[720px] gap-2 p-3"
-              style={{ gridTemplateColumns: `160px repeat(${Math.max(heatmapColumns.length, 1)}, minmax(80px, 1fr))` }}
-            >
-              <div className="card-title text-xs">City</div>
-              {heatmapColumns.map(column => (
-                <div key={column} className="card-title text-center text-xs">
-                  {formatResidexShortPeriod(column)}
-                </div>
-              ))}
-
-              {heatmapRows.map(row => (
-                <div
-                  key={row.city}
-                  className="contents"
-                >
-                  <div
-                    className={`flex items-center rounded-xl border px-3 py-3 text-sm font-semibold ${
-                      row.city === selectedCityLabel ? "border-blue-200 bg-blue-50 text-blue-700" : "border-slate-200 bg-slate-50 text-slate-700"
-                    }`}
-                  >
-                    {row.city}
-                  </div>
-                  {row.values.map(cell => (
-                    <HeatCell key={`${row.city}-${cell.quarter}`} value={cell.value} />
-                  ))}
-                </div>
-              ))}
-            </div>
-          </div>
+          <QuarterlyGrowthHeatmapTable
+            heatmapColumns={heatmapColumns}
+            heatmapRows={heatmapRows}
+            selectedCityLabel={selectedCityLabel}
+          />
         </ChartShell>
       </section>
 
