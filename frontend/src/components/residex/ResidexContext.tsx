@@ -101,6 +101,7 @@ interface ResidexContextValue {
   mapCityPoints: ResidexMapCityPoint[];
   tableRows: ResidexRecord[];
   headerStats: Array<{ label: string; value: string }>;
+  refreshKey: number;
   setCity: (city: string) => void;
   setQuarter: (quarter: ResidexQuarterFilter) => void;
   setYear: (year: ResidexYearFilter) => void;
@@ -291,6 +292,7 @@ export function ResidexProvider({ children }: { children: ReactNode }) {
   const [trendMode, setTrendMode] = useState<ResidexMetricMode>("overall");
   const [comparisonSort, setComparisonSort] = useState<ResidexComparisonSort>("index");
   const [headerStats, setHeaderStats] = useState<Array<{ label: string; value: string }>>([]);
+  const [refreshKey, setRefreshKey] = useState(0);
   const deferredSearchQuery = useDeferredValue(filters.searchQuery);
 
   async function loadResidex() {
@@ -631,6 +633,7 @@ export function ResidexProvider({ children }: { children: ReactNode }) {
     mapCityPoints,
     tableRows,
     headerStats,
+    refreshKey,
     setCity: city =>
       setFilters(current => ({
         ...current,
@@ -665,7 +668,14 @@ export function ResidexProvider({ children }: { children: ReactNode }) {
       setComparisonSort("index");
       setActiveTab("overview");
     },
-    refresh: loadResidex
+    refresh: async () => {
+      setFilters(DEFAULT_FILTERS);
+      setTrendMode("overall");
+      setComparisonSort("index");
+      setActiveTab("overview");
+      setRefreshKey(current => current + 1);
+      await loadResidex();
+    }
   };
 
   return <ResidexContext.Provider value={value}>{children}</ResidexContext.Provider>;

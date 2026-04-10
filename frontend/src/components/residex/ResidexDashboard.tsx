@@ -30,6 +30,7 @@ function ResidexDashboardView({ onOpenSidebar }: { onOpenSidebar: () => void }) 
     activeTab,
     selectedCityLabel,
     selectedPeriodLabel,
+    refreshKey,
     setActiveTab,
     refresh
   } = useResidexContext();
@@ -73,15 +74,16 @@ function ResidexDashboardView({ onOpenSidebar }: { onOpenSidebar: () => void }) 
           <button
             type="button"
             onClick={() => void refresh()}
+            disabled={loading}
             className="inline-flex items-center gap-2 rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-slate-700 transition hover:border-blue-300 hover:text-blue-700 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100"
           >
-            <RefreshCw className="h-4 w-4" />
+            <RefreshCw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} />
             Refresh
           </button>
         </div>
       </header>
 
-      <div className="space-y-4 px-4 py-4 md:px-6">
+      <div key={refreshKey} className="space-y-4 px-4 py-4 md:px-6">
         <PageHeader
           eyebrow="RESIDENTIAL MARKET INTELLIGENCE"
           title="RESIDEX Real Estate Dashboard"
