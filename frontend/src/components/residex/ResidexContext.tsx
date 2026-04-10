@@ -483,23 +483,7 @@ export function ResidexProvider({ children }: { children: ReactNode }) {
     });
   }, [citySeriesMap, comparisonMetric, comparisonSort, currentPeriodRows, filters.city, selectedPeriodLabel]);
 
-  const comparisonRows = useMemo(() => {
-    const topRows = sortedComparisonRows.slice(0, 10);
-
-    if (filters.city !== "All" && !topRows.some(row => row.city === filters.city)) {
-      const selectedRow = sortedComparisonRows.find(row => row.city === filters.city);
-      if (selectedRow) {
-        topRows[topRows.length - 1] = selectedRow;
-        topRows.sort((left, right) => {
-          if (comparisonSort === "qoq") return right.qoq - left.qoq;
-          if (comparisonSort === "yoy") return right.yoy - left.yoy;
-          return right.value - left.value;
-        });
-      }
-    }
-
-    return topRows;
-  }, [filters.city, sortedComparisonRows]);
+  const comparisonRows = sortedComparisonRows;
 
   const selectedCityTrend = useMemo(
     () =>

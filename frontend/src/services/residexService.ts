@@ -1,3 +1,5 @@
+import residexFullCitySeeds from "../data/residex_full.json";
+
 export type ResidexQuarter = "Q1" | "Q2" | "Q3" | "Q4";
 export type ResidexHousingType = "all" | "affordable" | "premium" | "overall";
 
@@ -30,116 +32,7 @@ interface CitySeed {
   volatility: number;
 }
 
-const CITY_SEEDS: CitySeed[] = [
-  {
-    city: "Mumbai",
-    base: 304,
-    drift: 3.2,
-    seasonal: [1.4, 2.2, 1.9, 2.8],
-    affordableSpread: 24,
-    premiumSpread: 36,
-    volatility: 1.8
-  },
-  {
-    city: "Delhi",
-    base: 296,
-    drift: 2.9,
-    seasonal: [1.2, 2.1, 1.7, 2.5],
-    affordableSpread: 22,
-    premiumSpread: 33,
-    volatility: 1.6
-  },
-  {
-    city: "Bengaluru",
-    base: 288,
-    drift: 3.4,
-    seasonal: [1.6, 2.4, 2, 2.7],
-    affordableSpread: 21,
-    premiumSpread: 35,
-    volatility: 1.7
-  },
-  {
-    city: "Hyderabad",
-    base: 281,
-    drift: 3.1,
-    seasonal: [1.5, 2.3, 1.8, 2.6],
-    affordableSpread: 19,
-    premiumSpread: 31,
-    volatility: 1.5
-  },
-  {
-    city: "Pune",
-    base: 274,
-    drift: 2.8,
-    seasonal: [1.3, 2.1, 1.6, 2.3],
-    affordableSpread: 18,
-    premiumSpread: 28,
-    volatility: 1.4
-  },
-  {
-    city: "Chennai",
-    base: 269,
-    drift: 2.5,
-    seasonal: [1.1, 1.9, 1.4, 2.1],
-    affordableSpread: 17,
-    premiumSpread: 27,
-    volatility: 1.3
-  },
-  {
-    city: "Kolkata",
-    base: 262,
-    drift: 2.2,
-    seasonal: [0.9, 1.7, 1.3, 1.9],
-    affordableSpread: 16,
-    premiumSpread: 26,
-    volatility: 1.2
-  },
-  {
-    city: "Ahmedabad",
-    base: 257,
-    drift: 2.4,
-    seasonal: [1, 1.8, 1.5, 2],
-    affordableSpread: 15,
-    premiumSpread: 24,
-    volatility: 1.1
-  },
-  {
-    city: "Jaipur",
-    base: 249,
-    drift: 2.1,
-    seasonal: [0.8, 1.5, 1.2, 1.7],
-    affordableSpread: 14,
-    premiumSpread: 22,
-    volatility: 1
-  },
-  {
-    city: "Kochi",
-    base: 244,
-    drift: 2,
-    seasonal: [0.7, 1.4, 1.1, 1.6],
-    affordableSpread: 13,
-    premiumSpread: 21,
-    volatility: 0.9
-  },
-  {
-    city: "Lucknow",
-    base: 247,
-    drift: 2.1,
-    seasonal: [0.9, 1.6, 1.2, 1.8],
-    affordableSpread: 14,
-    premiumSpread: 23,
-    volatility: 0.9
-  },
-  {
-    city: "Bhopal",
-    base: 251,
-    drift: 2,
-    seasonal: [0.9, 1.7, 1.3, 1.9],
-    affordableSpread: 14,
-    premiumSpread: 23,
-    volatility: 0.8
-  }
-];
+const CITY_SEEDS = residexFullCitySeeds as CitySeed[];
 
 function round(value: number) {
   return Number(value.toFixed(1));
