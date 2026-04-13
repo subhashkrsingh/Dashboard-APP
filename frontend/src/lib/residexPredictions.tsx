@@ -1,3 +1,5 @@
+import type { ReactNode } from "react";
+
 // Linear regression utility for RESIDEX predictions
 export function linearRegression(data: number[]): { slope: number; intercept: number } {
   const n = data.length;
@@ -27,7 +29,7 @@ export function predictNextQuarters(data: number[], quarters: number = 4): numbe
   return predictions;
 }
 
-export function highlightMatch(text: string, query: string): React.ReactNode {
+export function highlightMatch(text: string, query: string): ReactNode {
   if (!query.trim()) return text;
 
   const regex = new RegExp(`(${query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi');

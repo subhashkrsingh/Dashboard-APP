@@ -1,10 +1,10 @@
 import { useParams, useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
-import { ArrowLeft, TrendingUp, TrendingDown, Home, Building2, DollarSign, Calendar } from "lucide-react";
+import { ArrowLeft, TrendingUp, TrendingDown, Home, Building2, DollarSign } from "lucide-react";
 import { useResidexContext } from "../components/residex/ResidexContext";
 import { ResidexChart } from "../components/charts/ResidexChart";
 import { ResidexComparisonChart } from "../components/charts/ResidexComparisonChart";
-import { formatCurrency, formatPercentage } from "../lib/formatters";
+import { formatPrice, formatPercent } from "../lib/formatters";
 
 export function ResidexCityPage() {
   const { city } = useParams<{ city: string }>();
@@ -51,25 +51,25 @@ export function ResidexCityPage() {
   const stats = [
     {
       label: "Current Overall Index",
-      value: formatCurrency(currentData.overall),
+      value: formatPrice(currentData.overall),
       icon: DollarSign,
       color: "text-blue-600"
     },
     {
       label: "Yearly Growth",
-      value: formatPercentage(yearlyGrowth),
+      value: formatPercent(yearlyGrowth),
       icon: yearlyGrowth >= 0 ? TrendingUp : TrendingDown,
       color: yearlyGrowth >= 0 ? "text-green-600" : "text-red-600"
     },
     {
       label: "Affordable Segment",
-      value: formatCurrency(currentData.affordable),
+      value: formatPrice(currentData.affordable),
       icon: Home,
       color: "text-purple-600"
     },
     {
       label: "Premium Segment",
-      value: formatCurrency(currentData.premium),
+      value: formatPrice(currentData.premium),
       icon: Building2,
       color: "text-indigo-600"
     }
