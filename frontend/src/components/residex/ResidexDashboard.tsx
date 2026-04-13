@@ -18,6 +18,18 @@ const ResidexTimeSlider = lazy(() =>
   import("./ResidexTimeSlider").then(module => ({ default: module.ResidexTimeSlider }))
 );
 
+const AIInsights = lazy(() =>
+  import("./AIInsights").then(module => ({ default: module.AIInsights }))
+);
+
+const ComparisonControls = lazy(() =>
+  import("./ComparisonControls").then(module => ({ default: module.ComparisonControls }))
+);
+
+const ComparisonChart = lazy(() =>
+  import("./ComparisonChart").then(module => ({ default: module.ComparisonChart }))
+);
+
 const TABS: Array<{ id: ResidexTab; label: string }> = [
   { id: "overview", label: "Overview" },
   { id: "cities", label: "Cities" },
@@ -109,6 +121,18 @@ function ResidexDashboardView({ onOpenSidebar }: { onOpenSidebar: () => void }) 
           <ResidexTimeSlider />
         </Suspense>
 
+        <Suspense
+          fallback={
+            <section className="glass-card rounded-2xl border border-[#E6EAF2] p-6 dark:border-slate-800 dark:bg-slate-950/80">
+              <div className="animate-pulse space-y-4">
+                <div className="h-5 w-32 rounded bg-slate-200 dark:bg-slate-800" />
+              </div>
+            </section>
+          }
+        >
+          <ComparisonControls />
+        </Suspense>
+
         <ResidexFilters />
 
         <section className="glass-card rounded-2xl border border-[#E6EAF2] p-3 dark:border-slate-800 dark:bg-slate-950/80">
@@ -168,6 +192,24 @@ function ResidexDashboardView({ onOpenSidebar }: { onOpenSidebar: () => void }) 
           <>
             <section id="overview" className="space-y-4">
               <ResidexCards />
+
+              <Suspense
+                fallback={
+                  <section className="glass-card rounded-2xl border border-[#E6EAF2] p-6 dark:border-slate-800 dark:bg-slate-950/80">
+                    <div className="animate-pulse space-y-4">
+                      <div className="h-5 w-40 rounded bg-slate-200 dark:bg-slate-800" />
+                      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+                        {Array.from({ length: 4 }).map((_, index) => (
+                          <div key={index} className="h-20 rounded-2xl bg-slate-100 dark:bg-slate-900" />
+                        ))}
+                      </div>
+                    </div>
+                  </section>
+                }
+              >
+                <AIInsights />
+              </Suspense>
+
               <Suspense
                 fallback={
                   <section className="glass-card rounded-2xl border border-[#E6EAF2] p-6 dark:border-slate-800 dark:bg-slate-950/80">
@@ -180,6 +222,20 @@ function ResidexDashboardView({ onOpenSidebar }: { onOpenSidebar: () => void }) 
               >
                 <NSEMap />
               </Suspense>
+
+              <Suspense
+                fallback={
+                  <section className="glass-card rounded-2xl border border-[#E6EAF2] p-6 dark:border-slate-800 dark:bg-slate-950/80">
+                    <div className="animate-pulse space-y-4">
+                      <div className="h-5 w-48 rounded bg-slate-200 dark:bg-slate-800" />
+                      <div className="h-80 rounded-2xl bg-slate-100 dark:bg-slate-900" />
+                    </div>
+                  </section>
+                }
+              >
+                <ComparisonChart />
+              </Suspense>
+
               <ResidexCharts />
             </section>
 

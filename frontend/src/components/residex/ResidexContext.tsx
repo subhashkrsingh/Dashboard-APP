@@ -75,6 +75,11 @@ interface ResidexFiltersState {
   searchQuery: string;
 }
 
+interface ResidexComparisonState {
+  isEnabled: boolean;
+  selectedCities: string[];
+}
+
 interface ResidexContextValue {
   loading: boolean;
   error: string | null;
@@ -102,6 +107,7 @@ interface ResidexContextValue {
   tableRows: ResidexRecord[];
   headerStats: Array<{ label: string; value: string }>;
   refreshKey: number;
+  comparison: ResidexComparisonState;
   setCity: (city: string) => void;
   setQuarter: (quarter: ResidexQuarterFilter) => void;
   setYear: (year: ResidexYearFilter) => void;
@@ -110,6 +116,8 @@ interface ResidexContextValue {
   setActiveTab: (tab: ResidexTab) => void;
   setTrendMode: (mode: ResidexMetricMode) => void;
   setComparisonSort: (sort: ResidexComparisonSort) => void;
+  setComparisonEnabled: (enabled: boolean) => void;
+  setComparisonCities: (cities: string[]) => void;
   clearFilters: () => void;
   refresh: () => Promise<void>;
 }
@@ -122,6 +130,11 @@ const DEFAULT_FILTERS: ResidexFiltersState = {
   year: "Latest",
   housingType: "all",
   searchQuery: ""
+};
+
+const DEFAULT_COMPARISON: ResidexComparisonState = {
+  isEnabled: false,
+  selectedCities: []
 };
 
 const TAB_LABELS: Record<ResidexTab, string> = {
@@ -292,6 +305,7 @@ export function ResidexProvider({ children }: { children: ReactNode }) {
   const [trendMode, setTrendMode] = useState<ResidexMetricMode>("overall");
   const [comparisonSort, setComparisonSort] = useState<ResidexComparisonSort>("index");
   const [headerStats, setHeaderStats] = useState<Array<{ label: string; value: string }>>([]);
+  const [comparison, setComparison] = useState<ResidexComparisonState>(DEFAULT_COMPARISON);
   const [refreshKey, setRefreshKey] = useState(0);
   const deferredSearchQuery = useDeferredValue(filters.searchQuery);
 
@@ -634,6 +648,7 @@ export function ResidexProvider({ children }: { children: ReactNode }) {
     tableRows,
     headerStats,
     refreshKey,
+    comparison,
     setCity: city =>
       setFilters(current => ({
         ...current,
@@ -662,17 +677,29 @@ export function ResidexProvider({ children }: { children: ReactNode }) {
     setActiveTab,
     setTrendMode,
     setComparisonSort,
+    setComparisonEnabled: (isEnabled) =>
+      setComparison(current => ({
+        ...current,
+        isEnabled
+      })),
+    setComparisonCities: (selectedCities) =>
+      setComparison(current => ({
+        ...current,
+        selectedCities: selectedCities.slice(0, 3) // Max 3 cities
+      })),
     clearFilters: () => {
       setFilters(DEFAULT_FILTERS);
       setTrendMode("overall");
       setComparisonSort("index");
       setActiveTab("overview");
+      setComparison(DEFAULT_COMPARISON);
     },
     refresh: async () => {
       setFilters(DEFAULT_FILTERS);
       setTrendMode("overall");
       setComparisonSort("index");
       setActiveTab("overview");
+      setComparison(DEFAULT_COMPARISON);
       setRefreshKey(current => current + 1);
       await loadResidex();
     }
