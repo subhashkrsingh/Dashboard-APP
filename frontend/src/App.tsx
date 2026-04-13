@@ -20,6 +20,9 @@ const RealEstateCompanyPage = lazy(() =>
   import("./pages/RealEstateCompanyPage").then(module => ({ default: module.RealEstateCompanyPage }))
 );
 const ResidexPage = lazy(() => import("./pages/residex").then(module => ({ default: module.ResidexPage })));
+const ResidexCityPage = lazy(() =>
+  import("./pages/ResidexCityPage").then(module => ({ default: module.ResidexCityPage }))
+);
 
 function RouteLoader() {
   return (
@@ -48,6 +51,7 @@ export default function App() {
           <Route path="/oil-gas/*" element={<OilGasPage />} />
           <Route path="/real-estate/:symbol" element={<RealEstateCompanyPage />} />
           <Route path="/real-estate/*" element={<RealEstatePage />} />
+          <Route path="/residex/:city" element={<ResidexCityPage />} />
           <Route path="/residex/*" element={<ResidexPage />} />
 
           <Route path="*" element={<Navigate to="/energy-sector" replace />} />

@@ -1,4 +1,5 @@
 import { memo, useMemo, useRef, useState, type MouseEvent as ReactMouseEvent } from "react";
+import { useNavigate } from "react-router-dom";
 import { geoCentroid } from "d3-geo";
 import { scaleLinear } from "d3-scale";
 import { motion } from "framer-motion";
@@ -37,6 +38,7 @@ interface TooltipState {
 type IndexType = "Overall" | "Affordable" | "Premium";
 
 function NSEMapComponent() {
+  const navigate = useNavigate();
   const { mapCityPoints, filters, setCity, setActiveTab, periods, selectedPeriod, setQuarter } = useResidexContext();
   const [tooltip, setTooltip] = useState<TooltipState | null>(null);
   const [hoveredState, setHoveredState] = useState<string | null>(null);
@@ -110,15 +112,7 @@ function NSEMapComponent() {
   }
 
   function handleSelectCity(city: string) {
-    setCity(city);
-    setActiveTab("cities");
-
-    window.requestAnimationFrame(() => {
-      document.getElementById("cities")?.scrollIntoView({
-        behavior: "smooth",
-        block: "start"
-      });
-    });
+    navigate(`/residex/${encodeURIComponent(city.toLowerCase())}`);
   }
 
   function handleStateClick(geo: { properties?: Record<string, unknown>; geometry?: unknown }) {
