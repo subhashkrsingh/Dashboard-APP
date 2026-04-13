@@ -10,8 +10,8 @@ import { ResidexCharts } from "./ResidexCharts";
 import { ResidexFilters } from "./ResidexFilters";
 import { ResidexTable } from "./ResidexTable";
 
-const ResidexIndiaMap = lazy(() =>
-  import("./ResidexIndiaMap").then(module => ({ default: module.ResidexIndiaMap }))
+const NSEMap = lazy(() =>
+  import("./NSEMap").then(module => ({ default: module.NSEMap }))
 );
 
 const TABS: Array<{ id: ResidexTab; label: string }> = [
@@ -159,7 +159,7 @@ function ResidexDashboardView({ onOpenSidebar }: { onOpenSidebar: () => void }) 
                   </section>
                 }
               >
-                <ResidexIndiaMap />
+                <NSEMap />
               </Suspense>
               <ResidexCharts />
             </section>
