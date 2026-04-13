@@ -14,6 +14,10 @@ const NSEMap = lazy(() =>
   import("./NSEMap").then(module => ({ default: module.NSEMap }))
 );
 
+const ResidexTimeSlider = lazy(() =>
+  import("./ResidexTimeSlider").then(module => ({ default: module.ResidexTimeSlider }))
+);
+
 const TABS: Array<{ id: ResidexTab; label: string }> = [
   { id: "overview", label: "Overview" },
   { id: "cities", label: "Cities" },
@@ -89,6 +93,21 @@ function ResidexDashboardView({ onOpenSidebar }: { onOpenSidebar: () => void }) 
           title="RESIDEX Real Estate Dashboard"
           description="Track the national residential index, metro-level movement, affordable and premium housing momentum, and exportable quarterly views from one integrated dashboard."
         />
+
+        <ResidexFilters />
+
+        <Suspense
+          fallback={
+            <section className="glass-card rounded-2xl border border-[#E6EAF2] p-6 dark:border-slate-800 dark:bg-slate-950/80">
+              <div className="animate-pulse space-y-4">
+                <div className="h-5 w-48 rounded bg-slate-200 dark:bg-slate-800" />
+                <div className="h-16 rounded-2xl bg-slate-100 dark:bg-slate-900" />
+              </div>
+            </section>
+          }
+        >
+          <ResidexTimeSlider />
+        </Suspense>
 
         <ResidexFilters />
 
