@@ -3,8 +3,12 @@ import { useQuery, useQueryClient, type UseQueryResult } from "@tanstack/react-q
 
 import type { PriceDirection, SectorSnapshot, TimePoint } from "../types/market";
 import { useMarketHistory, type CompanyHistoryPoint } from "./useMarketHistory";
-import { fetchSectorSnapshotById, forceRefreshSectorSnapshotById } from "../services/sectorApi";
-import { getSectorApiConfig } from "../services/sectorApiMap";
+import {
+  fetchSectorSnapshotById,
+  forceRefreshSectorSnapshotById,
+  normalizeStoredSectorSnapshot
+} from "../services/sectorApi";
+import { getSectorApiConfig, type SectorApiConfig } from "../services/sectorApiMap";
 
 const INVALID_SECTOR_QUERY_KEY = ["sector-market", "invalid-sector"] as const;
 
@@ -16,15 +20,30 @@ export interface SectorMarketDataResult
   refreshMarketData: () => Promise<SectorSnapshot | undefined>;
 }
 
-function readPersistedSnapshot(storageKey: string | undefined): SectorSnapshot | undefined {
-  if (!storageKey || typeof window === "undefined") {
+function readPersistedSnapshot(sectorConfig: SectorApiConfig | undefined): SectorSnapshot | undefined {
+  if (!sectorConfig || typeof window === "undefined") {
     return undefined;
   }
 
   try {
-    const raw = window.localStorage.getItem(storageKey);
-    return raw ? (JSON.parse(raw) as SectorSnapshot) : undefined;
+    const raw = window.localStorage.getItem(sectorConfig.storageKey);
+    if (!raw) {
+      return undefined;
+    }
+
+    const normalized = normalizeStoredSectorSnapshot(JSON.parse(raw), sectorConfig);
+    if (normalized) {
+      return normalized;
+    }
+
+    window.localStorage.removeItem(sectorConfig.storageKey);
+    return undefined;
   } catch {
+    try {
+      window.localStorage.removeItem(sectorConfig.storageKey);
+    } catch {
+      // Ignore storage cleanup failures and continue without persisted data.
+    }
     return undefined;
   }
 }
@@ -62,12 +81,12 @@ export function useSectorMarketData(sector: string | undefined): SectorMarketDat
   const queryClient = useQueryClient();
   const resolvedStorageKey = sectorConfig?.storageKey;
   const [persistedSnapshot, setPersistedSnapshot] = useState<SectorSnapshot | undefined>(() =>
-    readPersistedSnapshot(resolvedStorageKey)
+    readPersistedSnapshot(sectorConfig)
   );
 
   useEffect(() => {
-    setPersistedSnapshot(readPersistedSnapshot(resolvedStorageKey));
-  }, [resolvedStorageKey]);
+    setPersistedSnapshot(readPersistedSnapshot(sectorConfig));
+  }, [sectorConfig]);
 
   const query = useQuery({
     queryKey: sectorConfig?.queryKey ?? INVALID_SECTOR_QUERY_KEY,

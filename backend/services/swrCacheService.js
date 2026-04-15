@@ -196,6 +196,7 @@ function buildSnapshotResponse(sector, snapshot, options = {}) {
       isStale,
       stale: isStale,
       cached: source !== "live",
+      useCache: source !== "live",
       dataStatus,
       cacheAgeMs,
       message,
@@ -209,7 +210,8 @@ function buildSnapshotResponse(sector, snapshot, options = {}) {
       data: normalized.companies,
       timestamp,
       source,
-      isStale
+      isStale,
+      cached: source !== "live"
     },
     cacheHeader
   };
@@ -268,13 +270,15 @@ function buildIntradayResponse(data, options = {}) {
   return {
     data,
     cached: source !== "live",
+    useCache: source !== "live",
     stale: isStale,
     timestamp,
     cache: {
       data: [],
       timestamp,
       source,
-      isStale
+      isStale,
+      cached: source !== "live"
     },
     cacheHeader
   };

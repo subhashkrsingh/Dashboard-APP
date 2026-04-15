@@ -21,6 +21,8 @@ interface SectorIntradayNormalizeOptions {
 
 interface CacheEnvelope {
   data: unknown;
+  success?: boolean;
+  useCache?: boolean;
   cacheMeta?: {
     stale?: boolean;
     cached?: boolean;
@@ -99,6 +101,33 @@ function toIsoTimestamp(value: unknown): string | undefined {
   return parsed.toISOString();
 }
 
+function toOptionalBoolean(value: unknown): boolean | undefined {
+  return typeof value === "boolean" ? value : undefined;
+}
+
+function summarizeEnvelopeShape(payload: unknown) {
+  if (!isObject(payload)) {
+    return {
+      kind: typeof payload,
+      hasData: false,
+      success: undefined,
+      useCache: undefined,
+      cached: undefined,
+      hasCacheMeta: false
+    };
+  }
+
+  return {
+    kind: "object",
+    keys: Object.keys(payload).slice(0, 12),
+    hasData: "data" in payload,
+    success: toOptionalBoolean(payload.success),
+    useCache: toOptionalBoolean(payload.useCache),
+    cached: toOptionalBoolean(payload.cached),
+    hasCacheMeta: isObject(payload.cacheMeta) || isObject(payload._cache)
+  };
+}
+
 function unwrapCacheEnvelope(payload: unknown): CacheEnvelope {
   if (!isObject(payload) || !("data" in payload)) {
     return { data: payload };
@@ -106,28 +135,37 @@ function unwrapCacheEnvelope(payload: unknown): CacheEnvelope {
 
   const cacheMetaFromLegacy = {
     stale: typeof payload.stale === "boolean" ? payload.stale : undefined,
-    cached: typeof payload.cached === "boolean" ? payload.cached : undefined,
+    cached: toOptionalBoolean(payload.cached) ?? toOptionalBoolean(payload.useCache),
     timestamp: payload.timestamp,
     source: payload.source,
     isStale: typeof payload.isStale === "boolean" ? payload.isStale : undefined
   };
 
-  if (isObject(payload._cache)) {
+  const nestedCacheMeta = isObject(payload.cacheMeta) ? payload.cacheMeta : isObject(payload._cache) ? payload._cache : undefined;
+  if (nestedCacheMeta) {
     return {
       data: payload.data,
+      success: toOptionalBoolean(payload.success),
+      useCache: toOptionalBoolean(payload.useCache) ?? cacheMetaFromLegacy.cached,
       cacheMeta: {
-        stale: typeof payload._cache.stale === "boolean" ? payload._cache.stale : cacheMetaFromLegacy.stale,
-        cached: cacheMetaFromLegacy.cached ?? (typeof payload._cache.stale === "boolean" ? true : undefined),
-        timestamp: payload._cache.timestamp ?? cacheMetaFromLegacy.timestamp,
-        source: payload._cache.source ?? cacheMetaFromLegacy.source,
+        stale: typeof nestedCacheMeta.stale === "boolean" ? nestedCacheMeta.stale : cacheMetaFromLegacy.stale,
+        cached:
+          cacheMetaFromLegacy.cached ??
+          toOptionalBoolean(nestedCacheMeta.cached) ??
+          toOptionalBoolean(nestedCacheMeta.useCache) ??
+          (typeof nestedCacheMeta.stale === "boolean" ? true : undefined),
+        timestamp: nestedCacheMeta.timestamp ?? cacheMetaFromLegacy.timestamp,
+        source: nestedCacheMeta.source ?? cacheMetaFromLegacy.source,
         isStale:
-          typeof payload._cache.isStale === "boolean" ? payload._cache.isStale : cacheMetaFromLegacy.isStale
+          typeof nestedCacheMeta.isStale === "boolean" ? nestedCacheMeta.isStale : cacheMetaFromLegacy.isStale
       }
     };
   }
 
   return {
     data: payload.data,
+    success: toOptionalBoolean(payload.success),
+    useCache: toOptionalBoolean(payload.useCache) ?? cacheMetaFromLegacy.cached,
     cacheMeta: cacheMetaFromLegacy
   };
 }
@@ -226,12 +264,20 @@ function normalizeLastRefreshError(value: unknown): SectorSnapshot["lastRefreshE
 
 export function normalizeSectorResponse(payload: unknown, options: NormalizeOptions): SectorSnapshot {
   if (!isObject(payload)) {
+    if (import.meta.env.DEV) {
+      console.error("[sector-api] invalid sector payload", {
+        sourceLabel: options.sourceLabel,
+        reason: "payload-not-object",
+        payloadType: typeof payload
+      });
+    }
     throw new Error(`Unexpected response from ${options.sourceLabel} API`);
   }
 
   if (isObject(payload.sectorIndex) && Array.isArray(payload.companies)) {
     const source = normalizeSource(payload.source);
     const isStale = typeof payload.isStale === "boolean" ? payload.isStale : undefined;
+    const useCache = toOptionalBoolean(payload.useCache) ?? toOptionalBoolean(payload.cached) ?? source === "cache";
     const dataStatus = normalizeDataStatus(payload.dataStatus, {
       stale: typeof payload.stale === "boolean" ? payload.stale : isStale,
       snapshot: Boolean(payload.snapshot),
@@ -251,7 +297,8 @@ export function normalizeSectorResponse(payload: unknown, options: NormalizeOpti
       source,
       isStale,
       stale: typeof payload.stale === "boolean" ? payload.stale : isStale,
-      cached: typeof payload.cached === "boolean" ? payload.cached : source === "cache",
+      cached: useCache,
+      useCache,
       dataStatus,
       message: payload.message ? String(payload.message) : undefined,
       warning: payload.warning ? String(payload.warning) : payload.message ? String(payload.message) : undefined
@@ -264,6 +311,8 @@ export function normalizeSectorResponse(payload: unknown, options: NormalizeOpti
     const sectorChange =
       toNumberOrNull(payload.change) ??
       (sectorLast !== null && sectorPct !== null ? (sectorLast * sectorPct) / 100 : null);
+    const source = normalizeSource(payload.source);
+    const useCache = toOptionalBoolean(payload.useCache) ?? toOptionalBoolean(payload.cached) ?? source === "cache";
 
     return {
       sectorIndex: normalizeSectorIndex(
@@ -322,23 +371,30 @@ export function normalizeSectorResponse(payload: unknown, options: NormalizeOpti
       fetchedAt: String(payload.fetchedAt ?? new Date().toISOString()),
       fallbackIndexUsed: Boolean(payload.fallbackIndexUsed),
       requestedIndex: payload.requestedIndex ? String(payload.requestedIndex) : undefined,
-      source: normalizeSource(payload.source),
+      source,
       isStale: typeof payload.isStale === "boolean" ? payload.isStale : Boolean(payload.stale),
       stale: Boolean(payload.stale),
       message: payload.message ? String(payload.message) : undefined,
       warning: payload.warning ? String(payload.warning) : payload.message ? String(payload.message) : undefined,
-      cached: Boolean(payload.cached),
+      cached: useCache,
+      useCache,
       apiCacheStatus: options.apiCacheStatus,
       lastRefreshError: normalizeLastRefreshError(payload.lastRefreshError),
       dataStatus: normalizeDataStatus(payload.dataStatus, {
         stale: Boolean(payload.stale),
         snapshot: Boolean(payload.snapshot),
-        source: normalizeSource(payload.source),
+        source,
         isEmpty: Array.isArray(payload.companies) && payload.companies.length === 0 && !sectorLast
       })
     };
   }
 
+  if (import.meta.env.DEV) {
+    console.error("[sector-api] unexpected sector payload shape", {
+      sourceLabel: options.sourceLabel,
+      summary: summarizeEnvelopeShape(payload)
+    });
+  }
   throw new Error(`Unexpected response from ${options.sourceLabel} API`);
 }
 
@@ -366,15 +422,56 @@ export function normalizeIntradayResponse(
 }
 
 function normalizeSectorFromResponse(response: { data: unknown; cacheStatus?: string }, options: Omit<NormalizeOptions, "apiCacheStatus">) {
+  if (import.meta.env.DEV) {
+    const summary = summarizeEnvelopeShape(response.data);
+    console.debug("[sector-api] received sector response", {
+      sourceLabel: options.sourceLabel,
+      xCache: response.cacheStatus ?? null,
+      ...summary
+    });
+
+    if (summary.useCache === undefined && summary.cached === undefined && !summary.hasCacheMeta) {
+      console.warn("[sector-api] response missing cache flags", {
+        sourceLabel: options.sourceLabel,
+        xCache: response.cacheStatus ?? null,
+        keys: "keys" in summary ? summary.keys : undefined
+      });
+    }
+  }
+
   const unwrapped = unwrapCacheEnvelope(response.data);
-  const normalized = normalizeSectorResponse(unwrapped.data, {
-    ...options,
-    apiCacheStatus: response.cacheStatus
-  });
+  let normalized: SectorSnapshot;
+  try {
+    normalized = normalizeSectorResponse(unwrapped.data, {
+      ...options,
+      apiCacheStatus: response.cacheStatus
+    });
+  } catch (error) {
+    if (import.meta.env.DEV) {
+      console.error("[sector-api] failed to normalize sector response", {
+        sourceLabel: options.sourceLabel,
+        xCache: response.cacheStatus ?? null,
+        envelope: summarizeEnvelopeShape(response.data),
+        error: error instanceof Error ? error.message : String(error)
+      });
+    }
+    throw error;
+  }
 
   if (!unwrapped.cacheMeta) {
-    return normalized;
+    return {
+      ...normalized,
+      useCache: normalized.useCache ?? normalized.cached ?? false,
+      cached: normalized.cached ?? normalized.useCache ?? false
+    };
   }
+
+  const useCache =
+    typeof unwrapped.useCache === "boolean"
+      ? unwrapped.useCache
+      : typeof unwrapped.cacheMeta.cached === "boolean"
+      ? unwrapped.cacheMeta.cached
+      : normalized.cached;
 
   return {
     ...normalized,
@@ -386,9 +483,27 @@ function normalizeSectorFromResponse(response: { data: unknown; cacheStatus?: st
         ? unwrapped.cacheMeta.stale
         : normalized.isStale,
     stale: typeof unwrapped.cacheMeta.stale === "boolean" ? unwrapped.cacheMeta.stale : normalized.stale,
-    cached: typeof unwrapped.cacheMeta.cached === "boolean" ? unwrapped.cacheMeta.cached : normalized.cached,
+    cached: useCache,
+    useCache,
     fetchedAt: toIsoTimestamp(unwrapped.cacheMeta.timestamp) ?? normalized.fetchedAt
   };
+}
+
+export function normalizeStoredSectorSnapshot(
+  payload: unknown,
+  options: Omit<NormalizeOptions, "apiCacheStatus">
+): SectorSnapshot | undefined {
+  try {
+    return normalizeSectorFromResponse({ data: payload }, options);
+  } catch (error) {
+    if (import.meta.env.DEV) {
+      console.warn("[sector-api] discarded persisted sector snapshot", {
+        sourceLabel: options.sourceLabel,
+        error: error instanceof Error ? error.message : String(error)
+      });
+    }
+    return undefined;
+  }
 }
 
 function resolveSectorConfig(sector: SectorId): SectorApiConfig {

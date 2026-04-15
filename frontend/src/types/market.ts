@@ -65,6 +65,7 @@ export interface SectorSnapshot {
   message?: string;
   warning?: string;
   cached?: boolean;
+  useCache?: boolean;
   snapshot?: boolean;
   dataStatus?: SectorDataStatus;
   cacheAgeMs?: number;

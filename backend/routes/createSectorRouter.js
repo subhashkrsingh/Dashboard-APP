@@ -5,14 +5,18 @@ const { buildIntradaySeries } = require("../services/intradaySeries");
 const { getMarketStatus } = require("../services/marketStatus");
 
 function toRouteSnapshot(snapshot, overrides = {}) {
+  const useCache = overrides.useCache ?? overrides.cached ?? false;
+  const isOffline = overrides.snapshot ?? false;
+
   return {
     ...snapshot,
     marketStatus: getMarketStatus(),
     cacheAgeMs: overrides.cacheAgeMs,
-    cached: overrides.cached ?? false,
+    cached: useCache,
+    useCache,
     stale: overrides.stale ?? false,
-    snapshot: overrides.snapshot ?? false,
-    dataStatus: overrides.dataStatus ?? "live",
+    snapshot: isOffline,
+    dataStatus: overrides.dataStatus ?? (isOffline ? "offline" : useCache ? "cache" : "live"),
     warning: overrides.warning ?? snapshot.warning
   };
 }
@@ -71,7 +75,7 @@ function createSectorRouter({
             cached: true,
             stale: true,
             snapshot: false,
-            dataStatus: "stale",
+            dataStatus: "cache",
             warning: staleWarning
           }),
           lastRefreshError: stale.error
@@ -87,7 +91,7 @@ function createSectorRouter({
             cached: true,
             stale: true,
             snapshot: true,
-            dataStatus: "snapshot",
+            dataStatus: "offline",
             warning: snapshotWarning
           })
         });

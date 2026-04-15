@@ -1,6 +1,7 @@
 const express = require("express");
 const cacheService = require("../services/swrCacheService");
 const { createSWRCacheMiddleware } = require("../middleware/swrCacheMiddleware");
+const { buildErrorEnvelope, buildSuccessEnvelope } = require("../utils/sectorApiEnvelope");
 
 function createSectorRouter(sector) {
   const router = express.Router();
@@ -16,29 +17,29 @@ function createSectorRouter(sector) {
       const result = await cacheService.forceRefreshSnapshot(sector);
       res.set("X-Cache", result.cacheHeader);
 
-      return res.status(200).json({
-        data: result.data,
-        cached: result.cached,
-        stale: result.stale,
-        timestamp: result.timestamp,
-        _cache: result.cache
-      });
+      return res.status(200).json(buildSuccessEnvelope(result));
     } catch (error) {
-      return res.status(503).json({
-        error: "REFRESH_FAILED",
-        message: "Unable to refresh market data right now."
-      });
+      return res.status(503).json(
+        buildErrorEnvelope({
+          error: "REFRESH_FAILED",
+          message: "Unable to refresh market data right now."
+        })
+      );
     }
   });
 
   // Never allow sector-router 404s; always return valid JSON.
   router.use((req, res) => {
-    return res.status(400).json({
-      error: "INVALID_SECTOR_ROUTE",
-      message: "Valid sector routes: /, /intraday, /intrada, /refresh",
-      sector,
-      path: req.originalUrl
-    });
+    return res.status(400).json(
+      buildErrorEnvelope({
+        error: "INVALID_SECTOR_ROUTE",
+        message: "Valid sector routes: /, /intraday, /intrada, /refresh",
+        details: {
+          sector,
+          path: req.originalUrl
+        }
+      })
+    );
   });
 
   return router;

@@ -1,4 +1,5 @@
 const cacheService = require("../services/swrCacheService");
+const { buildSuccessEnvelope } = require("../utils/sectorApiEnvelope");
 
 function createSWRCacheMiddleware({ sector, type }) {
   return async (req, res) => {
@@ -17,13 +18,7 @@ function createSWRCacheMiddleware({ sector, type }) {
 
     res.set("X-Cache", result.cacheHeader);
 
-    return res.status(200).json({
-      data: result.data,
-      cached: result.cached,
-      stale: result.stale,
-      timestamp: result.timestamp,
-      _cache: result.cache
-    });
+    return res.status(200).json(buildSuccessEnvelope(result));
   };
 }
 
