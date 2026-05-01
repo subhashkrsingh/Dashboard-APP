@@ -190,6 +190,7 @@ export function ResidexCharts() {
   return (
     <div className="space-y-4">
       <ChartShell
+        id="national"
         title="National RESIDEX Trend"
         description="Quarterly multi-year track for the national residential composite, with a quick switch between affordable, premium, and overall lines."
         action={
@@ -251,7 +252,7 @@ export function ResidexCharts() {
 
       <section id="cities" className="flex w-full flex-col gap-6">
         <ChartShell
-          title="City-wise Comparison"
+          title="City-wise RESIDEX"
           description={`All cities for ${selectedPeriodLabel}, sorted by ${comparisonSortLabel.toLowerCase()}.`}
           action={
             <div className="flex flex-wrap gap-2">
@@ -324,8 +325,8 @@ export function ResidexCharts() {
 
       <ChartShell
         id="affordable"
-        title="Affordable vs Premium"
-        description={`Dual-line comparison for ${selectedCityLabel}, keeping both housing tiers on the same quarterly timeline.`}
+        title="Affordable Housing Index"
+        description={`Quarterly affordable housing trend for ${selectedCityLabel}, with premium context kept on the same timeline for comparison.`}
         action={<Badge tone="accent">{selectedCityLabel}</Badge>}
       >
         <div className="h-[320px] rounded-2xl border border-slate-200 bg-white p-3 dark:border-slate-800 dark:bg-slate-900/80">
@@ -352,25 +353,42 @@ export function ResidexCharts() {
         </div>
       </ChartShell>
 
-      <section id="premium" className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-        {premiumHighlights.map(card => {
-          const toneClasses =
-            card.tone === "positive"
-              ? "border-emerald-200 bg-emerald-50/80"
-              : card.tone === "warning"
-              ? "border-amber-200 bg-amber-50/80"
-              : card.tone === "accent"
-              ? "border-blue-200 bg-blue-50/80"
-              : "border-slate-200 bg-white";
-
-          return (
-            <div key={card.title} className={`glass-card rounded-2xl border p-4 dark:border-slate-800 dark:bg-slate-950/80 ${toneClasses}`}>
-              <p className="card-title text-[11px]">{card.title}</p>
-              <p className="mt-3 font-display text-2xl font-semibold text-slate-900">{card.value}</p>
-              <p className="subtle-text mt-2">{card.detail}</p>
+      <section id="premium" className="space-y-4">
+        <div className="glass-card rounded-2xl border border-[#E6EAF2] p-4 dark:border-slate-800 dark:bg-slate-950/80">
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div>
+              <h3 className="section-title font-display text-xl">Premium Housing Index</h3>
+              <p className="subtle-text mt-1">
+                Premium-market leaders, spread analysis, and high-end pricing momentum for the selected RESIDEX view.
+              </p>
             </div>
-          );
-        })}
+            <Badge tone="neutral">{selectedCityLabel}</Badge>
+          </div>
+        </div>
+
+        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+          {premiumHighlights.map(card => {
+            const toneClasses =
+              card.tone === "positive"
+                ? "border-emerald-200 bg-emerald-50/80"
+                : card.tone === "warning"
+                  ? "border-amber-200 bg-amber-50/80"
+                  : card.tone === "accent"
+                    ? "border-blue-200 bg-blue-50/80"
+                    : "border-slate-200 bg-white";
+
+            return (
+              <div
+                key={card.title}
+                className={`glass-card rounded-2xl border p-4 dark:border-slate-800 dark:bg-slate-950/80 ${toneClasses}`}
+              >
+                <p className="card-title text-[11px]">{card.title}</p>
+                <p className="mt-3 font-display text-2xl font-semibold text-slate-900">{card.value}</p>
+                <p className="subtle-text mt-2">{card.detail}</p>
+              </div>
+            );
+          })}
+        </div>
       </section>
     </div>
   );

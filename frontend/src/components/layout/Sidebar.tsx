@@ -1,10 +1,11 @@
 import { useEffect, useMemo, useState } from "react";
-import { motion } from "framer-motion";
+import { AnimatePresence } from "framer-motion";
 import {
-  Bell,
   Building2,
+  ChevronDown,
   ChevronLeft,
   ChevronRight,
+  Bell,
   Factory,
   LayoutDashboard,
   LineChart,
@@ -17,6 +18,7 @@ import type { LucideIcon } from "lucide-react";
 import { useLocation, useNavigate } from "react-router-dom";
 
 import { AppLogo } from "../branding/AppLogo";
+import { getResidexSectionFromPath, residexNavItems } from "../../lib/residexConfig";
 import { sectorSidebarConfig } from "../../lib/sectorConfig";
 import { SectorSidebarGroup } from "../SectorSidebarGroup";
 import type { CompanyQuote } from "../../types/market";
@@ -60,6 +62,7 @@ const NAV_ITEMS: NavItem[] = [
 ];
 
 const SECTION_HIGHLIGHT_CLASSES = ["ring-2", "ring-cyan-400", "ring-offset-2", "ring-offset-[#F5F7FB]"];
+const RESIDEX_GROUP_ID = "residex-index";
 
 function getActiveGroup(pathname: string) {
   return sectorSidebarConfig.find(sector => pathname.startsWith(sector.basePath))?.id ?? "energy-sector";
@@ -82,17 +85,29 @@ function GlobalSidebar({ collapsed = false, onToggleCollapse, onClose }: GlobalS
   const navigate = useNavigate();
   const [expandedGroups, setExpandedGroups] = useState<Record<string, boolean>>(() => {
     const activeGroup = getActiveGroup(location.pathname);
-    return Object.fromEntries(sectorSidebarConfig.map(sector => [sector.id, sector.id === activeGroup]));
+    return {
+      ...Object.fromEntries(sectorSidebarConfig.map(sector => [sector.id, sector.id === activeGroup])),
+      [RESIDEX_GROUP_ID]: location.pathname.startsWith("/residex")
+    };
   });
   const [activeSectionId, setActiveSectionId] = useState<string | null>(null);
   const activeGroupId = getActiveGroup(location.pathname);
   const residexActive = location.pathname.startsWith("/residex");
+  const residexRouteSection = getResidexSectionFromPath(location.pathname);
   const activeSector = useMemo(
     () => sectorSidebarConfig.find(sector => sector.id === activeGroupId) ?? sectorSidebarConfig[0],
     [activeGroupId]
   );
 
   useEffect(() => {
+    if (location.pathname.startsWith("/residex")) {
+      setExpandedGroups(current => ({
+        ...current,
+        [RESIDEX_GROUP_ID]: true
+      }));
+      return;
+    }
+
     const activeGroup = getActiveGroup(location.pathname);
     setExpandedGroups(current => ({
       ...current,
@@ -109,7 +124,11 @@ function GlobalSidebar({ collapsed = false, onToggleCollapse, onClose }: GlobalS
     let timeoutId: number | null = null;
     let attempts = 0;
 
-    const sectionModules = activeSector.modules.filter(module => module.id !== "overview");
+    const sectionModules = residexActive
+      ? residexNavItems.map(item => ({ sectionId: item.sectionId }))
+      : activeSector.modules.filter(module => module.id !== "overview").map(module => ({ sectionId: module.sectionId }));
+
+    setActiveSectionId(residexActive ? residexRouteSection ?? "overview" : null);
 
     const connectObserver = () => {
       const observedSections = sectionModules
@@ -160,7 +179,7 @@ function GlobalSidebar({ collapsed = false, onToggleCollapse, onClose }: GlobalS
       }
       observer?.disconnect();
     };
-  }, [activeSector, location.pathname]);
+  }, [activeSector, location.pathname, residexActive, residexRouteSection]);
 
   function handleSectorSelect(basePath: string) {
     if (location.pathname.startsWith(basePath)) {
@@ -192,6 +211,28 @@ function GlobalSidebar({ collapsed = false, onToggleCollapse, onClose }: GlobalS
       pathname: basePath,
       search: `?section=${sectionId}`
     });
+    onClose?.();
+  }
+
+  function handleResidexSectionSelect(path: string, sectionId: string) {
+    if (location.pathname === path) {
+      const section = document.getElementById(sectionId);
+      if (section) {
+        section.scrollIntoView({
+          behavior: "smooth",
+          block: "start"
+        });
+        pulseSectionHighlight(sectionId);
+        setActiveSectionId(sectionId);
+      } else if (sectionId === "overview") {
+        window.scrollTo({ top: 0, behavior: "smooth" });
+        setActiveSectionId("overview");
+      }
+      onClose?.();
+      return;
+    }
+
+    navigate(path);
     onClose?.();
   }
 
@@ -269,33 +310,94 @@ function GlobalSidebar({ collapsed = false, onToggleCollapse, onClose }: GlobalS
         ))}
 
         <section className="rounded-2xl border border-slate-200 bg-white/90 p-2 shadow-[0_10px_20px_rgba(15,23,42,0.04)]">
-          <button
-            type="button"
-            onClick={() => {
-              if (residexActive) {
-                window.scrollTo({ top: 0, behavior: "smooth" });
-                onClose?.();
-                return;
-              }
+          <div className={`flex items-center ${collapsed ? "justify-center" : "justify-between"} gap-2`}>
+            <button
+              type="button"
+              onClick={() => {
+                setExpandedGroups(current => ({
+                  ...current,
+                  [RESIDEX_GROUP_ID]: true
+                }));
+                handleResidexSectionSelect("/residex", "overview");
+              }}
+              className={`group flex min-w-0 flex-1 items-center rounded-xl px-3 py-2 text-left transition ${
+                residexActive
+                  ? "bg-blue-50 text-blue-700 shadow-[0_0_0_1px_rgba(37,99,235,0.15)]"
+                  : "text-slate-700 hover:bg-slate-50"
+              } ${collapsed ? "justify-center" : "gap-2.5"}`}
+              title={collapsed ? "RESIDEX Index" : undefined}
+            >
+              <Building2 className="h-[18px] w-[18px] shrink-0" />
+              {!collapsed ? (
+                <div className="min-w-0">
+                  <p className="truncate text-sm font-semibold">RESIDEX Index</p>
+                  <p className="truncate text-[11px] uppercase tracking-[0.18em] text-slate-400">Residential Index</p>
+                </div>
+              ) : null}
+            </button>
 
-              navigate("/residex");
-              onClose?.();
-            }}
-            className={`group flex w-full items-center rounded-xl px-3 py-2 text-left transition ${
-              residexActive
-                ? "bg-blue-50 text-blue-700 shadow-[0_0_0_1px_rgba(37,99,235,0.15)]"
-                : "text-slate-700 hover:bg-slate-50"
-            } ${collapsed ? "justify-center" : "gap-2.5"}`}
-            title={collapsed ? "RESIDEX Index" : undefined}
-          >
-            <Building2 className="h-[18px] w-[18px] shrink-0" />
             {!collapsed ? (
-              <div className="min-w-0">
-                <p className="truncate text-sm font-semibold">RESIDEX Index</p>
-                <p className="truncate text-[11px] uppercase tracking-[0.18em] text-slate-400">Residential Index</p>
-              </div>
+              <button
+                type="button"
+                onClick={() =>
+                  setExpandedGroups(current => ({
+                    ...current,
+                    [RESIDEX_GROUP_ID]: !current[RESIDEX_GROUP_ID]
+                  }))
+                }
+                className="rounded-lg border border-slate-200 bg-slate-50 p-2 text-slate-500 transition hover:border-blue-200 hover:text-blue-700"
+                aria-label={
+                  expandedGroups[RESIDEX_GROUP_ID]
+                    ? "Collapse RESIDEX Index links"
+                    : "Expand RESIDEX Index links"
+                }
+              >
+                <ChevronDown
+                  className={`h-4 w-4 transition ${expandedGroups[RESIDEX_GROUP_ID] ? "rotate-180" : ""}`}
+                />
+              </button>
             ) : null}
-          </button>
+          </div>
+
+          {!collapsed ? (
+            <AnimatePresence initial={false}>
+              {expandedGroups[RESIDEX_GROUP_ID] ? (
+                <motion.nav
+                  initial={{ opacity: 0, height: 0 }}
+                  animate={{ opacity: 1, height: "auto" }}
+                  exit={{ opacity: 0, height: 0 }}
+                  transition={{ duration: 0.2 }}
+                  className="overflow-hidden"
+                >
+                  <div className="mt-2 space-y-1 border-t border-slate-100 pt-2">
+                    {residexNavItems.map(item => {
+                      const ItemIcon = item.icon;
+                      const isActive =
+                        residexActive &&
+                        (activeSectionId === item.sectionId ||
+                          (activeSectionId === null && residexRouteSection === item.sectionId));
+
+                      return (
+                        <button
+                          type="button"
+                          key={item.id}
+                          onClick={() => handleResidexSectionSelect(item.path, item.sectionId)}
+                          className={`flex w-full items-center gap-2.5 rounded-xl px-3 py-2 text-left text-sm transition ${
+                            isActive
+                              ? "bg-blue-50 text-blue-700 shadow-[0_0_0_1px_rgba(37,99,235,0.12)]"
+                              : "text-slate-600 hover:bg-slate-50 hover:text-slate-900"
+                          }`}
+                        >
+                          <ItemIcon className="h-4 w-4 shrink-0" />
+                          <span className="truncate">{item.label}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </motion.nav>
+              ) : null}
+            </AnimatePresence>
+          ) : null}
         </section>
       </div>
     </aside>

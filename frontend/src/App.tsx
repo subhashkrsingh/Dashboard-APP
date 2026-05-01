@@ -51,6 +51,14 @@ export default function App() {
           <Route path="/oil-gas/*" element={<OilGasPage />} />
           <Route path="/real-estate/:symbol" element={<RealEstateCompanyPage />} />
           <Route path="/real-estate/*" element={<RealEstatePage />} />
+          <Route path="/residex" element={<ResidexPage />} />
+          <Route path="/residex/overview" element={<ResidexPage />} />
+          <Route path="/residex/cities" element={<ResidexPage />} />
+          <Route path="/residex/national" element={<ResidexPage />} />
+          <Route path="/residex/affordable" element={<ResidexPage />} />
+          <Route path="/residex/premium" element={<ResidexPage />} />
+          <Route path="/residex/map" element={<ResidexPage />} />
+          <Route path="/residex/table" element={<ResidexPage />} />
           <Route path="/residex/:city" element={<ResidexCityPage />} />
           <Route path="/residex/*" element={<ResidexPage />} />
 

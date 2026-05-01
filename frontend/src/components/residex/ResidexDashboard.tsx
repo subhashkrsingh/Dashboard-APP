@@ -1,5 +1,6 @@
-import { Suspense, lazy } from "react";
+import { Suspense, lazy, useEffect } from "react";
 import { BarChart3, Menu, RefreshCw } from "lucide-react";
+import { useLocation, useNavigate } from "react-router-dom";
 
 import { FooterBar } from "../dashboard/FooterBar";
 import { PageHeader } from "../PageHeader";
@@ -9,13 +10,14 @@ import { ResidexCards } from "./ResidexCards";
 import { ResidexCharts } from "./ResidexCharts";
 import { ResidexFilters } from "./ResidexFilters";
 import { ResidexTable } from "./ResidexTable";
+import {
+  getResidexPathFromSection,
+  getResidexSectionFromPath,
+  type ResidexSectionId
+} from "../../lib/residexConfig";
 
 const NSEMap = lazy(() =>
   import("./NSEMap").then(module => ({ default: module.NSEMap }))
-);
-
-const ResidexTimeSlider = lazy(() =>
-  import("./ResidexTimeSlider").then(module => ({ default: module.ResidexTimeSlider }))
 );
 
 const AIInsights = lazy(() =>
@@ -38,7 +40,39 @@ const TABS: Array<{ id: ResidexTab; label: string }> = [
   { id: "table", label: "Table" }
 ];
 
+const SECTION_HIGHLIGHT_CLASSES = ["ring-2", "ring-cyan-400", "ring-offset-2", "ring-offset-[#F5F7FB]"];
+const TAB_TO_SECTION: Record<ResidexTab, ResidexSectionId> = {
+  overview: "overview",
+  cities: "cities",
+  affordable: "affordable",
+  premium: "premium",
+  table: "table"
+};
+const SECTION_TO_TAB: Partial<Record<ResidexSectionId, ResidexTab>> = {
+  overview: "overview",
+  cities: "cities",
+  national: "overview",
+  affordable: "affordable",
+  premium: "premium",
+  map: "overview",
+  table: "table"
+};
+
+function pulseSectionHighlight(sectionId: string) {
+  const section = document.getElementById(sectionId);
+  if (!section) return false;
+
+  section.classList.add(...SECTION_HIGHLIGHT_CLASSES);
+  window.setTimeout(() => {
+    section.classList.remove(...SECTION_HIGHLIGHT_CLASSES);
+  }, 1600);
+
+  return true;
+}
+
 function ResidexDashboardView({ onOpenSidebar }: { onOpenSidebar: () => void }) {
+  const location = useLocation();
+  const navigate = useNavigate();
   const {
     loading,
     error,
@@ -53,14 +87,75 @@ function ResidexDashboardView({ onOpenSidebar }: { onOpenSidebar: () => void }) 
 
   function jumpToSection(tab: ResidexTab) {
     setActiveTab(tab);
+    const sectionId = TAB_TO_SECTION[tab];
+    const targetPath = getResidexPathFromSection(sectionId);
 
-    const section = document.getElementById(tab);
-    if (section) {
-      section.scrollIntoView({ behavior: "smooth", block: "start" });
-    } else if (tab === "overview") {
-      window.scrollTo({ top: 0, behavior: "smooth" });
+    if (location.pathname === targetPath) {
+      const section = document.getElementById(sectionId);
+      if (section) {
+        section.scrollIntoView({ behavior: "smooth", block: "start" });
+        pulseSectionHighlight(sectionId);
+      } else if (sectionId === "overview") {
+        window.scrollTo({ top: 0, behavior: "smooth" });
+      }
+      return;
     }
+
+    navigate(targetPath);
   }
+
+  useEffect(() => {
+    if (loading || typeof window === "undefined") {
+      return;
+    }
+
+    const params = new URLSearchParams(location.search);
+    const requestedSection = params.get("section");
+    const routeSection = getResidexSectionFromPath(location.pathname);
+    const targetSectionId = requestedSection || routeSection;
+
+    if (!targetSectionId) {
+      return;
+    }
+
+    const nextTab = SECTION_TO_TAB[targetSectionId as ResidexSectionId];
+    if (nextTab) {
+      setActiveTab(nextTab);
+    }
+
+    let attempts = 0;
+    let timeoutId: number | null = null;
+
+    const scrollToTarget = () => {
+      const section = document.getElementById(targetSectionId);
+
+      if (!section) {
+        if (attempts < 20) {
+          attempts += 1;
+          timeoutId = window.setTimeout(scrollToTarget, 120);
+        }
+        return;
+      }
+
+      section.scrollIntoView({
+        behavior: "smooth",
+        block: "start"
+      });
+      pulseSectionHighlight(targetSectionId);
+
+      if (requestedSection) {
+        navigate(location.pathname, { replace: true });
+      }
+    };
+
+    scrollToTarget();
+
+    return () => {
+      if (timeoutId) {
+        window.clearTimeout(timeoutId);
+      }
+    };
+  }, [loading, location.pathname, location.search, navigate, setActiveTab]);
 
   return (
     <div className="flex min-w-0 flex-1 flex-col">
@@ -112,19 +207,6 @@ function ResidexDashboardView({ onOpenSidebar }: { onOpenSidebar: () => void }) 
           fallback={
             <section className="glass-card rounded-2xl border border-[#E6EAF2] p-6 dark:border-slate-800 dark:bg-slate-950/80">
               <div className="animate-pulse space-y-4">
-                <div className="h-5 w-48 rounded bg-slate-200 dark:bg-slate-800" />
-                <div className="h-16 rounded-2xl bg-slate-100 dark:bg-slate-900" />
-              </div>
-            </section>
-          }
-        >
-          <ResidexTimeSlider />
-        </Suspense>
-
-        <Suspense
-          fallback={
-            <section className="glass-card rounded-2xl border border-[#E6EAF2] p-6 dark:border-slate-800 dark:bg-slate-950/80">
-              <div className="animate-pulse space-y-4">
                 <div className="h-5 w-32 rounded bg-slate-200 dark:bg-slate-800" />
               </div>
             </section>
@@ -132,8 +214,6 @@ function ResidexDashboardView({ onOpenSidebar }: { onOpenSidebar: () => void }) 
         >
           <ComparisonControls />
         </Suspense>
-
-        <ResidexFilters />
 
         <section className="glass-card rounded-2xl border border-[#E6EAF2] p-3 dark:border-slate-800 dark:bg-slate-950/80">
           <div className="flex flex-wrap items-center gap-2">
@@ -215,19 +295,6 @@ function ResidexDashboardView({ onOpenSidebar }: { onOpenSidebar: () => void }) 
                   <section className="glass-card rounded-2xl border border-[#E6EAF2] p-6 dark:border-slate-800 dark:bg-slate-950/80">
                     <div className="animate-pulse space-y-4">
                       <div className="h-5 w-48 rounded bg-slate-200 dark:bg-slate-800" />
-                      <div className="h-[560px] rounded-[28px] bg-slate-100 dark:bg-slate-900" />
-                    </div>
-                  </section>
-                }
-              >
-                <NSEMap />
-              </Suspense>
-
-              <Suspense
-                fallback={
-                  <section className="glass-card rounded-2xl border border-[#E6EAF2] p-6 dark:border-slate-800 dark:bg-slate-950/80">
-                    <div className="animate-pulse space-y-4">
-                      <div className="h-5 w-48 rounded bg-slate-200 dark:bg-slate-800" />
                       <div className="h-80 rounded-2xl bg-slate-100 dark:bg-slate-900" />
                     </div>
                   </section>
@@ -235,6 +302,21 @@ function ResidexDashboardView({ onOpenSidebar }: { onOpenSidebar: () => void }) 
               >
                 <ComparisonChart />
               </Suspense>
+
+              <section id="map">
+                <Suspense
+                  fallback={
+                    <section className="glass-card rounded-2xl border border-[#E6EAF2] p-6 dark:border-slate-800 dark:bg-slate-950/80">
+                      <div className="animate-pulse space-y-4">
+                        <div className="h-5 w-48 rounded bg-slate-200 dark:bg-slate-800" />
+                        <div className="h-[560px] rounded-[28px] bg-slate-100 dark:bg-slate-900" />
+                      </div>
+                    </section>
+                  }
+                >
+                  <NSEMap />
+                </Suspense>
+              </section>
 
               <ResidexCharts />
             </section>
